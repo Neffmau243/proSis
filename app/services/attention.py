@@ -1,0 +1,517 @@
+"""Clinical attention use cases and their transactional business rules."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable
+from datetime import date
+from decimal import Decimal
+
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.domain.age import CalendarAge, calendar_age, completed_months
+from app.domain.clinical import (
+    ClinicalProtocolValidator,
+    ConfigurableClinicalProtocol,
+    VitalSignPayload,
+)
+from app.exceptions import AuthorizationError, BusinessRuleError, ConflictError, NotFoundError
+from app.mappers.attention import attention_to_response
+from app.models.clinical import Attention
+from app.models.surveillance import NutritionalEvaluation
+from app.repositories.attention import AttentionRepository
+from app.repositories.patient import PatientRepository
+from app.schemas.attention import AttentionCancellationInput, AttentionCreate, AttentionResponse
+from app.services.age_group import AgeGroupService
+
+
+class AttentionService:
+    """Registers and cancels the clinical aggregate without HTTP dependencies."""
+
+    def __init__(
+        self,
+        session: Session,
+        clinical_protocol: ClinicalProtocolValidator | None = None,
+        today_provider: Callable[[], date] = date.today,
+    ) -> None:
+        self._session = session
+        self._attentions = AttentionRepository(session)
+        self._patients = PatientRepository(session)
+        self._age_groups = AgeGroupService(session)
+        self._clinical_protocol = clinical_protocol or ConfigurableClinicalProtocol()
+        self._today_provider = today_provider
+
+    def get(
+        self,
+        attention_id: int,
+        *,
+        actor_id: int | None = None,
+        actor_roles: Iterable[str] | None = None,
+    ) -> AttentionResponse:
+        entity = self._attentions.get_by_id(attention_id)
+        if entity is None:
+            raise NotFoundError(
+                code="ATENCION_NO_ENCONTRADA", message="No existe la atención solicitada."
+            )
+        self._ensure_attention_in_scope(
+            entity,
+            actor_id=actor_id,
+            actor_roles=actor_roles,
+        )
+        return attention_to_response(entity)
+
+    def list_by_patient(
+        self,
+        patient_id: int,
+        *,
+        actor_id: int | None = None,
+        actor_roles: Iterable[str] | None = None,
+    ) -> list[AttentionResponse]:
+        scope = self._ensure_patient_in_scope(
+            patient_id,
+            actor_id=actor_id,
+            actor_roles=actor_roles,
+        )
+        return [
+            attention_to_response(entity)
+            for entity in self._attentions.list_by_patient(
+                patient_id,
+                professional_id=scope[0] if scope is not None else None,
+                establishment_ids=scope[1] if scope is not None else None,
+            )
+        ]
+
+    def create(
+        self,
+        command: AttentionCreate,
+        *,
+        actor_id: int,
+        actor_roles: Iterable[str] = (),
+    ) -> AttentionResponse:
+        """Validate and persist the encounter, its details and audit atomically."""
+        try:
+            self._ensure_actor_can_use_professional(
+                actor_id=actor_id,
+                actor_roles=actor_roles,
+                professional_id=command.profesional_id,
+            )
+            attention_date = command.fecha_atencion.date()
+            self._validate_attention_dates(command, attention_date)
+            patient = self._patients.get_by_id(command.paciente_id, for_update=True)
+            if patient is None:
+                raise NotFoundError(
+                    code="PACIENTE_NO_ENCONTRADO", message="El paciente no existe o está inactivo."
+                )
+            # A guessed identifier must not let a clinician create an
+            # encounter outside an assigned site or existing care relation.
+            self._ensure_patient_in_scope(
+                patient.id,
+                actor_id=actor_id,
+                actor_roles=actor_roles,
+            )
+            if patient.fecha_nacimiento > attention_date:
+                raise BusinessRuleError(
+                    code="FECHA_ATENCION_ANTERIOR_NACIMIENTO",
+                    message="La fecha de atención no puede ser anterior al nacimiento.",
+                )
+
+            age = calendar_age(patient.fecha_nacimiento, attention_date)
+            age_in_months = completed_months(patient.fecha_nacimiento, attention_date)
+            if age.years < 18 and not self._patients.get_active_responsibles(patient.id):
+                raise BusinessRuleError(
+                    code="MENOR_SIN_RESPONSABLE",
+                    message="Un paciente menor de edad requiere al menos un responsable activo.",
+                )
+            age_group = self._age_groups.resolve(age_in_months)
+            self._validate_clinical_context(command, attention_date)
+            self._validate_vital_signs(command, age_in_months)
+
+            entity = Attention(
+                paciente_id=patient.id,
+                establecimiento_id=command.establecimiento_id,
+                profesional_id=command.profesional_id,
+                especialidad_codigo=command.especialidad_codigo,
+                consultorio_id=command.consultorio_id,
+                modalidad_atencion_codigo=command.modalidad_atencion_codigo.value,
+                grupo_etario_codigo=age_group.codigo,
+                fecha_atencion=command.fecha_atencion,
+                fecha_atendido=command.fecha_atendido,
+                historia_clinica_snapshot=patient.historia_clinica,
+                edad_anios=age.years,
+                peso_kg=command.peso_kg,
+                talla_cm=command.talla_cm,
+                perimetro_abdominal_cm=command.perimetro_abdominal_cm,
+                presion_sistolica=command.presion_sistolica,
+                presion_diastolica=command.presion_diastolica,
+                temperatura_c=command.temperatura_c,
+                pe=command.pe,
+                te=command.te,
+                pt=command.pt,
+                hora_inicio=command.hora_inicio,
+                hora_fin=command.hora_fin,
+                admision=command.admision,
+                observaciones=command.observaciones,
+                created_by_usuario_id=actor_id,
+            )
+            self._attentions.add(entity)
+            self._attentions.flush()
+            self._add_details(entity, command)
+            self._add_nutritional_snapshot(entity, command, age)
+            self._attentions.flush()
+            self._attentions.add_audit(
+                actor_id=actor_id,
+                action="INSERT",
+                record_id=entity.id,
+                before=None,
+                after=self._snapshot(entity),
+            )
+            self._session.commit()
+            persisted = self._attentions.get_by_id(entity.id)
+            return attention_to_response(persisted or entity)
+        except IntegrityError as exc:
+            self._session.rollback()
+            raise ConflictError(
+                code="ATENCION_EN_CONFLICTO",
+                message="No se pudo registrar la atención por una restricción de datos.",
+            ) from exc
+        except Exception:
+            self._session.rollback()
+            raise
+
+    def cancel(
+        self,
+        attention_id: int,
+        command: AttentionCancellationInput,
+        *,
+        actor_id: int,
+        actor_roles: Iterable[str] = (),
+    ) -> AttentionResponse:
+        """Applies a logical cancellation; clinical encounters are never deleted."""
+        try:
+            entity = self._attentions.get_by_id(attention_id, lock=True)
+            if entity is None:
+                raise NotFoundError(
+                    code="ATENCION_NO_ENCONTRADA", message="No existe la atención solicitada."
+                )
+            self._ensure_actor_can_use_professional(
+                actor_id=actor_id,
+                actor_roles=actor_roles,
+                professional_id=entity.profesional_id,
+            )
+            if entity.estado == "ANULADO":
+                raise ConflictError(
+                    code="ATENCION_YA_ANULADA", message="La atención ya fue anulada."
+                )
+            if entity.estado != "ATENDIDO":
+                raise BusinessRuleError(
+                    code="TRANSICION_ESTADO_NO_PERMITIDA",
+                    message="El estado actual de la atención no permite anularla.",
+                )
+            if self._attentions.has_active_documents_for_attention(entity.id):
+                raise BusinessRuleError(
+                    code="ATENCION_CON_DOCUMENTOS_VIGENTES",
+                    message=(
+                        "No se puede anular una atención que tiene documentos emitidos vigentes. "
+                        "Primero anule o cierre los documentos correspondientes."
+                    ),
+                )
+            before = self._snapshot(entity)
+            entity.estado = "ANULADO"
+            entity.observaciones = self._with_cancellation_reason(
+                entity.observaciones, command.observaciones
+            )
+            self._attentions.add_audit(
+                actor_id=actor_id,
+                action="CANCEL",
+                record_id=entity.id,
+                before=before,
+                after=self._snapshot(entity),
+            )
+            self._session.commit()
+            return attention_to_response(entity)
+        except Exception:
+            self._session.rollback()
+            raise
+
+    def _validate_clinical_context(self, command: AttentionCreate, attention_date: date) -> None:
+        if self._attentions.get_active_establishment(command.establecimiento_id) is None:
+            raise NotFoundError(
+                code="ESTABLECIMIENTO_NO_ACTIVO", message="El establecimiento no existe o está inactivo."
+            )
+        if self._attentions.get_active_professional(command.profesional_id) is None:
+            raise NotFoundError(
+                code="PROFESIONAL_NO_ACTIVO", message="El profesional no existe o está inactivo."
+            )
+        office = self._attentions.get_active_office(command.consultorio_id)
+        if office is None:
+            raise NotFoundError(
+                code="CONSULTORIO_NO_ACTIVO", message="El consultorio no existe o está inactivo."
+            )
+        if office.establecimiento_id != command.establecimiento_id:
+            raise BusinessRuleError(
+                code="CONSULTORIO_OTRA_SEDE",
+                message="El consultorio debe pertenecer al establecimiento de la atención.",
+            )
+        if self._attentions.get_active_mode(command.modalidad_atencion_codigo.value) is None:
+            raise NotFoundError(
+                code="MODALIDAD_NO_ACTIVA", message="La modalidad de atención no está activa."
+            )
+        if not self._attentions.has_valid_office_assignment(
+            office_id=office.id,
+            professional_id=command.profesional_id,
+            on_date=attention_date,
+        ):
+            raise BusinessRuleError(
+                code="PROFESIONAL_NO_ASIGNADO",
+                message="El profesional no tiene una asignación vigente en el consultorio.",
+            )
+
+        required_specialty = office.especialidad_codigo
+        selected_specialty = command.especialidad_codigo
+        if required_specialty is not None and selected_specialty != required_specialty:
+            raise BusinessRuleError(
+                code="ESPECIALIDAD_INCOMPATIBLE",
+                message="La especialidad de la atención debe coincidir con la del consultorio.",
+            )
+        if selected_specialty is not None:
+            if self._attentions.get_active_specialty(selected_specialty) is None:
+                raise NotFoundError(
+                    code="ESPECIALIDAD_NO_ACTIVA", message="La especialidad no existe o está inactiva."
+                )
+            if not self._attentions.professional_has_specialty(
+                command.profesional_id, selected_specialty
+            ):
+                raise BusinessRuleError(
+                    code="PROFESIONAL_SIN_ESPECIALIDAD",
+                    message="El profesional no tiene asignada la especialidad de la atención.",
+                )
+
+    def _ensure_actor_can_use_professional(
+        self,
+        *,
+        actor_id: int,
+        actor_roles: Iterable[str],
+        professional_id: int,
+    ) -> None:
+        """Bind every clinical action to the authenticated clinician.
+
+        Administrative accounts deliberately cannot use this internal path,
+        even if a router is accidentally widened later.  The professional ID
+        comes from persistence, never from a client-controlled request body.
+        """
+
+        normalized_roles = {role.upper() for role in actor_roles}
+        if "PROFESIONAL" not in normalized_roles:
+            raise AuthorizationError(
+                code="ROL_CLINICO_REQUERIDO",
+                message="Solo un usuario PROFESIONAL vinculado puede operar atenciones.",
+            )
+        linked_professional_id = self._attentions.get_active_professional_id_for_user(actor_id)
+        if linked_professional_id is None:
+            raise AuthorizationError(
+                code="USUARIO_PROFESIONAL_SIN_VINCULO",
+                message="El usuario clínico no está vinculado a un profesional activo.",
+            )
+        if linked_professional_id != professional_id:
+            raise AuthorizationError(
+                code="PROFESIONAL_DISTINTO_AL_USUARIO",
+                message="Solo puede registrar o anular atenciones de su propio profesional.",
+            )
+
+    def _ensure_attention_in_scope(
+        self,
+        entity: Attention,
+        *,
+        actor_id: int | None,
+        actor_roles: Iterable[str] | None,
+    ) -> None:
+        """Apply object-level access when called from an authenticated route.
+
+        ``actor_roles=None`` keeps the framework-independent service usable by
+        internal maintenance code and existing unit doubles.  Public routes
+        always pass the persisted principal and therefore cannot bypass this
+        check.
+        """
+
+        scope = self._resolve_clinical_scope(actor_id=actor_id, actor_roles=actor_roles)
+        if scope is None:
+            return
+        professional_id, establishment_ids = scope
+        if entity.profesional_id == professional_id or entity.establecimiento_id in establishment_ids:
+            return
+        raise AuthorizationError(
+            code="ATENCION_FUERA_DE_AMBITO",
+            message="La atención no pertenece a su ámbito asistencial.",
+        )
+
+    def _ensure_patient_in_scope(
+        self,
+        patient_id: int,
+        *,
+        actor_id: int | None,
+        actor_roles: Iterable[str] | None,
+    ) -> tuple[int, set[int]] | None:
+        """Return the professional/site scope used by attention-history reads."""
+
+        scope = self._resolve_clinical_scope(actor_id=actor_id, actor_roles=actor_roles)
+        if scope is None:
+            return None
+        professional_id, establishment_ids = scope
+        if not self._patients.is_patient_in_professional_scope(
+            patient_id=patient_id,
+            professional_id=professional_id,
+            establishment_ids=establishment_ids,
+        ):
+            raise AuthorizationError(
+                code="PACIENTE_FUERA_DE_AMBITO",
+                message="El paciente no pertenece a su ámbito asistencial.",
+            )
+        return scope
+
+    def _resolve_clinical_scope(
+        self,
+        *,
+        actor_id: int | None,
+        actor_roles: Iterable[str] | None,
+    ) -> tuple[int, set[int]] | None:
+        """Resolve the authenticated clinician and their active assigned sites.
+
+        ``None`` is reserved for internal framework-independent callers. All
+        public clinical routes provide actor data, so a generic ADMIN account
+        cannot reach this path without a PROFESIONAL role and database link.
+        """
+
+        if actor_roles is None:
+            return None
+        if actor_id is None:
+            raise AuthorizationError(
+                code="ACTOR_CLINICO_REQUERIDO",
+                message="Se requiere una identidad clínica autenticada.",
+            )
+        normalized_roles = {role.upper() for role in actor_roles}
+        if "PROFESIONAL" not in normalized_roles:
+            raise AuthorizationError(
+                code="ROL_CLINICO_REQUERIDO",
+                message="Solo un usuario PROFESIONAL vinculado puede operar atenciones.",
+            )
+        professional_id = self._attentions.get_active_professional_id_for_user(actor_id)
+        if professional_id is None:
+            raise AuthorizationError(
+                code="USUARIO_PROFESIONAL_SIN_VINCULO",
+                message="El usuario clínico no está vinculado a un profesional activo.",
+            )
+        establishment_ids = self._patients.get_active_establishment_ids_for_professional(
+            professional_id
+        )
+        return professional_id, establishment_ids
+
+    def _validate_attention_dates(self, command: AttentionCreate, attention_date: date) -> None:
+        today = self._today_provider()
+        if attention_date > today:
+            raise BusinessRuleError(
+                code="FECHA_ATENCION_FUTURA",
+                message="La fecha de atención no puede estar en el futuro.",
+            )
+        if command.fecha_atendido is not None and command.fecha_atendido.date() > today:
+            raise BusinessRuleError(
+                code="FECHA_ATENDIDO_FUTURA",
+                message="La fecha de atención efectiva no puede estar en el futuro.",
+            )
+
+    def _validate_vital_signs(self, command: AttentionCreate, age_in_months: int) -> None:
+        try:
+            self._clinical_protocol.validate(
+                VitalSignPayload(
+                    peso_kg=command.peso_kg,
+                    talla_cm=command.talla_cm,
+                    perimetro_abdominal_cm=command.perimetro_abdominal_cm,
+                    presion_sistolica=command.presion_sistolica,
+                    presion_diastolica=command.presion_diastolica,
+                    temperatura_c=command.temperatura_c,
+                ),
+                age_in_months=age_in_months,
+            )
+        except ValueError as exc:
+            raise BusinessRuleError(code="SIGNOS_VITALES_INVALIDOS", message=str(exc)) from exc
+
+    def _add_details(self, entity: Attention, command: AttentionCreate) -> None:
+        service_details: list[tuple[int, str, Decimal]] = []
+        for order, item in enumerate(command.prestaciones, start=1):
+            if self._attentions.get_active_service_offering(item.prestacion_codigo) is None:
+                raise NotFoundError(
+                    code="PRESTACION_NO_ACTIVA",
+                    message=f"La prestación {item.prestacion_codigo} no existe o está inactiva.",
+                )
+            service_details.append((order, item.prestacion_codigo, item.cantidad))
+        diagnosis_details: list[tuple[int, str, str | None, str | None]] = []
+        for order, item in enumerate(command.diagnosticos, start=1):
+            if self._attentions.get_active_cie10(item.cie10_codigo) is None:
+                raise NotFoundError(
+                    code="CIE10_NO_ACTIVO",
+                    message=f"El código CIE-10 {item.cie10_codigo} no existe o está inactivo.",
+                )
+            diagnosis_details.append(
+                (order, item.cie10_codigo, item.tipo_diagnostico, item.observacion)
+            )
+        self._attentions.add_details(
+            attention_id=entity.id,
+            service_details=service_details,
+            diagnosis_details=diagnosis_details,
+        )
+
+    def _add_nutritional_snapshot(
+        self, entity: Attention, command: AttentionCreate, age: CalendarAge
+    ) -> None:
+        snapshot = command.valoracion_nutricional
+        if snapshot is None:
+            return
+        # The optional nutritional diagnostics are passed only when the active
+        # protocol applies; algorithmic P/E, T/E and P/T calculation is an
+        # injectable future protocol, not a hard-coded clinical rule.
+        self._attentions.add_nutritional_evaluation(
+            NutritionalEvaluation(
+                paciente_id=entity.paciente_id,
+                atencion_id=entity.id,
+                establecimiento_id=entity.establecimiento_id,
+                tipo=snapshot.tipo,
+                fecha=entity.fecha_atencion,
+                peso_kg=entity.peso_kg,
+                talla_cm=entity.talla_cm,
+                hemoglobina=snapshot.hemoglobina,
+                fecha_hemoglobina=snapshot.fecha_hemoglobina,
+                edad_anios=age.years,
+                edad_meses=age.months,
+                edad_dias=age.days,
+                edad_gestacional_semanas=snapshot.edad_gestacional_semanas,
+                perimetro_abdominal_cm=entity.perimetro_abdominal_cm,
+                imc=snapshot.imc,
+                whz=snapshot.whz,
+                haz=snapshot.haz,
+                waz=snapshot.waz,
+                diagnostico_peso_edad=snapshot.diagnostico_peso_edad,
+                diagnostico_talla_edad=snapshot.diagnostico_talla_edad,
+                diagnostico_peso_talla=snapshot.diagnostico_peso_talla,
+                diagnostico=snapshot.diagnostico,
+            )
+        )
+
+    @staticmethod
+    def _with_cancellation_reason(existing: str | None, reason: str) -> str:
+        cancellation = f"[ANULACIÓN] {reason}"
+        return f"{existing}\n{cancellation}" if existing else cancellation
+
+    @staticmethod
+    def _snapshot(entity: Attention) -> dict[str, object]:
+        return {
+            "id": entity.id,
+            "paciente_id": entity.paciente_id,
+            "establecimiento_id": entity.establecimiento_id,
+            "profesional_id": entity.profesional_id,
+            "consultorio_id": entity.consultorio_id,
+            "modalidad_atencion_codigo": entity.modalidad_atencion_codigo,
+            "grupo_etario_codigo": entity.grupo_etario_codigo,
+            "fecha_atencion": entity.fecha_atencion.isoformat(),
+            "historia_clinica_snapshot": entity.historia_clinica_snapshot,
+            "estado": entity.estado,
+            "observaciones": entity.observaciones,
+        }

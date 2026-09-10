@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt
+      # The legacy migration files are intentionally generated and are not
+      # style-reformatted.  Keep a strict undefined/unused-name gate here;
+      # formatting can be adopted separately without obscuring runtime bugs.
+      - run: python -m ruff check app tests migrations --select F
+      - run: python -m pytest

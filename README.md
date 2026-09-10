@@ -338,4 +338,10 @@ pytest
 python -m ruff check app tests migrations --select F
 ```
 
+> **Windows con Git Bash:** MSYS convierte valores que parecen rutas en las
+> variables de entorno, por lo que `API_V1_PREFIX=/api/v1` llega a Python como
+> `C:/Program Files/Git/api/v1` y la suite no recolecta. Use PowerShell, o desde
+> Git Bash exporte `MSYS2_ENV_CONV_EXCL='API_V1_PREFIX'` antes de ejecutar
+> `pytest`.
+
 Las pruebas unitarias no requieren MySQL. Las pruebas de integración se habilitan al definir `TEST_DATABASE_URL` contra una base MySQL desechable; no se ejecutan contra la base productiva.

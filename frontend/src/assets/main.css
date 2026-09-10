@@ -1,0 +1,12 @@
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: #f5f7fa;
+}

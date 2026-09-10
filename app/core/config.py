@@ -59,104 +59,79 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    app_name: str = Field(
-        default="Sistema de Salud IPRESS API", validation_alias="APP_NAME"
-    )
-    app_version: str = Field(default="0.1.0", validation_alias="APP_VERSION")
-    environment: str = Field(default="development", validation_alias="ENVIRONMENT")
-    debug: bool = Field(default=False, validation_alias="DEBUG")
-    api_v1_prefix: str = Field(default="/api/v1", validation_alias="API_V1_PREFIX")
+    # pydantic-settings matches environment variables case-insensitively
+    # (case_sensitive=False), so APP_NAME/MYSQL_HOST/... resolve to these field
+    # names without explicit aliases.  Avoiding validation_alias keeps the
+    # field names usable as __init__ keyword arguments instead of silently
+    # dropping them.
+    app_name: str = Field(default="Sistema de Salud IPRESS API")
+    app_version: str = Field(default="0.1.0")
+    environment: str = Field(default="development")
+    debug: bool = Field(default=False)
+    api_v1_prefix: str = Field(default="/api/v1")
 
     # DATABASE_URL is useful in containers.  When it is absent, the individual
     # MYSQL_* settings below are combined into a SQLAlchemy PyMySQL URL.
-    database_url: str | None = Field(default=None, validation_alias="DATABASE_URL")
-    mysql_host: str = Field(default="localhost", validation_alias="MYSQL_HOST")
-    mysql_port: int = Field(default=3306, ge=1, le=65535, validation_alias="MYSQL_PORT")
-    mysql_user: str = Field(default="root", validation_alias="MYSQL_USER")
-    mysql_password: SecretStr = Field(
-        default=SecretStr(""), validation_alias="MYSQL_PASSWORD"
-    )
-    mysql_database: str = Field(
-        default="sistema_salud_ipress", validation_alias="MYSQL_DATABASE"
-    )
-    sqlalchemy_echo: bool = Field(default=False, validation_alias="SQLALCHEMY_ECHO")
-    db_pool_size: int = Field(default=5, ge=1, le=100, validation_alias="DB_POOL_SIZE")
-    db_max_overflow: int = Field(
-        default=10, ge=0, le=100, validation_alias="DB_MAX_OVERFLOW"
-    )
+    database_url: str | None = Field(default=None)
+    mysql_host: str = Field(default="localhost")
+    mysql_port: int = Field(default=3306, ge=1, le=65535)
+    mysql_user: str = Field(default="root")
+    mysql_password: SecretStr = Field(default=SecretStr(""))
+    mysql_database: str = Field(default="sistema_salud_ipress")
+    sqlalchemy_echo: bool = Field(default=False)
+    db_pool_size: int = Field(default=5, ge=1, le=100)
+    db_max_overflow: int = Field(default=10, ge=0, le=100)
     db_pool_recycle_seconds: int = Field(
         default=1800,
         ge=60,
         le=86_400,
-        validation_alias="DB_POOL_RECYCLE_SECONDS",
     )
 
-    secret_key: SecretStr = Field(
-        default=SecretStr(_DEVELOPMENT_SECRET_KEY), validation_alias="SECRET_KEY"
-    )
-    jwt_algorithm: str = Field(default="HS256", validation_alias="JWT_ALGORITHM")
-    jwt_issuer: str = Field(
-        default="sistema-salud-ipress", validation_alias="JWT_ISSUER"
-    )
-    jwt_audience: str = Field(
-        default="sistema-salud-ipress-api", validation_alias="JWT_AUDIENCE"
-    )
+    secret_key: SecretStr = Field(default=SecretStr(_DEVELOPMENT_SECRET_KEY))
+    jwt_algorithm: str = Field(default="HS256")
+    jwt_issuer: str = Field(default="sistema-salud-ipress")
+    jwt_audience: str = Field(default="sistema-salud-ipress-api")
     access_token_expire_minutes: int = Field(
         default=30,
         ge=1,
         le=1440,
-        validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES",
     )
-    bcrypt_rounds: int = Field(
-        default=12, ge=10, le=16, validation_alias="BCRYPT_ROUNDS"
-    )
+    bcrypt_rounds: int = Field(default=12, ge=10, le=16)
     login_rate_limit_attempts: int = Field(
         default=5,
         ge=1,
         le=100,
-        validation_alias="LOGIN_RATE_LIMIT_ATTEMPTS",
     )
     login_rate_limit_window_seconds: int = Field(
         default=900,
         ge=1,
         le=86_400,
-        validation_alias="LOGIN_RATE_LIMIT_WINDOW_SECONDS",
     )
     login_lock_base_seconds: int = Field(
         default=60,
         ge=1,
         le=86_400,
-        validation_alias="LOGIN_LOCK_BASE_SECONDS",
     )
     login_lock_max_seconds: int = Field(
         default=3600,
         ge=1,
         le=604_800,
-        validation_alias="LOGIN_LOCK_MAX_SECONDS",
     )
 
     # CORS is off unless origins are explicitly configured.  A frontend can
     # supply JSON (recommended) or a comma-separated list in its .env file.
-    cors_origins: Annotated[list[str], NoDecode] = Field(
-        default_factory=list, validation_alias="CORS_ORIGINS"
-    )
-    cors_allow_credentials: bool = Field(
-        default=True, validation_alias="CORS_ALLOW_CREDENTIALS"
-    )
+    cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    cors_allow_credentials: bool = Field(default=True)
     cors_allow_methods: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        validation_alias="CORS_ALLOW_METHODS",
     )
     cors_allow_headers: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["Authorization", "Content-Type", "X-Request-ID"],
-        validation_alias="CORS_ALLOW_HEADERS",
     )
 
-    docs_url: str | None = Field(default="/docs", validation_alias="DOCS_URL")
-    redoc_url: str | None = Field(default="/redoc", validation_alias="REDOC_URL")
-    openapi_url: str | None = Field(
-        default="/openapi.json", validation_alias="OPENAPI_URL"
-    )
+    docs_url: str | None = Field(default="/docs")
+    redoc_url: str | None = Field(default="/redoc")
+    openapi_url: str | None = Field(default="/openapi.json")
 
     @field_validator("database_url")
     @classmethod

@@ -30,7 +30,16 @@ const router = createRouter({
           path: '',
           name: 'inicio',
           component: () => import('@/views/DashboardView.vue'),
-          meta: { title: 'Inicio' },
+          // Sin `permissions`: es la ruta de destino del guard cuando falta un
+          // permiso. Todos los roles tienen PACIENTE_LEER, y declararlo aquí
+          // provocaría un redirect infinito si algún día no lo tuvieran.
+          meta: { title: 'Base de datos' },
+        },
+        {
+          path: 'laboratorio',
+          name: 'laboratorio',
+          component: () => import('@/views/LaboratorioView.vue'),
+          meta: { title: 'Referencia de laboratorio' },
         },
         {
           path: 'cuenta/cambiar-contrasena',
@@ -39,10 +48,15 @@ const router = createRouter({
           meta: { title: 'Cambiar contraseña' },
         },
         {
+          // La tabla Base de datos del dashboard reemplaza el listado clásico.
           path: 'pacientes',
-          name: 'pacientes',
-          component: () => import('@/views/PacientesListView.vue'),
-          meta: { title: 'Pacientes', permissions: ['PACIENTE_LEER'] },
+          redirect: { name: 'inicio' },
+        },
+        {
+          path: 'admision',
+          name: 'admision',
+          component: () => import('@/views/AdmisionView.vue'),
+          meta: { title: 'Admisión de paciente', permissions: ['ATENCION_CREAR'] },
         },
         {
           path: 'pacientes/nuevo',

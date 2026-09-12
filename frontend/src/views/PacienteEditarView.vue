@@ -39,6 +39,11 @@
             </el-form-item>
           </el-col>
           <el-col :span="8">
+            <el-form-item label="Historia familiar">
+              <el-input v-model="form.historia_familiar" placeholder="Código de historia familiar" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
             <el-form-item label="Apellido paterno">
               <el-input v-model="form.apellido_paterno" />
             </el-form-item>
@@ -186,6 +191,7 @@ const form = reactive({
   tipo_documento_codigo: '',
   numero_documento: '',
   historia_clinica: '',
+  historia_familiar: '',
   apellido_paterno: '',
   apellido_materno: '',
   primer_nombre: '',
@@ -227,6 +233,7 @@ function fillForm(patient: Patient): void {
   form.tipo_documento_codigo = patient.tipo_documento_codigo
   form.numero_documento = patient.numero_documento
   form.historia_clinica = patient.historia_clinica ?? ''
+  form.historia_familiar = patient.historia_familiar ?? ''
   form.apellido_paterno = patient.apellido_paterno ?? ''
   form.apellido_materno = patient.apellido_materno ?? ''
   form.primer_nombre = patient.primer_nombre ?? ''
@@ -253,6 +260,7 @@ async function submit(): Promise<void> {
       tipo_documento_codigo: form.tipo_documento_codigo,
       numero_documento: form.numero_documento,
       historia_clinica: form.historia_clinica || null,
+      historia_familiar: form.historia_familiar || null,
       fecha_nacimiento: form.fecha_nacimiento,
       fecha_inscripcion: form.fecha_inscripcion || null,
       apellido_paterno: form.apellido_paterno || null,

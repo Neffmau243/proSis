@@ -21,7 +21,7 @@
         </el-button>
         <el-button
           v-if="can('ATENCION_CREAR') && patient?.estado"
-          @click="router.push({ name: 'atencion-nueva', query: { pacienteId: String(patientId) } })"
+          @click="router.push({ name: 'atencion-nueva', query: { patientId: String(patientId) } })"
         >
           Nueva atención
         </el-button>

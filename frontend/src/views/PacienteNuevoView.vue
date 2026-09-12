@@ -1,9 +1,17 @@
 <template>
   <div>
     <div class="page-header">
-      <h2>Nuevo paciente</h2>
+      <h2>{{ titulo }}</h2>
       <el-button @click="router.back()">Volver</el-button>
     </div>
+
+    <el-alert
+      v-if="esAdmision"
+      type="info"
+      :closable="false"
+      class="form-alert"
+      title="Admisión: registre al paciente y su inscripción en el establecimiento."
+    />
 
     <el-alert
       v-if="errorMessage"
@@ -37,6 +45,11 @@
           <el-col :span="8">
             <el-form-item label="Historia clínica">
               <el-input v-model="form.historia_clinica" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="Historia familiar">
+              <el-input v-model="form.historia_familiar" placeholder="Código de historia familiar" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -258,14 +271,19 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 
 import { catalogos, type CodeCatalogItem, type EstablishmentCatalogItem, type IdCatalogItem, type RiskGroupCatalogItem, type UbigeoCatalogItem } from '@/services/catalogos'
 import { pacientes } from '@/services/pacientes'
 
+const route = useRoute()
 const router = useRouter()
+
+// La misma vista sirve al botón destacado "Admisión" y a "Nuevo paciente".
+const esAdmision = computed(() => route.name === 'admision')
+const titulo = computed(() => (esAdmision.value ? 'Admisión de paciente' : 'Nuevo paciente'))
 
 const formRef = ref<FormInstance>()
 const saving = ref(false)
@@ -300,6 +318,7 @@ const form = reactive({
   tipo_documento_codigo: '',
   numero_documento: '',
   historia_clinica: '',
+  historia_familiar: '',
   apellido_paterno: '',
   apellido_materno: '',
   primer_nombre: '',
@@ -390,6 +409,7 @@ async function submit(): Promise<void> {
       tipo_documento_codigo: form.tipo_documento_codigo,
       numero_documento: form.numero_documento,
       historia_clinica: form.historia_clinica || null,
+      historia_familiar: form.historia_familiar || null,
       fecha_nacimiento: form.fecha_nacimiento,
       fecha_inscripcion: form.fecha_inscripcion || null,
       apellido_paterno: form.apellido_paterno || null,

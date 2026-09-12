@@ -54,59 +54,86 @@ El backend define un mapa de permisos (`app/domain/authorization.py`) y lo entre
 
 ---
 
-## 3. Sidebar según rol
+## 3. Barra lateral (flujo del sistema antiguo, rediseñada)
 
-Un solo layout (`src/layouts/AppLayout.vue`) que filtra por permisos; el orden prioriza lo importante de cada rol.
-
-**ADMIN** — administración arriba, pacientes abajo:
+Un solo layout (`src/layouts/AppLayout.vue`) que filtra por permisos. La navegación va **por secciones** y el paciente activo vive en una **tarjeta contextual**, en lugar de ítems de menú deshabilitados (eso era lo que se veía "soso" y redundante).
 
 ```text
-Administración
-├─ Usuarios        → /configuracion/usuarios   (alta funcional)
-└─ Auditoría       → /configuracion/auditoria  (endpoint pendiente en backend)
-Configuración
-├─ Grupos etarios  → /configuracion/grupos-etarios  (GET/PUT funcional)
-├─ Profesionales   → /configuracion/profesionales   (placeholder)
-└─ Consultorios    → /configuracion/consultorios    (placeholder)
-Pacientes
-├─ Pacientes       → /pacientes
-└─ Nuevo paciente  → /pacientes/nuevo
-```
+🏥 IPRESS · Sistema de Salud
 
-**PROFESIONAL** — solo lo clínico:
+[ Admisión ]            (botón principal)
+[ Nuevo paciente ]      (botón secundario)
 
-```text
-Pacientes
-├─ Pacientes       → /pacientes
-└─ Nuevo paciente  → /pacientes/nuevo
-Atenciones
+┌ Paciente seleccionado ─────────────┐
+│ Ana Pérez                          │
+│ DNI 99900001 · HC 99900001         │
+│ [Modificar] [Borrar] [Quitar]      │
+└────────────────────────────────────┘
+
+Principal
+├─ Base de datos        → /            (tabla)
+└─ Ref. Laboratorio     → /laboratorio
+
+Clínico                  (solo PROFESIONAL)
 ├─ Historial de atenciones → /atenciones
 └─ Nueva atención          → /atenciones/nueva
+
+Administración            (solo ADMIN)
+├─ Usuarios              → /configuracion/usuarios
+└─ Auditoría             → /configuracion/auditoria
+
+Configuración             (solo ADMIN)
+├─ Grupos etarios        → /configuracion/grupos-etarios
+├─ Profesionales         → /configuracion/profesionales
+└─ Consultorios          → /configuracion/consultorios
+
+👤 <usuario> · <rol>
+[ Salir ]
 ```
 
-Ambos roles tienen en el header: nombre de usuario, **Cambiar contraseña** y **Salir**.
+- Seleccionar una fila en la tabla llena la tarjeta **Paciente seleccionado** con sus acciones (Modificar / Borrar / Quitar). Se eliminaron los ítems de menú duplicados ("Ver paciente" apuntaba a la misma página y Modificar/Borrar repetían las acciones de la tabla).
+- El pie muestra el usuario y su rol, con **Salir**; el header conserva **Cambiar contraseña**.
+- Si un usuario tuviera ambos roles, vería las tres secciones (los ítems se filtran por permisos reales, no por rol escrito).
 
 ---
 
 ## 4. Módulos implementados (conectados al API real)
 
-### Pacientes
+### Pacientes — tabla "Base de datos" (dashboard)
+
 | Vista | Ruta | Endpoints usados |
 | --- | --- | --- |
-| Lista con filtros y paginación | `/pacientes` | `GET /patients` (filtros: tipo_documento_codigo, numero_documento, historia_clinica, q, incluir_inactivos) |
-| Nuevo paciente (con responsables y riesgos) | `/pacientes/nuevo` | `POST /patients` |
+| **Base de datos**: tabla con las columnas del sistema antiguo (N° Historia, H. Familiar, N° DNI, apellidos, nombres, Sexo, Disi) y 5 modos de búsqueda | `/` | `GET /patients` |
+| Admisión / Nuevo paciente (con historia familiar, responsables y riesgos) | `/admision`, `/pacientes/nuevo` | `POST /patients` |
 | Ficha con pestañas Datos/Responsables/Riesgos/Atenciones | `/pacientes/:id` | `GET /patients/{id}`, `GET /atenciones?paciente_id=`, POST/PATCH responsables y riesgos |
-| Editar | `/pacientes/:id/editar` | `PATCH /patients/{id}` |
-| Dar de baja (solo ADMIN) | en la ficha | `DELETE /patients/{id}` (baja lógica) |
+| Modificar datos | `/pacientes/:id/editar` | `PATCH /patients/{id}` |
+| Borrar (baja lógica, solo ADMIN) | desde la tabla o la ficha | `DELETE /patients/{id}` |
+
+**Búsqueda dinámica** (selector segmentado; el **DNI** es la modalidad por defecto porque es la más usada):
+
+| Modalidad | Parámetro |
+| --- | --- |
+| **DNI** | `q` (coincidencia parcial mientras se escribe) |
+| H. Clínica exacta | `historia_clinica` (exacto) |
+| H. Clínica similar | `q` (parcial) |
+| Apellidos y nombres | `q` (parcial) |
+| H. Familiar | — *(pendiente: el backend aún no filtra por `historia_familiar`; opción deshabilitada)* |
+
+- La tabla **filtra mientras se escribe** (debounce 280 ms) y **lista toda la base** cuando el campo está vacío, como el sistema antiguo. Ya no hay botón "Buscar": el refresco manual es el botón ↻.
+- Con menos de 2 caracteres el backend no filtra por `q`, así que se sigue mostrando toda la base.
+- Si el filtro deja **un único paciente**, se selecciona automáticamente y queda listo para Modificar/Borrar.
+- Las modalidades parciales usan `q` porque el backend solo expone `numero_documento` **exacto** (la coincidencia parcial existe únicamente en `q`, que abarca DNI, historia clínica y nombres).
+
+La columna **Disi** reproduce el indicador de estado del sistema antiguo: `ALT` = activo, `BAJA` = inactivo (la baja es lógica). El checkbox **Incluir bajas** (solo ADMIN) los muestra en la tabla.
 
 ### Atenciones
 | Vista | Ruta | Endpoints usados |
 | --- | --- | --- |
 | Historial con filtros y paginación | `/atenciones` | `GET /atenciones/busqueda` |
-| Nueva atención (contexto + signos + prestaciones + CIE-10) | `/atenciones/nueva` | `POST /atenciones` |
+| Nueva atención / Admisión (contexto + antropometría + presión/temperatura + PE/TE/PT + valoración nutricional + prestaciones + CIE-10 + historial del paciente) | `/atenciones/nueva`, `/admision?patientId=` | `POST /atenciones`, `GET /atenciones?paciente_id=` |
 | Detalle con anulación y documentos | `/atenciones/:id` | `GET /atenciones/{id}`, `POST .../anulacion`, `POST /documentos/fua`, `POST /documentos/certificados`, `POST /documentos/referencias` |
 
-Reglas respetadas por la UI: no se envía `grupo_etario_codigo` ni edad (el backend los calcula); la anulación exige justificación ≥ 5 caracteres; una referencia nueva siempre inicia `PENDIENTE`; los consultorios se cargan según el establecimiento elegido.
+Reglas respetadas por la UI: no se envía `grupo_etario_codigo` ni edad (el backend los calcula); la anulación exige justificación ≥ 5 caracteres; una referencia nueva siempre inicia `PENDIENTE`; los consultorios se cargan según el establecimiento elegido. La **valoración nutricional** es opcional y solo se envía si el profesional registra al menos un dato; su `tipo` (ej. `INGRESO`, `CONTROL`, `ALTA`) es obligatorio en el backend cuando se envía. Admisión muestra el resultado como "Guardar atención" y el botón de escape como "Salir", igual que el sistema antiguo.
 
 ### Configuración (ADMIN)
 | Vista | Ruta | Endpoints usados |
@@ -167,7 +194,9 @@ src/
 │   ├── configuracion.ts     # grupos etarios
 │   └── usuarios.ts          # alta de usuarios
 ├── types/api.ts             # sobre de error, PageResponse, LoginResponse
-├── composables/usePagination.ts  # limit/offset/total/has_more
+├── composables/
+│   ├── usePagination.ts     # limit/offset/total/has_more
+│   └── usePacienteSeleccionado.ts  # fila activa compartida tabla ↔ sidebar
 ├── components/
 │   ├── PagePlaceholder.vue  # estado vacío para vistas pendientes
 │   └── patient/             # ResponsibleDialog.vue, RiskDialog.vue
@@ -206,3 +235,6 @@ src/
 | Render real ADMIN en `/pacientes/4` (Chrome headless + token) | ✅ 0 errores, sidebar administrativa, Editar/Dar de baja |
 | Render real PROFESIONAL en `/pacientes/4` | ✅ 0 errores, sidebar clínica, sin Dar de baja |
 | `GET /patients/4` contra backend | ✅ 200 con datos |
+| Backend | sin cambios: `pytest` 46 passed / 1 skipped, `ruff` limpio |
+
+> Nota de alcance: por ahora esta reestructuración es **solo frontend**. Los modos de búsqueda se resuelven con los parámetros que `GET /patients` ya expone (`historia_clinica`, `numero_documento`, `q`, `tipo_documento_codigo`, `incluir_inactivos`).

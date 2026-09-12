@@ -59,6 +59,26 @@ export interface AttentionSearchParams {
   offset: number
 }
 
+/**
+ * Los indicadores derivados (P/E, T/E, P/T) se envían solo cuando el
+ * profesional los registra: el backend no los calcula sin un protocolo activo.
+ * `tipo` es obligatorio en el backend cuando se envía la valoración.
+ */
+export interface NutritionalSnapshotPayload {
+  tipo: string
+  hemoglobina?: number | null
+  fecha_hemoglobina?: string | null
+  edad_gestacional_semanas?: number | null
+  imc?: number | null
+  whz?: number | null
+  haz?: number | null
+  waz?: number | null
+  diagnostico_peso_edad?: string | null
+  diagnostico_talla_edad?: string | null
+  diagnostico_peso_talla?: string | null
+  diagnostico?: string | null
+}
+
 export interface AttentionCreatePayload {
   paciente_id: number
   establecimiento_id: number
@@ -83,7 +103,7 @@ export interface AttentionCreatePayload {
   observaciones?: string | null
   prestaciones?: { prestacion_codigo: string; cantidad: string }[]
   diagnosticos?: { cie10_codigo: string; tipo_diagnostico?: string | null; observacion?: string | null }[]
-  valoracion_nutricional?: Record<string, unknown> | null
+  valoracion_nutricional?: NutritionalSnapshotPayload | null
 }
 
 export interface FuaIssuePayload {

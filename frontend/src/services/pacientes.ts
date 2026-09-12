@@ -94,6 +94,7 @@ export interface RiskUpdatePayload {
 
 export interface PatientCreatePayload {
   historia_clinica?: string | null
+  historia_familiar?: string | null
   tipo_documento_codigo: string
   numero_documento: string
   fecha_inscripcion?: string | null

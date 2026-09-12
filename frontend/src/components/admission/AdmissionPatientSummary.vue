@@ -1,49 +1,66 @@
 <template>
-  <section class="patient-context" aria-label="Paciente para admisión">
-    <div class="patient-context__header">
-      <div>
-        <h3 class="patient-context__title">{{ fullName }}</h3>
-        <p class="patient-context__subtitle">Paciente confirmado para esta admisión</p>
-      </div>
+  <section class="patient-context" aria-label="Datos del paciente para admisión">
+    <header class="patient-context__header">
+      <h3 class="patient-context__title">Datos del paciente</h3>
       <el-tag type="primary" effect="light">Admisión</el-tag>
-    </div>
+    </header>
 
     <dl class="patient-context__details">
       <div>
-        <dt>Documento</dt>
-        <dd>{{ patient.tipo_documento_codigo }} {{ patient.numero_documento }}</dd>
-      </div>
-      <div>
-        <dt>Historia clínica</dt>
-        <dd>{{ patient.historia_clinica || 'Sin historia clínica' }}</dd>
+        <dt>N.° HC</dt>
+        <dd>{{ patient.historia_clinica || '—' }}</dd>
       </div>
       <div>
         <dt>Historia familiar</dt>
         <dd>{{ patient.historia_familiar || '—' }}</dd>
       </div>
       <div>
+        <dt>Documento</dt>
+        <dd>{{ patient.tipo_documento_codigo }} {{ patient.numero_documento }}</dd>
+      </div>
+      <div>
         <dt>Nacimiento</dt>
         <dd>{{ formatDate(patient.fecha_nacimiento) }} · {{ ageLabel }}</dd>
+      </div>
+      <div>
+        <dt>A. paterno</dt>
+        <dd>{{ patient.apellido_paterno || '—' }}</dd>
+      </div>
+      <div>
+        <dt>A. materno</dt>
+        <dd>{{ patient.apellido_materno || '—' }}</dd>
+      </div>
+      <div>
+        <dt>Primer nombre</dt>
+        <dd>{{ patient.primer_nombre || '—' }}</dd>
+      </div>
+      <div>
+        <dt>Otros nombres</dt>
+        <dd>{{ patient.otros_nombres || '—' }}</dd>
       </div>
       <div>
         <dt>Sexo</dt>
         <dd>{{ sexoLabel }}</dd>
       </div>
       <div>
-        <dt>Teléfono</dt>
-        <dd>{{ patient.telefono_principal || 'No registrado' }}</dd>
+        <dt>Localidad</dt>
+        <dd>{{ patient.localidad || '—' }}</dd>
+      </div>
+      <div>
+        <dt>Dirección</dt>
+        <dd>{{ patient.direccion || '—' }}</dd>
       </div>
       <div>
         <dt>Seguro</dt>
         <dd>{{ seguroLabel }}</dd>
       </div>
       <div>
+        <dt>Teléfono</dt>
+        <dd>{{ patient.telefono_principal || '—' }}</dd>
+      </div>
+      <div>
         <dt>Grupo de riesgo</dt>
         <dd>{{ riesgoLabel }}</dd>
-      </div>
-      <div class="patient-context__wide">
-        <dt>Dirección</dt>
-        <dd>{{ direccionLabel }}</dd>
       </div>
     </dl>
   </section>
@@ -61,19 +78,6 @@ const props = defineProps<{
 
 const sexos = ref<CodeCatalogItem[]>([])
 const seguros = ref<IdCatalogItem[]>([])
-
-const fullName = computed(() => {
-  const name = [
-    props.patient.apellido_paterno,
-    props.patient.apellido_materno,
-    props.patient.primer_nombre,
-    props.patient.otros_nombres,
-  ]
-    .filter(Boolean)
-    .join(' ')
-
-  return name || props.patient.numero_documento
-})
 
 const sexoLabel = computed(
   () =>
@@ -107,11 +111,6 @@ const riesgoLabel = computed(() => {
   return activos.length > 0 ? activos.join(', ') : '—'
 })
 
-const direccionLabel = computed(() => {
-  const parts = [props.patient.direccion, props.patient.localidad].filter(Boolean)
-  return parts.length > 0 ? parts.join(' · ') : '—'
-})
-
 function formatDate(value: string | null): string {
   if (!value) return '—'
   const [year, month, day] = value.slice(0, 10).split('-')
@@ -122,14 +121,14 @@ onMounted(async () => {
   try {
     ;[sexos.value, seguros.value] = await Promise.all([catalogos.sexos(), catalogos.seguros()])
   } catch {
-    // Sin catálogos solo se muestran los códigos; no bloquea la admisión.
+    // Sin catálogos se muestran los códigos recibidos; no bloquea la admisión.
   }
 })
 </script>
 
 <style scoped>
 .patient-context {
-  padding: 16px;
+  overflow: hidden;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 12px;
   background-color: var(--el-fill-color-blank);
@@ -137,61 +136,62 @@ onMounted(async () => {
 
 .patient-context__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .patient-context__title {
   margin: 0;
-  font-size: 16px;
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+  font-weight: 700;
   line-height: 1.3;
-}
-
-.patient-context__subtitle {
-  margin: 4px 0 0;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
 }
 
 .patient-context__details {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  margin: 16px 0 0;
+  gap: 6px;
+  padding: 12px;
+  margin: 0;
 }
 
 .patient-context__details div {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
   min-width: 0;
-  padding: 10px 0;
-  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .patient-context__details dt {
   color: var(--el-text-color-secondary);
   font-size: 11px;
+  font-weight: 600;
   line-height: 1.4;
 }
 
 .patient-context__details dd {
+  min-height: 28px;
+  padding: 5px 7px;
   margin: 0;
+  overflow-wrap: anywhere;
   color: var(--el-text-color-primary);
-  font-size: 13px;
+  background-color: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: 5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
-  overflow-wrap: anywhere;
 }
 
 @media (max-width: 900px) {
-  .patient-context {
-    padding: 16px;
-  }
-
   .patient-context__details {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 20px;
+    gap: 8px 16px;
   }
 
   .patient-context__details div {

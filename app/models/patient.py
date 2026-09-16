@@ -89,6 +89,16 @@ class Patient(Base):
         ),
         nullable=True,
     )
+    profesional_registro_id: Mapped[int | None] = mapped_column(
+        mysql.BIGINT(unsigned=True),
+        ForeignKey(
+            "profesionales.id",
+            name="fk_pacientes_profesional_registro",
+            ondelete="RESTRICT",
+            onupdate="CASCADE",
+        ),
+        nullable=True,
+    )
     seguro_id: Mapped[int | None] = mapped_column(
         mysql.BIGINT(unsigned=True),
         ForeignKey(
@@ -155,6 +165,7 @@ class Patient(Base):
             "apellido_materno",
             "primer_nombre",
         ),
+        Index("idx_pacientes_profesional_registro", "profesional_registro_id"),
         MYSQL_TABLE_OPTIONS,
     )
 

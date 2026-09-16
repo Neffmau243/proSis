@@ -4,11 +4,21 @@ This command is deliberately separate from Alembic migrations: migrations
 define the production schema and its minimum reference catalogs, whereas these
 records are fictional data intended only for local development and Postman.
 It is safe to run more than once; it never deletes or overwrites user data.
+
+Besides the two original patients, the seed loads a small but realistic cohort
+(spread over both demo sites, every age group and several insurances) plus its
+clinical history: encounters registered through ``AttentionService`` and the
+FUA/certificate/referral issued through ``DocumentService``. Going through the
+services instead of raw inserts keeps every business rule -- assignment,
+age group calculation, document numbering -- exercised by the same code the
+API uses.
 """
 
 from __future__ import annotations
 
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from typing import Any, TypeVar
 
 from sqlalchemy import select
@@ -17,7 +27,9 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.security import hash_password
-from app.models.catalog import AgeGroup, Cie10, Profession, ServiceOffering, Specialty
+from app.models.catalog import AgeGroup, Cie10, Insurance, Profession, ServiceOffering, Specialty
+from app.models.clinical import Attention
+from app.models.documents import Certificate, Fua, Referral
 from app.models.organization import (
     Disa,
     Establishment,
@@ -27,8 +39,17 @@ from app.models.organization import (
     OfficeProfessional,
     Ubigeo,
 )
-from app.models.patient import Patient, PatientResponsible, RiskGroup
+from app.models.patient import Patient, PatientResponsible, PatientRisk, RiskGroup
 from app.models.security import Professional, ProfessionalSpecialty, Role, User, UserRole
+from app.schemas.attention import (
+    AttentionCreate,
+    AttentionDiagnosisInput,
+    AttentionModeCode,
+    AttentionServiceInput,
+)
+from app.schemas.document import CertificateIssueInput, FuaIssueInput, ReferralCreateInput
+from app.services.attention import AttentionService
+from app.services.document import DocumentService
 
 Entity = TypeVar("Entity")
 
@@ -39,6 +60,298 @@ DEMO_ADMIN_USERNAME = "admin"
 DEMO_ADMIN_PASSWORD = "IpressDev!Admin2026"
 DEMO_PROFESSIONAL_USERNAME = "medico.demo"
 DEMO_PROFESSIONAL_PASSWORD = "IpressDev!Medico2026"
+
+#: Fechas fijas para que la semilla siga siendo idempotente entre ejecuciones.
+DEMO_REGISTRATION_DATE = date(2024, 1, 15)
+DEMO_RISK_START = date(2024, 3, 1)
+
+DEMO_DISTRICTS: tuple[tuple[str, str], ...] = (
+    ("040102", "Cayma"),
+    ("040104", "Cerro Colorado"),
+)
+
+DEMO_RISK_GROUPS: tuple[tuple[str, str], ...] = (
+    ("RIESGO_CARDIO", "Riesgo cardiovascular"),
+    ("RIESGO_METABOLICO", "Riesgo metabólico"),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class DemoPatient:
+    """One fictional patient of the development cohort."""
+
+    document_number: str
+    clinical_history: str
+    birth_date: date
+    paternal_surname: str
+    maternal_surname: str
+    first_name: str
+    #: Código de ``sexos`` (F/M).
+    sex_code: str
+    address: str
+    phone: str
+    district_code: str
+    #: Código de ``seguros``.
+    insurance_code: str
+    #: True cuando la sede de registro es IPRESS Demo Destino (fuera del
+    #: ámbito del profesional demo, para ejercitar la regla de ámbito).
+    at_destination: bool = False
+    #: True cuando ``profesional_registro_id`` apunta al clínico demo.
+    registered_by_clinician: bool = False
+    #: (parentesco, nombre completo, teléfono) del responsable activo.
+    responsible: tuple[str, str, str] | None = None
+    risk_code: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DemoEncounter:
+    """One historical encounter, optionally with its clinical document."""
+
+    document_number: str
+    days_ago: int
+    at_time: time
+    weight_kg: Decimal
+    height_cm: Decimal
+    waist_cm: Decimal | None = None
+    systolic: int | None = None
+    diastolic: int | None = None
+    temperature_c: Decimal | None = None
+    diagnosis_code: str | None = None
+    #: ``FUA`` | ``CERTIFICADO`` | ``REFERENCIA``.
+    document: str | None = None
+
+
+DEMO_PATIENTS: tuple[DemoPatient, ...] = (
+    DemoPatient(
+        document_number="40123456",
+        clinical_history="HC-DEMO-0001",
+        birth_date=date(2019, 3, 14),
+        paternal_surname="Quispe",
+        maternal_surname="Mamani",
+        first_name="Diego Alonso",
+        sex_code="M",
+        address="Calle Los Álamos 128, Cayma",
+        phone="954112233",
+        district_code="040102",
+        insurance_code="SIS",
+        responsible=("MADRE", "Rosa Mamani Quispe", "954112234"),
+    ),
+    DemoPatient(
+        document_number="41234567",
+        clinical_history="HC-DEMO-0002",
+        birth_date=date(2021, 11, 2),
+        paternal_surname="Flores",
+        maternal_surname="Huamán",
+        first_name="Camila Valentina",
+        sex_code="F",
+        address="Av. Ejército 455, Arequipa",
+        phone="954223344",
+        district_code="040101",
+        insurance_code="SIS",
+        responsible=("MADRE", "Elena Huamán Ccahuana", "954223345"),
+    ),
+    DemoPatient(
+        document_number="42345678",
+        clinical_history="HC-DEMO-0003",
+        birth_date=date(2023, 7, 21),
+        paternal_surname="Ramos",
+        maternal_surname="Chávez",
+        first_name="Thiago Mateo",
+        sex_code="M",
+        address="Pasaje Los Sauces 15, Cerro Colorado",
+        phone="954334455",
+        district_code="040104",
+        insurance_code="SIS",
+        responsible=("MADRE", "Karina Chávez Delgado", "954334456"),
+    ),
+    DemoPatient(
+        document_number="43456789",
+        clinical_history="HC-DEMO-0004",
+        birth_date=date(2016, 1, 30),
+        paternal_surname="Sánchez",
+        maternal_surname="Loayza",
+        first_name="Luciana Fernanda",
+        sex_code="F",
+        address="Urb. Villa Hermosa Mz. B, Cayma",
+        phone="954445566",
+        district_code="040102",
+        insurance_code="ESSALUD",
+        at_destination=True,
+        responsible=("PADRE", "Hugo Sánchez Rojas", "954445567"),
+    ),
+    DemoPatient(
+        document_number="44567890",
+        clinical_history="HC-DEMO-0005",
+        birth_date=date(2010, 9, 18),
+        paternal_surname="Mendoza",
+        maternal_surname="Torres",
+        first_name="José Fernando",
+        sex_code="M",
+        address="Calle Perú 210, Arequipa",
+        phone="954556677",
+        district_code="040101",
+        insurance_code="SIS",
+        responsible=("MADRE", "Silvia Torres Valencia", "954556678"),
+        risk_code="RIESGO_METABOLICO",
+    ),
+    DemoPatient(
+        document_number="45678901",
+        clinical_history="HC-DEMO-0006",
+        birth_date=date(2012, 5, 6),
+        paternal_surname="Paredes",
+        maternal_surname="Ríos",
+        first_name="Ariana Nicole",
+        sex_code="F",
+        address="Av. Los Estados 88, Cerro Colorado",
+        phone="954667788",
+        district_code="040104",
+        insurance_code="SIS",
+        responsible=("MADRE", "Norma Ríos Salas", "954667789"),
+    ),
+    DemoPatient(
+        document_number="46789012",
+        clinical_history="HC-DEMO-0007",
+        birth_date=date(1985, 2, 11),
+        paternal_surname="Vargas",
+        maternal_surname="Ccahuana",
+        first_name="Miguel Ángel",
+        sex_code="M",
+        address="Calle Mercaderes 320, Arequipa",
+        phone="954778899",
+        district_code="040101",
+        insurance_code="PARTICULAR",
+        registered_by_clinician=True,
+    ),
+    DemoPatient(
+        document_number="47890123",
+        clinical_history="HC-DEMO-0008",
+        birth_date=date(1978, 12, 25),
+        paternal_surname="Rodríguez",
+        maternal_surname="Salazar",
+        first_name="Patricia Elena",
+        sex_code="F",
+        address="Av. Goyeneche 512, Arequipa",
+        phone="954889900",
+        district_code="040101",
+        insurance_code="ESSALUD",
+        registered_by_clinician=True,
+        risk_code="RIESGO_CARDIO",
+    ),
+    DemoPatient(
+        document_number="48901234",
+        clinical_history="HC-DEMO-0009",
+        birth_date=date(1994, 6, 8),
+        paternal_surname="Cárdenas",
+        maternal_surname="Béjar",
+        first_name="Luis Alberto",
+        sex_code="M",
+        address="Calle San Camilo 147, Arequipa",
+        phone="955001122",
+        district_code="040101",
+        insurance_code="SIS",
+    ),
+    DemoPatient(
+        document_number="49012345",
+        clinical_history="HC-DEMO-0010",
+        birth_date=date(2000, 10, 17),
+        paternal_surname="Vilca",
+        maternal_surname="Choque",
+        first_name="Marisol",
+        sex_code="F",
+        address="Asoc. Los Portales Mz. C, Cayma",
+        phone="955002233",
+        district_code="040102",
+        insurance_code="SIN_SEGURO",
+        at_destination=True,
+    ),
+    DemoPatient(
+        document_number="50123456",
+        clinical_history="HC-DEMO-0011",
+        birth_date=date(1948, 4, 3),
+        paternal_surname="Chávez",
+        maternal_surname="Delgado",
+        first_name="Gregorio",
+        sex_code="M",
+        address="Calle Rivero 205, Arequipa",
+        phone="955003344",
+        district_code="040101",
+        insurance_code="ESSALUD",
+        risk_code="RIESGO_CARDIO",
+    ),
+    DemoPatient(
+        document_number="51234567",
+        clinical_history="HC-DEMO-0012",
+        birth_date=date(1952, 8, 29),
+        paternal_surname="Salas",
+        maternal_surname="Ibáñez",
+        first_name="Elvira",
+        sex_code="F",
+        address="Urb. Los Cipreses 74, Cerro Colorado",
+        phone="955004455",
+        district_code="040104",
+        insurance_code="SIN_SEGURO",
+        at_destination=True,
+    ),
+)
+
+DEMO_ENCOUNTERS: tuple[DemoEncounter, ...] = (
+    DemoEncounter(
+        document_number="46789012",
+        days_ago=40,
+        at_time=time(9, 15),
+        weight_kg=Decimal("82.50"),
+        height_cm=Decimal("172.00"),
+        waist_cm=Decimal("96.00"),
+        systolic=128,
+        diastolic=84,
+        temperature_c=Decimal("36.7"),
+        diagnosis_code="Z00.0",
+        document="FUA",
+    ),
+    DemoEncounter(
+        document_number="46789012",
+        days_ago=12,
+        at_time=time(11, 30),
+        weight_kg=Decimal("83.10"),
+        height_cm=Decimal("172.00"),
+        waist_cm=Decimal("97.50"),
+        systolic=142,
+        diastolic=91,
+        temperature_c=Decimal("36.5"),
+        document="REFERENCIA",
+    ),
+    DemoEncounter(
+        document_number="50123456",
+        days_ago=25,
+        at_time=time(8, 45),
+        weight_kg=Decimal("71.20"),
+        height_cm=Decimal("165.00"),
+        waist_cm=Decimal("99.00"),
+        systolic=138,
+        diastolic=82,
+        temperature_c=Decimal("36.4"),
+        diagnosis_code="Z00.0",
+        document="CERTIFICADO",
+    ),
+    DemoEncounter(
+        document_number="44567890",
+        days_ago=5,
+        at_time=time(10, 5),
+        weight_kg=Decimal("58.40"),
+        height_cm=Decimal("168.00"),
+        waist_cm=Decimal("78.00"),
+        temperature_c=Decimal("36.8"),
+    ),
+    DemoEncounter(
+        document_number="40123456",
+        days_ago=3,
+        at_time=time(16, 20),
+        weight_kg=Decimal("21.40"),
+        height_cm=Decimal("118.00"),
+        temperature_c=Decimal("36.9"),
+        diagnosis_code="Z00.0",
+    ),
+)
 
 
 def _get_or_create(
@@ -93,6 +406,231 @@ def _ensure_demo_professional_user(session: Session, professional: Professional)
             "no se puede reutilizar como cuenta demo."
         )
     return user
+
+
+def _seed_demo_patients(
+    session: Session,
+    *,
+    origin: Establishment,
+    destination: Establishment,
+    districts: dict[str, str],
+    insurances: dict[str, Insurance],
+    risk_groups: dict[str, RiskGroup],
+    professional: Professional,
+) -> dict[str, Patient]:
+    """Create the fictional cohort and return it keyed by document number."""
+
+    patients: dict[str, Patient] = {}
+    for demo in DEMO_PATIENTS:
+        patient = session.scalar(
+            select(Patient).where(
+                Patient.tipo_documento_codigo == "DNI",
+                Patient.numero_documento == demo.document_number,
+            )
+        )
+        if patient is None:
+            establishment = destination if demo.at_destination else origin
+            patient = Patient(
+                tipo_documento_codigo="DNI",
+                numero_documento=demo.document_number,
+                historia_clinica=demo.clinical_history,
+                fecha_inscripcion=DEMO_REGISTRATION_DATE,
+                fecha_nacimiento=demo.birth_date,
+                apellido_paterno=demo.paternal_surname,
+                apellido_materno=demo.maternal_surname,
+                primer_nombre=demo.first_name,
+                sexo_codigo=demo.sex_code,
+                ubigeo_residencia_codigo=districts[demo.district_code],
+                localidad=districts[demo.district_code],
+                direccion=demo.address,
+                telefono_principal=demo.phone,
+                seguro_id=insurances[demo.insurance_code].id,
+                establecimiento_registro_id=establishment.id,
+                profesional_registro_id=(professional.id if demo.registered_by_clinician else None),
+            )
+            session.add(patient)
+            session.flush()
+        patients[demo.document_number] = patient
+
+        if demo.responsible is not None:
+            relationship, full_name, phone = demo.responsible
+            _get_or_create(
+                session,
+                PatientResponsible,
+                {"paciente_id": patient.id, "nombre_completo": full_name},
+                {
+                    "parentesco": relationship,
+                    "telefono": phone,
+                    "es_principal": True,
+                },
+            )
+        if demo.risk_code is not None:
+            _get_or_create(
+                session,
+                PatientRisk,
+                {
+                    "paciente_id": patient.id,
+                    "grupo_riesgo_id": risk_groups[demo.risk_code].id,
+                    "fecha_inicio": DEMO_RISK_START,
+                },
+                {"observacion": "Antecedente ficticio cargado por seed_demo_data."},
+            )
+    return patients
+
+
+def _issue_demo_document(
+    session: Session,
+    documents: DocumentService,
+    *,
+    encounter: DemoEncounter,
+    attention_id: int,
+    destination: Establishment,
+    actor_id: int,
+) -> int | None:
+    """Issue the encounter document once, returning its id when it exists."""
+
+    kind = encounter.document
+    if kind is None:
+        return None
+    roles = ("PROFESIONAL",)
+    if kind == "FUA":
+        existing = session.scalar(select(Fua).where(Fua.atencion_id == attention_id))
+        if existing is not None:
+            return existing.id
+        issued = documents.issue_fua(
+            FuaIssueInput(
+                atencion_id=attention_id,
+                codigo_ciudad="AREQUIPA",
+                codigo_eess="DEMO-0001",
+                observaciones="FUA ficticio cargado por seed_demo_data.",
+            ),
+            actor_id=actor_id,
+            actor_roles=roles,
+        )
+        return issued.id
+    if kind == "CERTIFICADO":
+        existing = session.scalar(
+            select(Certificate).where(Certificate.atencion_id == attention_id)
+        )
+        if existing is not None:
+            return existing.id
+        issued = documents.issue_certificate(
+            CertificateIssueInput(
+                atencion_id=attention_id,
+                tipo="CERTIFICADO_MEDICO",
+                prestaciones=["CONSULTA_MED"],
+            ),
+            actor_id=actor_id,
+            actor_roles=roles,
+        )
+        return issued.id
+    if kind == "REFERENCIA":
+        existing = session.scalar(
+            select(Referral).where(
+                Referral.atencion_id == attention_id,
+                Referral.establecimiento_destino_id == destination.id,
+            )
+        )
+        if existing is not None:
+            return existing.id
+        issued = documents.create_referral(
+            ReferralCreateInput(
+                atencion_id=attention_id,
+                tipo="ESPECIALIDAD",
+                establecimiento_destino_id=destination.id,
+                motivo=(
+                    "Paciente con cifras de presión arterial elevadas en controles "
+                    "sucesivos; se solicita evaluación por especialidad."
+                ),
+                observaciones="Referencia ficticia cargada por seed_demo_data.",
+            ),
+            actor_id=actor_id,
+            actor_roles=roles,
+        )
+        return issued.id
+    raise RuntimeError(f"Tipo de documento demo no soportado: {kind}")
+
+
+def _seed_demo_encounters(
+    session: Session,
+    *,
+    origin: Establishment,
+    destination: Establishment,
+    office: Office,
+    professional: Professional,
+    actor_id: int,
+    patients: dict[str, Patient],
+) -> dict[str, int]:
+    """Register the historical encounters and their documents through the services."""
+
+    attentions = AttentionService(session)
+    documents = DocumentService(session)
+    identifiers: dict[str, int] = {}
+    for order, encounter in enumerate(DEMO_ENCOUNTERS, start=1):
+        patient = patients[encounter.document_number]
+        taken_on = datetime.combine(
+            date.today() - timedelta(days=encounter.days_ago),
+            encounter.at_time,
+        )
+        existing = session.scalar(
+            select(Attention).where(
+                Attention.paciente_id == patient.id,
+                Attention.profesional_id == professional.id,
+                Attention.fecha_atencion == taken_on,
+            )
+        )
+        if existing is None:
+            created = attentions.create(
+                AttentionCreate(
+                    paciente_id=patient.id,
+                    establecimiento_id=origin.id,
+                    profesional_id=professional.id,
+                    especialidad_codigo="MED_GEN",
+                    consultorio_id=office.id,
+                    modalidad_atencion_codigo=AttentionModeCode.AMBULATORY,
+                    fecha_atencion=taken_on,
+                    fecha_atendido=taken_on + timedelta(minutes=30),
+                    peso_kg=encounter.weight_kg,
+                    talla_cm=encounter.height_cm,
+                    perimetro_abdominal_cm=encounter.waist_cm,
+                    presion_sistolica=encounter.systolic,
+                    presion_diastolica=encounter.diastolic,
+                    temperatura_c=encounter.temperature_c,
+                    hora_inicio=encounter.at_time,
+                    hora_fin=(taken_on + timedelta(minutes=30)).time(),
+                    admision=f"DEMO-ADM-{order:04d}",
+                    observaciones="Atención ficticia cargada por seed_demo_data.",
+                    prestaciones=[AttentionServiceInput(prestacion_codigo="CONSULTA_MED")],
+                    diagnosticos=(
+                        [
+                            AttentionDiagnosisInput(
+                                cie10_codigo=encounter.diagnosis_code,
+                                tipo_diagnostico="PRESUNTIVO",
+                            )
+                        ]
+                        if encounter.diagnosis_code is not None
+                        else []
+                    ),
+                ),
+                actor_id=actor_id,
+                actor_roles=("PROFESIONAL",),
+            )
+            attention_id = created.id
+        else:
+            attention_id = existing.id
+
+        identifiers[f"attention_{order}"] = attention_id
+        document_id = _issue_demo_document(
+            session,
+            documents,
+            encounter=encounter,
+            attention_id=attention_id,
+            destination=destination,
+            actor_id=actor_id,
+        )
+        if document_id is not None:
+            identifiers[f"{encounter.document.lower()}_{order}"] = document_id
+    return identifiers
 
 
 def seed_demo_data() -> dict[str, int]:
@@ -156,6 +694,22 @@ def seed_demo_data() -> dict[str, int]:
             {"codigo": "RIESGO_DEMO"},
             {"nombre": "Riesgo de demostración", "descripcion": "Registro ficticio para pruebas locales."},
         )
+        risk_groups = {
+            risk.codigo: risk,
+            **{
+                code: _get_or_create(
+                    session,
+                    RiskGroup,
+                    {"codigo": code},
+                    {"nombre": name, "descripcion": "Registro ficticio para pruebas locales."},
+                )
+                for code, name in DEMO_RISK_GROUPS
+            },
+        }
+        insurances = {
+            insurance.codigo: insurance
+            for insurance in session.scalars(select(Insurance)).all()
+        }
 
         disa = _get_or_create(
             session, Disa, {"codigo": "DEMO_DISA"}, {"nombre": "DIRESA Demostración"}
@@ -178,6 +732,21 @@ def seed_demo_data() -> dict[str, int]:
             {"codigo": "040101"},
             {"departamento": "Arequipa", "provincia": "Arequipa", "distrito": "Arequipa", "localidad": "Demo"},
         )
+        districts = {"040101": ubigeo.codigo}
+        for code, name in DEMO_DISTRICTS:
+            district = _get_or_create(
+                session,
+                Ubigeo,
+                {"codigo": code},
+                {
+                    "departamento": "Arequipa",
+                    "provincia": "Arequipa",
+                    "distrito": name,
+                    "localidad": "Demo",
+                },
+            )
+            districts[code] = district.codigo
+
         origin = _get_or_create(
             session,
             Establishment,
@@ -280,7 +849,27 @@ def seed_demo_data() -> dict[str, int]:
             {"parentesco": "MADRE", "telefono": "988777666", "es_principal": True},
         )
 
+        cohort = _seed_demo_patients(
+            session,
+            origin=origin,
+            destination=destination,
+            districts=districts,
+            insurances=insurances,
+            risk_groups=risk_groups,
+            professional=professional,
+        )
         session.commit()
+
+        identifiers = _seed_demo_encounters(
+            session,
+            origin=origin,
+            destination=destination,
+            office=office,
+            professional=professional,
+            actor_id=demo_professional_user.id,
+            patients=cohort,
+        )
+
         return {
             "establishment_id": origin.id,
             "destination_establishment_id": destination.id,
@@ -291,6 +880,8 @@ def seed_demo_data() -> dict[str, int]:
             "risk_group_id": risk.id,
             "adult_patient_id": adult.id,
             "minor_patient_id": minor.id,
+            "demo_patient_count": len(cohort),
+            **identifiers,
         }
     except Exception:
         session.rollback()

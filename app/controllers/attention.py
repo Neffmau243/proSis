@@ -10,7 +10,13 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import AuthenticatedPrincipal, require_permissions
 from app.domain.authorization import Permissions
-from app.schemas.attention import AttentionCancellationInput, AttentionCreate, AttentionResponse
+from app.schemas.attention import (
+    AttentionCancellationInput,
+    AttentionCreate,
+    AttentionResponse,
+    NutritionalIndicatorsPreviewInput,
+    NutritionalIndicatorsResponse,
+)
 from app.services.attention import AttentionService
 
 router = APIRouter(prefix="/atenciones", tags=["Atenciones"])
@@ -34,6 +40,22 @@ def create_attention(
     db: DatabaseSession,
 ) -> AttentionResponse:
     return AttentionService(db).create(
+        payload,
+        actor_id=principal.user_id,
+        actor_roles=principal.roles,
+    )
+
+
+@router.post(
+    "/indicadores-nutricionales/vista-previa",
+    response_model=NutritionalIndicatorsResponse,
+)
+def preview_nutritional_indicators(
+    payload: NutritionalIndicatorsPreviewInput,
+    principal: AttentionCreator,
+    db: DatabaseSession,
+) -> NutritionalIndicatorsResponse:
+    return AttentionService(db).preview_nutritional_indicators(
         payload,
         actor_id=principal.user_id,
         actor_roles=principal.roles,

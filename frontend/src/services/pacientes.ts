@@ -115,9 +115,9 @@ export interface PatientCreatePayload {
   riesgos?: RiskCreatePayload[]
 }
 
-export type PatientUpdatePayload = Omit<
-  PatientCreatePayload,
-  'responsables' | 'riesgos'
+/** Payload parcial del PATCH; el backend conserva los campos no enviados. */
+export type PatientUpdatePayload = Partial<
+  Omit<PatientCreatePayload, 'responsables' | 'riesgos'>
 >
 
 export interface PatientDeactivationResponse {

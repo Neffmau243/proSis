@@ -80,7 +80,7 @@
     </el-aside>
 
     <el-container>
-      <el-header class="topbar">
+      <el-header class="topbar" height="52px">
         <div class="topbar__title">{{ currentTitle }}</div>
         <el-dropdown @command="handleCommand">
           <span class="topbar__user">
@@ -511,5 +511,6 @@ function handleCommand(command: string): void {
 
 .app-layout__main {
   background-color: #f5f7fa;
+  padding: 12px 14px;
 }
 </style>

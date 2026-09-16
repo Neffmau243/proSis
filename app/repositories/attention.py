@@ -28,6 +28,8 @@ class AttentionRepository:
             .options(
                 selectinload(Attention.prestaciones),
                 selectinload(Attention.diagnosticos),
+                selectinload(Attention.paciente),
+                selectinload(Attention.consultorio),
             )
             .where(Attention.id == attention_id)
         )
@@ -44,7 +46,12 @@ class AttentionRepository:
     ) -> list[Attention]:
         statement = (
             select(Attention)
-            .options(selectinload(Attention.prestaciones), selectinload(Attention.diagnosticos))
+            .options(
+                selectinload(Attention.prestaciones),
+                selectinload(Attention.diagnosticos),
+                selectinload(Attention.paciente),
+                selectinload(Attention.consultorio),
+            )
             .where(Attention.paciente_id == patient_id)
             .order_by(Attention.fecha_atencion.desc())
         )

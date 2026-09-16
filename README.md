@@ -1,9 +1,38 @@
-# Sistema de Salud IPRESS — Backend
+# Sistema de Salud IPRESS
 
-Backend REST para el esquema `sistema_salud_ipress`, construido con **Python 3.12**, **FastAPI**, **SQLAlchemy 2** y **MySQL 8**. La estructura conserva la separación conceptual de Spring Boot, sin trasladar mecánicamente sus convenciones a Python.
+Backend REST para el esquema `sistema_salud_ipress`, construido con **Python 3.12**, **FastAPI**, **SQLAlchemy 2** y **MySQL 8**. La estructura conserva la separación conceptual de Spring Boot, sin trasladar mecánicamente sus convenciones a Python. El repositorio también incluye la SPA de operación en [`frontend/`](frontend/).
 
-La guía de navegación propuesta, pantallas, ventanas, permisos y endpoints
-para el equipo frontend está en [GUIA_FRONTEND_RUTAS.md](GUIA_FRONTEND_RUTAS.md).
+Documentación relacionada:
+
+- [frontend/README.md](frontend/README.md) — la aplicación Vue 3: módulos implementados, barra lateral, estructura y verificación.
+- [GUIA_FRONTEND_RUTAS.md](GUIA_FRONTEND_RUTAS.md) — contrato HTTP por pantalla, permisos, catálogos y vacíos del API.
+
+## Arranque rápido (desarrollo)
+
+Requisitos: Python 3.12 con `requirements.txt` instalado, MySQL local y Node
+>= 22.18. Detalle completo en [Puesta en marcha local](#puesta-en-marcha-local).
+
+```bash
+# terminal 1 — backend, desde la raíz del repo
+python -m app.scripts.bootstrap_database     # crea la BD y aplica migraciones
+python -m app.scripts.seed_demo_data         # datos ficticios (idempotente)
+uvicorn app.main:app --reload
+
+# terminal 2 — frontend
+cd frontend && npm install && npm run dev
+```
+
+Abrir <http://localhost:5173> e ingresar con una cuenta demo. La API queda en
+<http://127.0.0.1:8000/api/v1> y su documentación en
+<http://127.0.0.1:8000/docs>.
+
+| Usuario | Contraseña | Rol |
+| --- | --- | --- |
+| `admin` | `IpressDev!Admin2026` | ADMIN |
+| `medico.demo` | `IpressDev!Medico2026` | PROFESIONAL |
+
+Las credenciales son exclusivamente para la base local desechable; nunca se
+reutilizan fuera de desarrollo.
 
 ## Arquitectura
 
@@ -37,11 +66,11 @@ La API usa directamente la MySQL configurada en .env: localhost:3306, base
 sistema_salud_ipress, en modo development. Para este flujo no existe una base
 alterna ni se usa TEST_DATABASE_URL.
 
-La base está en la revisión Alembic 20260910_0006_clinical_integrity, igual al
-head local. Se verificó una correspondencia 1:1 entre las 39 tablas del ORM y
-las 39 tablas funcionales en MySQL; alembic_version es la única tabla técnica
+La base está en la revisión Alembic 20260912_0009_patient_prof, igual al head
+local. Se verificó una correspondencia 1:1 entre las 39 tablas del ORM y las 39
+tablas funcionales en MySQL; alembic_version es la única tabla técnica
 adicional. No faltan tablas, columnas, índices, claves foráneas ni
-restricciones clínicas.
+restricciones clínicas, y `alembic check` no reporta operaciones pendientes.
 
 | Dominio | Tablas MySQL |
 | --- | --- |
@@ -63,6 +92,10 @@ La FK compuesta de certificados obliga a que el profesional firmante sea el
 mismo de la atención. documento_series controla la numeración por tipo,
 establecimiento y período.
 
+`pacientes.profesional_registro_id` apunta al profesional que registró al
+paciente o cambió su sede: alimenta el ámbito asistencial descrito en RB-02 y
+no se expone como campo editable del PATCH.
+
 ## Estructura
 
 ```text
@@ -70,20 +103,24 @@ app/
 ├── api/                 # ensamblaje de routers
 ├── controllers/         # borde HTTP/FastAPI
 ├── core/                # settings, DB, seguridad y dependencias
-├── domain/              # políticas de negocio puras
+├── domain/              # políticas de negocio puras (autorización, edad, nutrición)
 ├── exceptions/          # excepciones y handlers globales
 ├── mappers/             # ORM -> DTO, sin serializar entidades directamente
 ├── models/              # mapeo SQLAlchemy completo del esquema MySQL
 ├── repositories/        # acceso a datos, sin reglas de negocio
 ├── schemas/             # contratos Pydantic de entrada/salida
+├── scripts/             # bootstrap, admin inicial, semillas y reinicio local
 ├── services/            # casos de uso y transacciones
 └── main.py
+migrations/
+└── versions/            # revisiones Alembic (fuente ejecutable del esquema)
 tests/
 ├── unit/
 └── integration/
+frontend/                # SPA Vue 3 + TypeScript (ver frontend/README.md)
 ```
 
-## Operaciones HTTP (54)
+## Operaciones HTTP (55)
 
 | Dominio | Operaciones | Éxito |
 | --- | --- | --- |
@@ -95,7 +132,7 @@ tests/
 | Grupos etarios | GET y PUT /configuracion/grupos-etarios | 200 |
 | Profesionales | GET y POST /configuracion/profesionales; GET, PATCH y DELETE /{id}; PUT /{id}/especialidades | 200/201 |
 | Consultorios | GET y POST /configuracion/consultorios; GET, PATCH y DELETE /{id}; asignaciones GET, POST y PATCH de cierre | 200/201 |
-| Atenciones | GET de lista, búsqueda e individual; POST de registro y anulación | 200/201 |
+| Atenciones | GET de lista, búsqueda e individual; POST de registro, vista previa de indicadores nutricionales y anulación | 200/201 |
 | Documentos | POST /documentos/fua, /certificados y /referencias | 201 |
 
 Los contratos de entrada y salida viven en app/schemas. Toda respuesta de error
@@ -138,6 +175,15 @@ usa el sobre definido por los handlers globales e incluye X-Request-ID.
 
    Al terminar muestra los IDs creados o verificados. La colección Postman los
    descubre automáticamente, por lo que no hace falta copiarlos a un environment.
+   La semilla carga dos sedes (Central y Destino), dos profesionales, la cuenta
+   `medico.demo`, 14 pacientes ficticios con DNI, distritos y seguros variados,
+   responsables para cada menor, antecedentes de riesgo, 5 atenciones históricas
+   con signos vitales, indicadores nutricionales calculados por el servidor y un
+   FUA, un certificado y una referencia; todas las atenciones y documentos se
+   crean a través de `AttentionService` y `DocumentService`, así que respetan
+   las mismas reglas que la API. Los pacientes de IPRESS Demo Destino quedan a
+   propósito fuera de las asignaciones de `medico.demo` para poder comprobar el
+   ámbito asistencial (requiere `alembic upgrade head` al día).
 
 6. Ejecute la API:
 
@@ -166,6 +212,17 @@ alembic check
 No edite revisiones que ya hayan sido aplicadas. Los datos semilla y las reglas
 de negocio requieren migraciones o servicios deliberados, no autogeneración.
 
+Convenciones que debe respetar cada revisión:
+
+- El id de revisión debe tener **32 caracteres o menos**: `alembic_version.version_num`
+  es `VARCHAR(32)` y un id más largo falla recién al sellar la versión, después
+  de que MySQL ya aplicó el DDL.
+- MySQL no hace DDL transaccional. Igual que 0007, 0008 y 0009, consulte
+  `sa.inspect(op.get_bind())` antes de cada `add_column`, `create_index` o
+  `create_foreign_key` para que reintentar sea seguro.
+- `tests/unit/test_migration_contract.py` valida el head y el total de tablas
+  del ORM: actualícelo en la misma migración que los cambia.
+
 ### Reinicio local completo
 
 Para una instalación local que puede descartarse, detenga primero Uvicorn y
@@ -187,7 +244,7 @@ en una base con información real.
 
 Para una corrida completa sobre la MySQL ya configurada use solamente
 [`postman/IPRESS_API_flujo_feliz.postman_collection.json`](postman/IPRESS_API_flujo_feliz.postman_collection.json).
-Cubre las 54 operaciones publicadas, genera y captura los IDs/tokens propios y
+Cubre 54 de las 55 operaciones publicadas, genera y captura los IDs/tokens propios y
 fuerza sus variables de colección para que un Environment de Postman activo no
 pueda reemplazar URL, credenciales ni IDs. Antes de correrla, edite
 `adminUsername` y `adminPassword` dentro de la colección si su cuenta ADMIN
@@ -215,7 +272,8 @@ El sistema opera con dos roles separados por responsabilidad:
   ni emitir FUA, certificados o referencias clínicas.
 - `PROFESIONAL` (rol del médico o profesional de salud): debe estar vinculado
   a un profesional activo. Puede buscar y trabajar pacientes dentro de sus
-  establecimientos asignados o de su relación asistencial; registra, consulta
+  establecimientos asignados, de su relación asistencial o de los que él mismo
+  registró o trasladó; registra, consulta
   y anula solo sus propias atenciones, y emite documentos únicamente para
   ellas. No puede dar de baja pacientes ni administrar usuarios/configuración.
 
@@ -234,11 +292,15 @@ con justificación. El historial se consulta con `GET /atenciones/busqueda` o
 `GET /atenciones?paciente_id=...`, limitado al ámbito asistencial del
 profesional.
 
-Los indicadores nutricionales derivados todavía requieren un protocolo clínico
-versionado y aprobado por la IPRESS. Aunque el modelo conserva el histórico de
-peso, talla y perímetro por atención, no debe considerarse implementada una
-clasificación automática de IMC, gestación o perímetro abdominal hasta retirar
-los campos derivados ingresables y conectar las reglas oficiales aprobadas.
+Los indicadores nutricionales derivados los calcula el servidor
+(`app/domain/nutrition.py`) y el cliente nunca los envía: el IMC sale de peso y
+talla, y P/E, T/E y P/T son los puntajes Z OMS 2006 (WAZ/HAZ/WHZ) para menores
+de 60 meses con sexo registrado. Son indicadores, no diagnósticos: la
+clasificación clínica y las etiquetas del snapshot (`evaluaciones_nutricionales`)
+siguen siendo responsabilidad del profesional. El formulario obtiene el mismo
+cálculo, sin persistir, con `POST /atenciones/indicadores-nutricionales/vista-previa`.
+El perímetro abdominal y la valoración gestacional no tienen referencia
+automática conectada.
 
 Los rangos etarios se conservan internamente en meses completos para la
 precisión clínica, pero el API devuelve además `edad_minima`, `edad_maxima` y
@@ -281,9 +343,17 @@ Los rangos clínicos y las políticas de numeración son configurables o puertos
 - Un menor requiere al menos un responsable activo y solo puede tener un
   responsable principal activo. Los parentescos admitidos son madre, padre y
   tutor.
-- Un PROFESIONAL solo puede leer o editar pacientes de su ámbito asistencial o
-  con relación clínica propia. Los períodos del mismo grupo de riesgo no pueden
-  superponerse.
+- Un PROFESIONAL solo puede leer o editar pacientes de su ámbito asistencial:
+  una sede con asignación vigente, una atención no anulada propia o un
+  `pacientes.profesional_registro_id` a su favor. Los períodos del mismo grupo
+  de riesgo no pueden superponerse.
+- Registrar un paciente o cambiar su establecimiento de registro solo exige que
+  el establecimiento exista y esté activo (`establecimiento_registro_id`); no se
+  exige una asignación vigente del profesional en esa sede. El servicio guarda
+  entonces al profesional autenticado como autor del registro
+  (`pacientes.profesional_registro_id`), para que no pierda el acceso al
+  paciente que acaba de registrar o trasladar. Un ADMIN o un llamador interno
+  no modifican ese vínculo.
 
 ### RB-03: grupos etarios
 
@@ -307,9 +377,9 @@ Los rangos clínicos y las políticas de numeración son configurables o puertos
 
 - La atención valida paciente, sede, profesional, consultorio, modalidad,
   especialidad, grupo etario, asignación y signos vitales antes de confirmar.
-- Peso, talla, perímetro y edad son una foto histórica de la atención; las
-  clasificaciones nutricionales derivadas requieren un protocolo clínico
-  versionado y aprobado.
+- Peso, talla, perímetro y edad son una foto histórica de la atención; el
+  cliente no puede imponer IMC, P/E, T/E ni P/T, que el servidor calcula con la
+  referencia OMS 2006 y trata como indicadores y no como diagnóstico.
 - Las atenciones no se eliminan físicamente. La anulación exige justificación,
   auditoría y se bloquea si existen documentos vigentes.
 
@@ -317,8 +387,8 @@ Los rangos clínicos y las políticas de numeración son configurables o puertos
 
 - Solo el propietario profesional de una atención atendida puede emitir FUA,
   certificado o referencia.
-- FUA es único por atención. Las series de FUA y certificados se reservan
-  dentro de la misma transacción.
+- FUA es único por atención. Las series de FUA, certificados y referencias se
+  reservan dentro de la misma transacción.
 - Un certificado debe estar firmado por el profesional de su atención; una
   referencia debe tener origen, destino, tipo, motivo y estado válidos.
 
@@ -344,4 +414,9 @@ python -m ruff check app tests migrations --select F
 > Git Bash exporte `MSYS2_ENV_CONV_EXCL='API_V1_PREFIX'` antes de ejecutar
 > `pytest`.
 
-Las pruebas unitarias no requieren MySQL. Las pruebas de integración se habilitan al definir `TEST_DATABASE_URL` contra una base MySQL desechable; no se ejecutan contra la base productiva.
+Las pruebas unitarias no requieren MySQL (54 pruebas al día de hoy). Las pruebas de integración se habilitan al definir `TEST_DATABASE_URL` contra una base MySQL desechable; no se ejecutan contra la base productiva.
+
+`tests/unit/test_migration_contract.py` es la red de seguridad del esquema:
+falla si el head de Alembic o el número de tablas del ORM dejan de coincidir con
+lo esperado. Actualícelo dentro de la misma migración que cambie cualquiera de
+los dos.

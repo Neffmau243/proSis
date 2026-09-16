@@ -151,10 +151,12 @@ class PatientRepository:
         """Check a professional's minimum necessary access to one patient.
 
         Access is granted when the patient is registered in one of the
-        professional's active assigned establishments or when the professional
-        has a non-cancelled care encounter with that patient.  This lets a
-        clinician start care at an assigned site while preventing global
-        patient browsing by identifier.
+        professional's active assigned establishments, when the professional
+        has a non-cancelled care encounter with that patient, or when the
+        professional is the author of its registration/last transfer.  This
+        lets a clinician start care at an assigned site -- and keep following a
+        patient they registered or moved -- while preventing global patient
+        browsing by identifier.
         """
 
         care_relationship = (
@@ -166,7 +168,10 @@ class PatientRepository:
             )
             .exists()
         )
-        scope_conditions = [care_relationship]
+        scope_conditions = [
+            care_relationship,
+            Patient.profesional_registro_id == professional_id,
+        ]
         if establishment_ids:
             scope_conditions.append(Patient.establecimiento_registro_id.in_(establishment_ids))
         statement = select(Patient.id).where(

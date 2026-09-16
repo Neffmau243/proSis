@@ -15,13 +15,20 @@ from app.domain.clinical import (
     ConfigurableClinicalProtocol,
     VitalSignPayload,
 )
+from app.domain.nutrition import NutritionalIndicators, calculate_nutritional_indicators
 from app.exceptions import AuthorizationError, BusinessRuleError, ConflictError, NotFoundError
 from app.mappers.attention import attention_to_response
 from app.models.clinical import Attention
 from app.models.surveillance import NutritionalEvaluation
 from app.repositories.attention import AttentionRepository
 from app.repositories.patient import PatientRepository
-from app.schemas.attention import AttentionCancellationInput, AttentionCreate, AttentionResponse
+from app.schemas.attention import (
+    AttentionCancellationInput,
+    AttentionCreate,
+    AttentionResponse,
+    NutritionalIndicatorsPreviewInput,
+    NutritionalIndicatorsResponse,
+)
 from app.services.age_group import AgeGroupService
 
 
@@ -125,6 +132,13 @@ class AttentionService:
             age_group = self._age_groups.resolve(age_in_months)
             self._validate_clinical_context(command, attention_date)
             self._validate_vital_signs(command, age_in_months)
+            indicators = calculate_nutritional_indicators(
+                birth_date=patient.fecha_nacimiento,
+                sex_code=patient.sexo_codigo,
+                measured_on=attention_date,
+                weight_kg=command.peso_kg,
+                height_cm=command.talla_cm,
+            )
 
             entity = Attention(
                 paciente_id=patient.id,
@@ -144,9 +158,11 @@ class AttentionService:
                 presion_sistolica=command.presion_sistolica,
                 presion_diastolica=command.presion_diastolica,
                 temperatura_c=command.temperatura_c,
-                pe=command.pe,
-                te=command.te,
-                pt=command.pt,
+                imc=indicators.imc,
+                pe=self._format_indicator(indicators.pe),
+                te=self._format_indicator(indicators.te),
+                pt=self._format_indicator(indicators.pt),
+                referencia_nutricional=indicators.referencia,
                 hora_inicio=command.hora_inicio,
                 hora_fin=command.hora_fin,
                 admision=command.admision,
@@ -156,7 +172,7 @@ class AttentionService:
             self._attentions.add(entity)
             self._attentions.flush()
             self._add_details(entity, command)
-            self._add_nutritional_snapshot(entity, command, age)
+            self._add_nutritional_snapshot(entity, command, age, indicators)
             self._attentions.flush()
             self._attentions.add_audit(
                 actor_id=actor_id,
@@ -177,6 +193,53 @@ class AttentionService:
         except Exception:
             self._session.rollback()
             raise
+
+    def preview_nutritional_indicators(
+        self,
+        command: NutritionalIndicatorsPreviewInput,
+        *,
+        actor_id: int,
+        actor_roles: Iterable[str] = (),
+    ) -> NutritionalIndicatorsResponse:
+        """Return a non-persisted server calculation for the admission form.
+
+        The same function is called again by :meth:`create`, so the preview is
+        helpful to the user but never becomes a client-controlled source of
+        truth.
+        """
+
+        self._ensure_patient_in_scope(
+            command.paciente_id,
+            actor_id=actor_id,
+            actor_roles=actor_roles,
+        )
+        patient = self._patients.get_by_id(command.paciente_id)
+        if patient is None:
+            raise NotFoundError(
+                code="PACIENTE_NO_ENCONTRADO", message="El paciente no existe o está inactivo."
+            )
+        measured_on = command.fecha_atencion.date()
+        if patient.fecha_nacimiento > measured_on:
+            raise BusinessRuleError(
+                code="FECHA_ATENCION_ANTERIOR_NACIMIENTO",
+                message="La fecha de atención no puede ser anterior al nacimiento.",
+            )
+        indicators = calculate_nutritional_indicators(
+            birth_date=patient.fecha_nacimiento,
+            sex_code=patient.sexo_codigo,
+            measured_on=measured_on,
+            weight_kg=command.peso_kg,
+            height_cm=command.talla_cm,
+        )
+        return NutritionalIndicatorsResponse(
+            imc=indicators.imc,
+            pe=indicators.pe,
+            te=indicators.te,
+            pt=indicators.pt,
+            estado=indicators.estado,
+            mensaje=indicators.mensaje,
+            referencia=indicators.referencia,
+        )
 
     def cancel(
         self,
@@ -460,14 +523,15 @@ class AttentionService:
         )
 
     def _add_nutritional_snapshot(
-        self, entity: Attention, command: AttentionCreate, age: CalendarAge
+        self,
+        entity: Attention,
+        command: AttentionCreate,
+        age: CalendarAge,
+        indicators: NutritionalIndicators,
     ) -> None:
         snapshot = command.valoracion_nutricional
         if snapshot is None:
             return
-        # The optional nutritional diagnostics are passed only when the active
-        # protocol applies; algorithmic P/E, T/E and P/T calculation is an
-        # injectable future protocol, not a hard-coded clinical rule.
         self._attentions.add_nutritional_evaluation(
             NutritionalEvaluation(
                 paciente_id=entity.paciente_id,
@@ -484,16 +548,20 @@ class AttentionService:
                 edad_dias=age.days,
                 edad_gestacional_semanas=snapshot.edad_gestacional_semanas,
                 perimetro_abdominal_cm=entity.perimetro_abdominal_cm,
-                imc=snapshot.imc,
-                whz=snapshot.whz,
-                haz=snapshot.haz,
-                waz=snapshot.waz,
+                imc=indicators.imc,
+                whz=indicators.pt,
+                haz=indicators.te,
+                waz=indicators.pe,
                 diagnostico_peso_edad=snapshot.diagnostico_peso_edad,
                 diagnostico_talla_edad=snapshot.diagnostico_talla_edad,
                 diagnostico_peso_talla=snapshot.diagnostico_peso_talla,
                 diagnostico=snapshot.diagnostico,
             )
         )
+
+    @staticmethod
+    def _format_indicator(value: Decimal | None) -> str | None:
+        return f"{value:.3f}" if value is not None else None
 
     @staticmethod
     def _with_cancellation_reason(existing: str | None, reason: str) -> str:
@@ -512,6 +580,11 @@ class AttentionService:
             "grupo_etario_codigo": entity.grupo_etario_codigo,
             "fecha_atencion": entity.fecha_atencion.isoformat(),
             "historia_clinica_snapshot": entity.historia_clinica_snapshot,
+            "imc": str(entity.imc) if entity.imc is not None else None,
+            "pe": entity.pe,
+            "te": entity.te,
+            "pt": entity.pt,
+            "referencia_nutricional": entity.referencia_nutricional,
             "estado": entity.estado,
             "observaciones": entity.observaciones,
         }

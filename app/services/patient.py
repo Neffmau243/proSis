@@ -142,8 +142,7 @@ class PatientService:
         """Registers an adult or minor patient as one atomic operation."""
 
         def operation() -> PatientResponse:
-            self._ensure_new_patient_in_scope(
-                command.establecimiento_registro_id,
+            professional_id = self._registration_professional_id(
                 actor_id=actor_id,
                 actor_roles=actor_roles,
             )
@@ -169,7 +168,11 @@ class PatientService:
             )
             self._validate_new_risks(command.riesgos)
 
-            patient = self._repository.create_patient(patient_create_to_entity_kwargs(command))
+            values = patient_create_to_entity_kwargs(command)
+            # El autor clínico del registro conserva el acceso al paciente
+            # aunque la sede elegida no esté entre sus asignaciones vigentes.
+            values["profesional_registro_id"] = professional_id
+            patient = self._repository.create_patient(values)
             self._repository.flush()
 
             for responsible_command in command.responsables:
@@ -253,8 +256,9 @@ class PatientService:
 
             self._validate_changed_patient_catalogs(values)
             if "establecimiento_registro_id" in values:
-                self._ensure_new_patient_in_scope(
-                    values["establecimiento_registro_id"],
+                # Trasladar la inscripción no debe dejar al autor del traslado
+                # sin acceso al paciente que acaba de mover de sede.
+                values["profesional_registro_id"] = self._registration_professional_id(
                     actor_id=actor_id,
                     actor_roles=actor_roles,
                 )
@@ -590,27 +594,20 @@ class PatientService:
                 message="El paciente no pertenece a su ámbito asistencial.",
             )
 
-    def _ensure_new_patient_in_scope(
+    def _registration_professional_id(
         self,
-        establishment_id: int | None,
         *,
         actor_id: int | None,
         actor_roles: Iterable[str] | None,
-    ) -> None:
-        """Keep professional registrations inside an actively assigned site."""
+    ) -> int | None:
+        """Resolver el clínico que firma el registro o el traslado.
+
+        Los administradores y los llamadores internos (``actor_roles`` nulo)
+        mantienen el vínculo previo, igual que conservan el acceso global.
+        """
 
         scope = self._resolve_professional_scope(actor_id=actor_id, actor_roles=actor_roles)
-        if scope is None:
-            return
-        _, establishment_ids = scope
-        if establishment_id is None or establishment_id not in establishment_ids:
-            raise AuthorizationError(
-                code="ESTABLECIMIENTO_FUERA_DE_AMBITO",
-                message=(
-                    "Un profesional solo puede registrar o trasladar pacientes a un "
-                    "establecimiento con asignación vigente."
-                ),
-            )
+        return None if scope is None else scope[0]
 
     def _resolve_professional_scope(
         self,

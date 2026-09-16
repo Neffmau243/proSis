@@ -47,6 +47,10 @@ class InMemoryPatientRepository:
         self._next_patient_id = 1
         self._next_responsible_id = 1
         self.now = datetime(2026, 9, 9, 12, 0, 0)
+        # Ámbito asistencial del profesional autenticado; solo lo consulta la
+        # regla de lectura/edición de pacientes, no el registro ni el traslado.
+        self.professional_establishment_ids: set[int] = set()
+        self.patients_in_scope: set[int] = set()
 
     def get_by_id(
         self,
@@ -101,6 +105,22 @@ class InMemoryPatientRepository:
     @staticmethod
     def get_active_risk_group(risk_group_id: int) -> object:
         return object()
+
+    @staticmethod
+    def get_active_professional_id_for_user(user_id: int) -> int:
+        return 7
+
+    def get_active_establishment_ids_for_professional(self, professional_id: int) -> set[int]:
+        return set(self.professional_establishment_ids)
+
+    def is_patient_in_professional_scope(
+        self,
+        *,
+        patient_id: int,
+        professional_id: int,
+        establishment_ids: set[int],
+    ) -> bool:
+        return patient_id in self.patients_in_scope
 
     def create_patient(self, values: dict[str, Any]) -> SimpleNamespace:
         patient = SimpleNamespace(
@@ -370,6 +390,80 @@ def test_update_checks_document_uniqueness_without_mutating_patient(
 
     assert repository.patients[created.id].numero_documento == "12345678"
     assert session.rollbacks == 1
+
+
+def test_professional_registers_patient_in_site_without_assignment(
+    environment: PatientTestEnvironment,
+) -> None:
+    """La sede de registro solo debe existir y estar activa, no estar asignada."""
+
+    service, repository, _session, _audit = environment
+    repository.professional_establishment_ids = {1}
+
+    result = service.create(
+        adult_command(establecimiento_registro_id=99),
+        actor_id=41,
+        actor_roles={"PROFESIONAL"},
+    )
+
+    assert result.establecimiento_registro_id == 99
+    assert repository.patients[result.id].profesional_registro_id == 7
+
+
+def test_administrator_and_internal_callers_keep_the_registration_author_empty(
+    environment: PatientTestEnvironment,
+) -> None:
+    """ADMIN no necesita vínculo clínico: mantiene su acceso global."""
+
+    service, repository, _session, _audit = environment
+
+    administrator = service.create(adult_command(), actor_id=1, actor_roles={"ADMIN"})
+    internal = service.create(adult_command(numero_documento="99999998"), actor_id=1)
+
+    assert repository.patients[administrator.id].profesional_registro_id is None
+    assert repository.patients[internal.id].profesional_registro_id is None
+
+
+def test_professional_transfers_patient_to_site_without_assignment(
+    environment: PatientTestEnvironment,
+) -> None:
+    """Un traslado ya no exige asignación vigente en la sede destino."""
+
+    service, repository, session, _audit = environment
+    created = service.create(adult_command(establecimiento_registro_id=1), actor_id=41)
+    repository.patients_in_scope = {created.id}
+    repository.professional_establishment_ids = {1}
+
+    result = service.update(
+        created.id,
+        PatientUpdate(establecimiento_registro_id=99),
+        actor_id=41,
+        actor_roles={"PROFESIONAL"},
+    )
+
+    assert result.establecimiento_registro_id == 99
+    assert repository.patients[created.id].profesional_registro_id == 7
+    assert session.commits == 2
+
+
+def test_field_update_without_transfer_leaves_the_registration_link_untouched(
+    environment: PatientTestEnvironment,
+) -> None:
+    """Solo el registro y el traslado cambian el autor del vínculo."""
+
+    service, repository, _session, _audit = environment
+    created = service.create(adult_command(establecimiento_registro_id=1), actor_id=41)
+    repository.patients_in_scope = {created.id}
+    repository.professional_establishment_ids = {1}
+
+    service.update(
+        created.id,
+        PatientUpdate(direccion="Av. Siempre Viva 742"),
+        actor_id=41,
+        actor_roles={"PROFESIONAL"},
+    )
+
+    assert repository.patients[created.id].profesional_registro_id is None
 
 
 def test_deactivate_marks_state_and_creates_audit_without_physical_delete(

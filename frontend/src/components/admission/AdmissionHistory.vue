@@ -4,7 +4,6 @@ import type { Attention } from '@/services/atenciones'
 defineProps<{
   entries: Attention[]
   loading: boolean
-  consultorioLabel: (id: number) => string
 }>()
 
 const emit = defineEmits<{
@@ -33,45 +32,52 @@ function formatDate(value: string | null): string {
     <div class="admission-history__table-wrap">
       <el-table
         :data="entries"
+        :height="124"
+        table-layout="fixed"
         v-loading="loading"
         size="small"
         class="admission-history__table"
         empty-text="Sin atenciones registradas"
       >
-        <el-table-column label="HC" min-width="108">
+        <el-table-column label="N.° historia" width="108">
           <template #default="{ row }">{{ row.historia_clinica_snapshot || '—' }}</template>
         </el-table-column>
-        <el-table-column label="Fecha" min-width="96">
+        <el-table-column label="Fecha atención" width="82">
           <template #default="{ row }">{{ formatDate(row.fecha_atencion) }}</template>
         </el-table-column>
-        <el-table-column label="Edad" width="56" align="center">
-          <template #default="{ row }">{{ row.edad_anios ?? '—' }}</template>
+        <el-table-column label="Edad del paciente" width="118">
+          <template #default="{ row }">
+            {{ row.edad_detallada ?? (row.edad_anios !== null ? `${row.edad_anios} años` : '—') }}
+          </template>
         </el-table-column>
-        <el-table-column label="Peso" width="62" align="center">
+        <el-table-column label="Peso" width="46" align="center">
           <template #default="{ row }">{{ row.peso_kg ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="Talla" width="62" align="center">
+        <el-table-column label="Talla" width="46" align="center">
           <template #default="{ row }">{{ row.talla_cm ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="DIA" width="56" align="center">
+        <el-table-column label="Diast." width="50" align="center">
           <template #default="{ row }">{{ row.presion_diastolica ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="SIS" width="56" align="center">
+        <el-table-column label="Sist." width="47" align="center">
           <template #default="{ row }">{{ row.presion_sistolica ?? '—' }}</template>
         </el-table-column>
-        <el-table-column label="P/E" width="54" align="center">
+        <el-table-column label="IMC" width="50" align="center">
+          <template #default="{ row }">{{ row.imc ?? '—' }}</template>
+        </el-table-column>
+        <el-table-column label="P/E" width="42" align="center">
           <template #default="{ row }">{{ row.pe || '—' }}</template>
         </el-table-column>
-        <el-table-column label="T/E" width="54" align="center">
+        <el-table-column label="T/E" width="42" align="center">
           <template #default="{ row }">{{ row.te || '—' }}</template>
         </el-table-column>
-        <el-table-column label="P/T" width="54" align="center">
+        <el-table-column label="P/T" width="42" align="center">
           <template #default="{ row }">{{ row.pt || '—' }}</template>
         </el-table-column>
-        <el-table-column label="Consultorio" min-width="150">
-          <template #default="{ row }">{{ consultorioLabel(row.consultorio_id) }}</template>
+        <el-table-column label="Consultorio" min-width="124">
+          <template #default="{ row }">{{ row.consultorio_nombre || '—' }}</template>
         </el-table-column>
-        <el-table-column label="Estado" width="104" align="center">
+        <el-table-column label="Estado" width="82" align="center">
           <template #default="{ row }">
             <el-tag :type="row.estado === 'ANULADO' ? 'danger' : 'success'" size="small">
               {{ row.estado }}
@@ -91,38 +97,39 @@ function formatDate(value: string | null): string {
 }
 
 .admission-history :deep(.el-card__body) {
-  padding: 16px;
+  padding: 10px 12px;
 }
 
 .admission-history__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .admission-history__title {
   margin: 0;
   color: var(--el-text-color-primary);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.35;
 }
 
 .admission-history__description {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
   color: var(--el-text-color-secondary);
   font-size: 12px;
   line-height: 1.4;
 }
 
 .admission-history__table-wrap {
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .admission-history__table {
-  min-width: 900px;
+  width: 100%;
+  min-width: 0;
 }
 
 .admission-history__table :deep(.el-table__header-wrapper th.el-table__cell) {
@@ -130,6 +137,7 @@ function formatDate(value: string | null): string {
   background-color: var(--el-color-primary-light-9);
   font-size: 11px;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .admission-history__table :deep(.el-table__cell) {
@@ -138,12 +146,14 @@ function formatDate(value: string | null): string {
 }
 
 .admission-history__table :deep(.el-table__cell .cell) {
-  line-height: 1.35;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 @media (max-width: 680px) {
   .admission-history :deep(.el-card__body) {
-    padding: 16px;
+    padding: 12px;
   }
 
   .admission-history__header {

@@ -21,21 +21,25 @@ export interface Attention {
   profesional_id: number
   especialidad_codigo: string | null
   consultorio_id: number
+  consultorio_nombre: string | null
   modalidad_atencion_codigo: string
   grupo_etario_codigo: string
   fecha_atencion: string
   fecha_atendido: string | null
   historia_clinica_snapshot: string | null
   edad_anios: number | null
+  edad_detallada: string | null
   peso_kg: string | null
   talla_cm: string | null
   perimetro_abdominal_cm: string | null
   presion_sistolica: number | null
   presion_diastolica: number | null
   temperatura_c: string | null
+  imc: string | null
   pe: string | null
   te: string | null
   pt: string | null
+  referencia_nutricional: string | null
   hora_inicio: string | null
   hora_fin: string | null
   admision: string | null
@@ -59,24 +63,10 @@ export interface AttentionSearchParams {
   offset: number
 }
 
-/**
- * Los indicadores derivados (P/E, T/E, P/T) se envían solo cuando el
- * profesional los registra: el backend no los calcula sin un protocolo activo.
- * `tipo` es obligatorio en el backend cuando se envía la valoración.
- */
 export interface NutritionalSnapshotPayload {
-  tipo: string
-  hemoglobina?: number | null
-  fecha_hemoglobina?: string | null
-  edad_gestacional_semanas?: number | null
-  imc?: number | null
-  whz?: number | null
-  haz?: number | null
-  waz?: number | null
   diagnostico_peso_edad?: string | null
   diagnostico_talla_edad?: string | null
   diagnostico_peso_talla?: string | null
-  diagnostico?: string | null
 }
 
 export interface AttentionCreatePayload {
@@ -94,16 +84,34 @@ export interface AttentionCreatePayload {
   presion_sistolica?: number | null
   presion_diastolica?: number | null
   temperatura_c?: number | null
-  pe?: string | null
-  te?: string | null
-  pt?: string | null
   hora_inicio?: string | null
   hora_fin?: string | null
   admision?: string | null
   observaciones?: string | null
   prestaciones?: { prestacion_codigo: string; cantidad: string }[]
-  diagnosticos?: { cie10_codigo: string; tipo_diagnostico?: string | null; observacion?: string | null }[]
+  diagnosticos?: {
+    cie10_codigo: string
+    tipo_diagnostico?: string | null
+    observacion?: string | null
+  }[]
   valoracion_nutricional?: NutritionalSnapshotPayload | null
+}
+
+export interface NutritionalIndicatorsPreviewPayload {
+  paciente_id: number
+  fecha_atencion: string
+  peso_kg?: number | null
+  talla_cm?: number | null
+}
+
+export interface NutritionalIndicatorsPreview {
+  imc: string | null
+  pe: string | null
+  te: string | null
+  pt: string | null
+  estado: string
+  mensaje: string
+  referencia: string | null
 }
 
 export interface FuaIssuePayload {
@@ -190,10 +198,16 @@ export const atenciones = {
     const { data } = await http.post<Attention>('/atenciones', payload)
     return data
   },
-  async cancel(
-    id: number,
-    payload: { observaciones: string },
-  ): Promise<Attention> {
+  async previewNutritionalIndicators(
+    payload: NutritionalIndicatorsPreviewPayload,
+  ): Promise<NutritionalIndicatorsPreview> {
+    const { data } = await http.post<NutritionalIndicatorsPreview>(
+      '/atenciones/indicadores-nutricionales/vista-previa',
+      payload,
+    )
+    return data
+  },
+  async cancel(id: number, payload: { observaciones: string }): Promise<Attention> {
     const { data } = await http.post<Attention>(`/atenciones/${id}/anulacion`, payload)
     return data
   },
@@ -202,10 +216,7 @@ export const atenciones = {
     return data
   },
   async emitirCertificado(payload: CertificateIssuePayload): Promise<CertificateResponse> {
-    const { data } = await http.post<CertificateResponse>(
-      '/documentos/certificados',
-      payload,
-    )
+    const { data } = await http.post<CertificateResponse>('/documentos/certificados', payload)
     return data
   },
   async crearReferencia(payload: ReferralCreatePayload): Promise<ReferralResponse> {

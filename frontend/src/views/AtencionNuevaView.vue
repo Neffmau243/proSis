@@ -22,7 +22,11 @@
         :class="{ 'admission-workbench--standalone': !isAdmission }"
       >
         <aside v-if="isAdmission && admissionPatient" class="admission-workbench__patient">
-          <AdmissionPatientSummary :patient="admissionPatient" />
+          <AdmissionPatientSummary
+            :patient="admissionPatient"
+            :saving="patientContextSaving"
+            @update="updateAdmissionPatient"
+          />
         </aside>
 
         <div class="admission-workbench__content">
@@ -39,129 +43,214 @@
                 class="clinical-section clinical-section--context"
                 aria-labelledby="encounter-context-title"
               >
+                <div class="attention-mode-control">
+                  <el-form-item label="Modalidad de atención" prop="modalidad_atencion_codigo">
+                    <div
+                      class="attention-mode-selector"
+                      role="group"
+                      aria-label="Modalidad de atención"
+                    >
+                      <el-checkbox
+                        :model-value="form.modalidad_atencion_codigo === 'AMBULATORIA'"
+                        @change="selectAttentionMode('AMBULATORIA')"
+                      >
+                        Ambulatoria
+                      </el-checkbox>
+                      <el-checkbox
+                        :model-value="form.modalidad_atencion_codigo === 'EMERGENCIA'"
+                        @change="selectAttentionMode('EMERGENCIA')"
+                      >
+                        Emergencia
+                      </el-checkbox>
+                    </div>
+                  </el-form-item>
+                </div>
                 <div class="clinical-section__heading">
                   <div>
                     <h3 id="encounter-context-title" class="clinical-section__title">
                       Atención y consultorio
                     </h3>
                     <p class="clinical-section__description">
-                      Defina dónde, cuándo y con quién se registra la atención.
+                      {{
+                        isAdmission
+                          ? 'Seleccione consultorio, especialidad y profesional para la atención.'
+                          : 'Defina dónde, cuándo y con quién se registra la atención.'
+                      }}
                     </p>
                   </div>
                 </div>
                 <el-row :gutter="16">
-                  <el-col v-if="!isAdmission" :span="8">
-                    <el-form-item label="Paciente" prop="paciente_id">
-                      <el-select
-                        v-model="form.paciente_id"
-                        filterable
-                        remote
-                        :remote-method="searchPacientes"
-                        :loading="pacientesLoading"
-                        style="width: 100%"
-                        placeholder="Busque por documento o nombre"
-                        :disabled="lockPatientSelection"
+                  <template v-if="isAdmission">
+                    <el-col :span="24">
+                      <el-form-item
+                        class="admission-context-field"
+                        label="Consultorio"
+                        prop="consultorio_id"
                       >
-                        <el-option
-                          v-for="paciente in pacientesOptions"
-                          :key="paciente.id"
-                          :label="`${paciente.id} — ${paciente.tipo_documento_codigo} ${paciente.numero_documento}${paciente.primer_nombre ? ' · ' + paciente.primer_nombre : ''}`"
-                          :value="paciente.id"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="Establecimiento" prop="establecimiento_id">
-                      <el-select
-                        v-model="form.establecimiento_id"
-                        filterable
-                        remote
-                        :remote-method="searchEstablecimientos"
-                        :loading="establecimientosLoading"
-                        style="width: 100%"
-                        placeholder="Busque"
+                        <el-select
+                          v-model="form.consultorio_id"
+                          filterable
+                          :loading="consultoriosLoading"
+                          style="width: 100%"
+                          placeholder="Seleccione el consultorio"
+                        >
+                          <el-option
+                            v-for="office in consultorios"
+                            :key="office.id"
+                            :label="office.nombre"
+                            :value="office.id"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                      <el-form-item class="admission-context-field" label="Especialidad">
+                        <el-select v-model="form.especialidad_codigo" clearable style="width: 100%">
+                          <el-option
+                            v-for="esp in especialidades"
+                            :key="esp.codigo"
+                            :label="esp.nombre"
+                            :value="esp.codigo"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                      <el-form-item
+                        class="admission-context-field"
+                        label="Profesional"
+                        prop="profesional_id"
                       >
-                        <el-option
-                          v-for="est in establecimientos"
-                          :key="est.id"
-                          :label="est.nombre"
-                          :value="est.id"
+                        <el-select
+                          v-model="form.profesional_id"
+                          filterable
+                          remote
+                          :remote-method="searchProfesionales"
+                          :loading="profesionalesLoading"
+                          style="width: 100%"
+                          placeholder="Seleccione el profesional"
+                        >
+                          <el-option
+                            v-for="prof in profesionales"
+                            :key="prof.id"
+                            :label="prof.nombre_completo"
+                            :value="prof.id"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                  </template>
+
+                  <template v-else>
+                    <el-col :span="8">
+                      <el-form-item label="Paciente" prop="paciente_id">
+                        <el-select
+                          v-model="form.paciente_id"
+                          filterable
+                          remote
+                          :remote-method="searchPacientes"
+                          :loading="pacientesLoading"
+                          style="width: 100%"
+                          placeholder="Busque por documento o nombre"
+                          :disabled="lockPatientSelection"
+                        >
+                          <el-option
+                            v-for="paciente in pacientesOptions"
+                            :key="paciente.id"
+                            :label="`${paciente.id} — ${paciente.tipo_documento_codigo} ${paciente.numero_documento}${paciente.primer_nombre ? ' · ' + paciente.primer_nombre : ''}`"
+                            :value="paciente.id"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="Establecimiento" prop="establecimiento_id">
+                        <el-select
+                          v-model="form.establecimiento_id"
+                          filterable
+                          remote
+                          :remote-method="searchEstablecimientos"
+                          :loading="establecimientosLoading"
+                          style="width: 100%"
+                          placeholder="Busque"
+                        >
+                          <el-option
+                            v-for="est in establecimientos"
+                            :key="est.id"
+                            :label="est.nombre"
+                            :value="est.id"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="Consultorio" prop="consultorio_id">
+                        <el-select
+                          v-model="form.consultorio_id"
+                          filterable
+                          :loading="consultoriosLoading"
+                          style="width: 100%"
+                          placeholder="Según establecimiento"
+                        >
+                          <el-option
+                            v-for="office in consultorios"
+                            :key="office.id"
+                            :label="office.nombre"
+                            :value="office.id"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="Profesional" prop="profesional_id">
+                        <el-select
+                          v-model="form.profesional_id"
+                          filterable
+                          remote
+                          :remote-method="searchProfesionales"
+                          :loading="profesionalesLoading"
+                          style="width: 100%"
+                          placeholder="Busque"
+                        >
+                          <el-option
+                            v-for="prof in profesionales"
+                            :key="prof.id"
+                            :label="prof.nombre_completo"
+                            :value="prof.id"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="Especialidad">
+                        <el-select v-model="form.especialidad_codigo" clearable style="width: 100%">
+                          <el-option
+                            v-for="esp in especialidades"
+                            :key="esp.codigo"
+                            :label="esp.nombre"
+                            :value="esp.codigo"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-form-item label="Fecha de atención" prop="fecha_atencion">
+                        <el-date-picker
+                          v-model="form.fecha_atencion"
+                          type="datetime"
+                          value-format="YYYY-MM-DDTHH:mm:ss"
+                          style="width: 100%"
                         />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="Consultorio" prop="consultorio_id">
-                      <el-select
-                        v-model="form.consultorio_id"
-                        filterable
-                        :loading="consultoriosLoading"
-                        style="width: 100%"
-                        placeholder="Según establecimiento"
-                      >
-                        <el-option
-                          v-for="office in consultorios"
-                          :key="office.id"
-                          :label="office.nombre"
-                          :value="office.id"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="Profesional" prop="profesional_id">
-                      <el-select
-                        v-model="form.profesional_id"
-                        filterable
-                        remote
-                        :remote-method="searchProfesionales"
-                        :loading="profesionalesLoading"
-                        style="width: 100%"
-                        placeholder="Busque"
-                      >
-                        <el-option
-                          v-for="prof in profesionales"
-                          :key="prof.id"
-                          :label="prof.nombre_completo"
-                          :value="prof.id"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="Especialidad">
-                      <el-select v-model="form.especialidad_codigo" clearable style="width: 100%">
-                        <el-option
-                          v-for="esp in especialidades"
-                          :key="esp.codigo"
-                          :label="esp.nombre"
-                          :value="esp.codigo"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="Tipo de atención" prop="modalidad_atencion_codigo">
-                      <el-radio-group v-model="form.modalidad_atencion_codigo">
-                        <el-radio value="AMBULATORIA">Ambulatoria</el-radio>
-                        <el-radio value="EMERGENCIA">Emergencia</el-radio>
-                      </el-radio-group>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="Fecha de atención" prop="fecha_atencion">
-                      <el-date-picker
-                        v-model="form.fecha_atencion"
-                        type="datetime"
-                        value-format="YYYY-MM-DDTHH:mm:ss"
-                        style="width: 100%"
-                      />
-                    </el-form-item>
-                  </el-col>
+                      </el-form-item>
+                    </el-col>
+                  </template>
                 </el-row>
 
-                <el-collapse v-model="expandedContextDetails" class="clinical-details">
+                <el-collapse
+                  v-if="!isAdmission"
+                  v-model="expandedContextDetails"
+                  class="clinical-details"
+                >
                   <el-collapse-item name="context-details">
                     <template #title>
                       <span class="clinical-details__title"
@@ -217,6 +306,30 @@
                 class="clinical-section clinical-section--measurements"
                 aria-labelledby="measurements-title"
               >
+                <div class="clinical-population-selector">
+                  <el-form-item label="Grupo de atención">
+                    <div class="care-group-selector" role="group" aria-label="Grupo de atención">
+                      <el-checkbox
+                        :model-value="selectedCareGroup === 'NINOS_ADOLESCENTES_ADULTOS_MAYORES'"
+                        @change="selectCareGroup('NINOS_ADOLESCENTES_ADULTOS_MAYORES')"
+                      >
+                        Niños, adolescentes, adultos y adultos mayores
+                      </el-checkbox>
+                      <el-checkbox
+                        :model-value="selectedCareGroup === 'GESTANTES'"
+                        @change="selectCareGroup('GESTANTES')"
+                      >
+                        Gestantes
+                      </el-checkbox>
+                      <el-checkbox
+                        :model-value="selectedCareGroup === 'PUERPERAS'"
+                        @change="selectCareGroup('PUERPERAS')"
+                      >
+                        Puérperas
+                      </el-checkbox>
+                    </div>
+                  </el-form-item>
+                </div>
                 <div class="clinical-section__heading">
                   <div>
                     <h3 id="measurements-title" class="clinical-section__title">
@@ -231,8 +344,8 @@
                   <div class="measurement-group">
                     <h4 class="measurement-group__title">Antropometría</h4>
                     <el-row :gutter="16">
-                      <el-col :span="8">
-                        <el-form-item label="Peso actual (kg)">
+                      <el-col :span="24">
+                        <el-form-item class="measurement-field" label="Peso actual (kg)">
                           <el-input-number
                             v-model="form.peso_kg"
                             :min="0"
@@ -242,8 +355,8 @@
                           />
                         </el-form-item>
                       </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="Talla (cm)">
+                      <el-col :span="24">
+                        <el-form-item class="measurement-field" label="Talla (cm)">
                           <el-input-number
                             v-model="form.talla_cm"
                             :min="0"
@@ -253,8 +366,8 @@
                           />
                         </el-form-item>
                       </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="Perímetro abdominal (cm)">
+                      <el-col :span="24">
+                        <el-form-item class="measurement-field" label="Perímetro abdominal (cm)">
                           <el-input-number
                             v-model="form.perimetro_abdominal_cm"
                             :min="0"
@@ -268,61 +381,43 @@
                   </div>
                   <div class="measurement-group">
                     <h4 class="measurement-group__title">Presión arterial y temperatura</h4>
-                    <el-row :gutter="16">
-                      <el-col :span="8">
-                        <el-form-item label="Presión sistólica">
-                          <el-input-number
-                            v-model="form.presion_sistolica"
-                            :min="1"
-                            :controls="false"
-                            style="width: 100%"
-                          />
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="Presión diastólica">
-                          <el-input-number
-                            v-model="form.presion_diastolica"
-                            :min="1"
-                            :controls="false"
-                            style="width: 100%"
-                          />
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="Temperatura (°C)">
-                          <el-input-number
-                            v-model="form.temperatura_c"
-                            :min="0"
-                            :precision="1"
-                            :controls="false"
-                            style="width: 100%"
-                          />
-                        </el-form-item>
-                      </el-col>
-                    </el-row>
-                  </div>
-                  <div class="measurement-group">
-                    <h4 class="measurement-group__title">
-                      Indicadores nutricionales (P/E · T/E · P/T)
-                    </h4>
-                    <el-row :gutter="16">
-                      <el-col :span="8">
-                        <el-form-item label="P/E">
-                          <el-input v-model="form.pe" />
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="T/E">
-                          <el-input v-model="form.te" />
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="P/T">
-                          <el-input v-model="form.pt" />
-                        </el-form-item>
-                      </el-col>
-                    </el-row>
+                    <div
+                      class="vital-signs"
+                      role="group"
+                      aria-label="Presión arterial y temperatura"
+                    >
+                      <div class="vital-signs__pressure">
+                        <span class="vital-signs__label">Diast.</span>
+                        <el-input-number
+                          v-model="form.presion_diastolica"
+                          class="vital-signs__input"
+                          :min="1"
+                          :controls="false"
+                          aria-label="Presión diastólica"
+                        />
+                        <span class="vital-signs__separator" aria-hidden="true">/</span>
+                        <span class="vital-signs__label">Sist.</span>
+                        <el-input-number
+                          v-model="form.presion_sistolica"
+                          class="vital-signs__input"
+                          :min="1"
+                          :controls="false"
+                          aria-label="Presión sistólica"
+                        />
+                      </div>
+                      <div class="vital-signs__temperature">
+                        <span class="vital-signs__label">Temp.</span>
+                        <el-input-number
+                          v-model="form.temperatura_c"
+                          class="vital-signs__input"
+                          :min="0"
+                          :precision="1"
+                          :controls="false"
+                          aria-label="Temperatura en grados Celsius"
+                        />
+                        <span class="vital-signs__unit">°C</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -332,191 +427,60 @@
                 aria-labelledby="nutrition-title"
               >
                 <div class="clinical-section__heading">
-                  <div>
-                    <h3 id="nutrition-title" class="clinical-section__title">
-                      Valoración nutricional
-                    </h3>
-                    <p class="clinical-section__description">
-                      Opcional. Complete solo los indicadores evaluados.
-                    </p>
-                  </div>
-                  <el-button
-                    v-if="hasNutritionalData"
-                    size="small"
-                    text
-                    type="danger"
-                    @click="clearNutrition"
-                  >
-                    Limpiar
-                  </el-button>
+                  <h3 id="nutrition-title" class="clinical-section__title">
+                    Valoración nutricional
+                  </h3>
                 </div>
-                <el-row :gutter="16">
-                  <el-col :span="8">
-                    <el-form-item label="Tipo de evaluación">
-                      <el-select
-                        v-model="form.valoracion.tipo"
-                        filterable
-                        allow-create
-                        default-first-option
+                <div class="nutrition-age" aria-live="polite">
+                  <span class="nutrition-age__label">Edad actual del paciente</span>
+                  <strong class="nutrition-age__value">{{ nutritionalAge }}</strong>
+                </div>
+                <el-row :gutter="16" class="nutrition-fields">
+                  <el-col :span="24">
+                    <el-form-item class="nutrition-field" label="Diagnóstico P/E">
+                      <el-input
+                        v-model="form.valoracion.diagnostico_peso_edad"
+                        maxlength="100"
                         clearable
-                        :value-on-clear="''"
-                        placeholder="Ej. INGRESO, CONTROL, ALTA"
-                        style="width: 100%"
-                      >
-                        <el-option
-                          v-for="tipo in tiposValoracion"
-                          :key="tipo"
-                          :label="tipo"
-                          :value="tipo"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="IMC">
-                      <el-input-number
-                        v-model="form.valoracion.imc"
-                        :precision="3"
-                        :controls="false"
-                        style="width: 100%"
                       />
                     </el-form-item>
                   </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="Hemoglobina (g/dL)">
-                      <el-input-number
-                        v-model="form.valoracion.hemoglobina"
-                        :min="0"
-                        :precision="2"
-                        :controls="false"
-                        style="width: 100%"
+                  <el-col :span="24">
+                    <el-form-item class="nutrition-field" label="Diagnóstico T/E">
+                      <el-input
+                        v-model="form.valoracion.diagnostico_talla_edad"
+                        maxlength="100"
+                        clearable
                       />
                     </el-form-item>
                   </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="P/T — puntaje Z (whz)">
-                      <el-input-number
-                        v-model="form.valoracion.whz"
-                        :precision="3"
-                        :controls="false"
-                        style="width: 100%"
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="T/E — puntaje Z (haz)">
-                      <el-input-number
-                        v-model="form.valoracion.haz"
-                        :precision="3"
-                        :controls="false"
-                        style="width: 100%"
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="P/E — puntaje Z (waz)">
-                      <el-input-number
-                        v-model="form.valoracion.waz"
-                        :precision="3"
-                        :controls="false"
-                        style="width: 100%"
+                  <el-col :span="24">
+                    <el-form-item class="nutrition-field" label="Diagnóstico P/T">
+                      <el-input
+                        v-model="form.valoracion.diagnostico_peso_talla"
+                        maxlength="100"
+                        clearable
                       />
                     </el-form-item>
                   </el-col>
                 </el-row>
 
-                <el-collapse v-model="expandedNutritionDetails" class="clinical-details">
-                  <el-collapse-item name="nutrition-details">
-                    <template #title>
-                      <span class="clinical-details__title"
-                        >Indicadores y diagnóstico complementarios</span
-                      >
-                    </template>
-                    <el-row :gutter="16">
-                      <el-col :span="8">
-                        <el-form-item label="Fecha de hemoglobina">
-                          <el-date-picker
-                            v-model="form.valoracion.fecha_hemoglobina"
-                            type="date"
-                            value-format="YYYY-MM-DD"
-                            style="width: 100%"
-                            clearable
-                          />
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="Edad gestacional (semanas)">
-                          <el-input-number
-                            v-model="form.valoracion.edad_gestacional_semanas"
-                            :min="0"
-                            :max="60"
-                            :controls="false"
-                            style="width: 100%"
-                          />
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="Diagnóstico P/T">
-                          <el-input
-                            v-model="form.valoracion.diagnostico_peso_talla"
-                            maxlength="100"
-                          />
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="Diagnóstico T/E">
-                          <el-input
-                            v-model="form.valoracion.diagnostico_talla_edad"
-                            maxlength="100"
-                          />
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="8">
-                        <el-form-item label="Diagnóstico P/E">
-                          <el-input
-                            v-model="form.valoracion.diagnostico_peso_edad"
-                            maxlength="100"
-                          />
-                        </el-form-item>
-                      </el-col>
-                      <el-col :span="24">
-                        <el-form-item label="Diagnóstico nutricional">
-                          <el-input
-                            v-model="form.valoracion.diagnostico"
-                            type="textarea"
-                            :rows="2"
-                            maxlength="500"
-                            show-word-limit
-                          />
-                        </el-form-item>
-                      </el-col>
-                    </el-row>
-                  </el-collapse-item>
-                </el-collapse>
+                <AdmissionFinalActions
+                  :saving="saving"
+                  :primary-label="isAdmission ? 'Guardar atención' : 'Registrar atención'"
+                  @submit="submit"
+                  @exit="cancel"
+                  @pending="notifyUnavailableAction"
+                />
               </section>
-
-              <footer class="form-actions">
-                <div>
-                  <h3 class="form-actions__title">Finalizar admisión</h3>
-                  <p class="form-actions__description">
-                    La atención se agregará al historial del paciente.
-                  </p>
-                </div>
-                <div class="form-actions__buttons">
-                  <el-button type="primary" :loading="saving" @click="submit">
-                    {{ isAdmission ? 'Guardar atención' : 'Registrar atención' }}
-                  </el-button>
-                  <el-button @click="cancel">Cancelar</el-button>
-                </div>
-              </footer>
             </el-form>
           </el-card>
+        </div>
 
+        <div v-if="showHistorial" class="admission-workbench__history">
           <AdmissionHistory
-            v-if="showHistorial"
             :entries="historial"
             :loading="historialLoading"
-            :consultorio-label="consultorioLabel"
             @refresh="loadHistorial"
           />
         </div>
@@ -528,9 +492,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { FormInstance, FormRules } from 'element-plus'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 
 import AdmissionHistory from '@/components/admission/AdmissionHistory.vue'
+import AdmissionFinalActions from '@/components/admission/AdmissionFinalActions.vue'
 import AdmissionPatientSummary from '@/components/admission/AdmissionPatientSummary.vue'
 import {
   catalogos,
@@ -539,13 +504,14 @@ import {
   type ProfessionalCatalogItem,
   type SpecialtyCatalogItem,
 } from '@/services/catalogos'
-import { pacientes, type Patient } from '@/services/pacientes'
+import { pacientes, type Patient, type PatientUpdatePayload } from '@/services/pacientes'
 import {
   atenciones,
   type Attention,
   type AttentionCreatePayload,
   type NutritionalSnapshotPayload,
 } from '@/services/atenciones'
+import { formatCalendarAge } from '@/utils/calendarAge'
 
 const props = withDefaults(
   defineProps<{
@@ -561,19 +527,16 @@ const isAdmission = computed(() => props.admission)
 // `pacienteId` para que los accesos creados antes de este cambio no se rompan.
 const preselectedPatientId = patientIdFromQuery(route.query.patientId ?? route.query.pacienteId)
 
-/** Opciones sugeridas; el select permite escribir valores propios de la IPRESS. */
-const tiposValoracion = ['INGRESO', 'CONTROL', 'ALTA']
-
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 const errorMessage = ref<string | null>(null)
 const initialLoading = ref(false)
 const expandedContextDetails = shallowRef<string[]>([])
-const expandedNutritionDetails = shallowRef<string[]>([])
 
 const pacientesOptions = ref<Patient[]>([])
 const pacientesLoading = ref(false)
 const admissionPatient = ref<Patient | null>(null)
+const patientContextSaving = ref(false)
 const lockPatientSelection = ref(false)
 const establecimientos = ref<EstablishmentCatalogItem[]>([])
 const establecimientosLoading = ref(false)
@@ -602,25 +565,27 @@ const form = reactive({
   presion_diastolica: null as number | null,
   hora_inicio: null as string | null,
   hora_fin: null as string | null,
-  pe: '',
-  te: '',
-  pt: '',
   admision: '',
   valoracion: {
-    tipo: '',
-    imc: null as number | null,
-    whz: null as number | null,
-    haz: null as number | null,
-    waz: null as number | null,
     diagnostico_peso_edad: '',
     diagnostico_talla_edad: '',
     diagnostico_peso_talla: '',
-    hemoglobina: null as number | null,
-    fecha_hemoglobina: null as string | null,
-    edad_gestacional_semanas: null as number | null,
-    diagnostico: '',
   },
 })
+
+type AttentionMode = 'AMBULATORIA' | 'EMERGENCIA'
+type CareGroup = 'NINOS_ADOLESCENTES_ADULTOS_MAYORES' | 'GESTANTES' | 'PUERPERAS'
+type AdmissionPatientContextUpdate = Pick<
+  PatientUpdatePayload,
+  | 'sexo_codigo'
+  | 'localidad'
+  | 'direccion'
+  | 'establecimiento_registro_id'
+  | 'seguro_id'
+>
+
+/** Temporary UI-only selection; no clinical persistence is attached yet. */
+const selectedCareGroup = ref<CareGroup>('NINOS_ADOLESCENTES_ADULTOS_MAYORES')
 
 const rules: FormRules = {
   paciente_id: [{ required: true, message: 'Seleccione el paciente.', trigger: 'change' }],
@@ -644,22 +609,25 @@ const historialPatientId = computed(() =>
 )
 const showHistorial = computed(() => !initialLoading.value && historialPatientId.value !== null)
 
+const nutritionalPatient = computed<Patient | null>(() =>
+  isAdmission.value
+    ? admissionPatient.value
+    : pacientesOptions.value.find((patient) => patient.id === form.paciente_id) ?? null,
+)
+const nutritionalAge = computed(() => {
+  const birthDate = nutritionalPatient.value?.fecha_nacimiento
+  if (!birthDate) return '—'
+
+  return formatCalendarAge(birthDate, form.fecha_atencion || new Date()) ?? '—'
+})
+
 /** ¿El profesional registró algún dato de la valoración nutricional? */
 const hasNutritionalData = computed(() => {
   const valoracion = form.valoracion
   return Boolean(
-    valoracion.tipo.trim() ||
-    valoracion.imc !== null ||
-    valoracion.whz !== null ||
-    valoracion.haz !== null ||
-    valoracion.waz !== null ||
-    valoracion.hemoglobina !== null ||
-    valoracion.fecha_hemoglobina ||
-    valoracion.edad_gestacional_semanas !== null ||
     valoracion.diagnostico_peso_edad.trim() ||
-    valoracion.diagnostico_talla_edad.trim() ||
-    valoracion.diagnostico_peso_talla.trim() ||
-    valoracion.diagnostico.trim(),
+      valoracion.diagnostico_talla_edad.trim() ||
+      valoracion.diagnostico_peso_talla.trim(),
   )
 })
 
@@ -677,15 +645,12 @@ function formatCurrentDateTime(): string {
   return local.toISOString().slice(0, 19)
 }
 
-function consultorioLabel(id: number): string {
-  return consultorios.value.find((office) => office.id === id)?.nombre ?? `#${id}`
-}
-
 /**
  * Precarga los datos del paciente en el formulario: el paciente queda fijado y,
  * cuando tiene establecimiento de registro, la atención se abre en esa sede.
- * Consultorio, profesional y los signos vitales se dejan libres para
- * elegirlos/registrarlos en cada atención.
+ * Si no lo tiene, el consultorio elegido determina la sede requerida por el
+ * backend. Consultorio, especialidad y profesional siguen siendo elecciones
+ * explícitas de la admisión.
  */
 function applyPatientContext(patient: Patient): void {
   form.paciente_id = patient.id
@@ -694,21 +659,31 @@ function applyPatientContext(patient: Patient): void {
   }
 }
 
-function clearNutrition(): void {
-  Object.assign(form.valoracion, {
-    tipo: '',
-    imc: null,
-    whz: null,
-    haz: null,
-    waz: null,
-    diagnostico_peso_edad: '',
-    diagnostico_talla_edad: '',
-    diagnostico_peso_talla: '',
-    hemoglobina: null,
-    fecha_hemoglobina: null,
-    edad_gestacional_semanas: null,
-    diagnostico: '',
-  })
+/** Persiste las correcciones mínimas hechas desde el resumen de admisión. */
+async function updateAdmissionPatient(payload: AdmissionPatientContextUpdate): Promise<void> {
+  const currentPatient = admissionPatient.value
+  if (!currentPatient || patientContextSaving.value) return
+
+  patientContextSaving.value = true
+  try {
+    const updatedPatient = await pacientes.update(currentPatient.id, payload)
+    admissionPatient.value = updatedPatient
+    pacientesOptions.value = [updatedPatient]
+
+    // La sede clínica ya elegida no se altera. Si aún no se escogió un consultorio,
+    // sí se toma la nueva sede de registro como contexto inicial de la atención.
+    if ('establecimiento_registro_id' in payload && form.consultorio_id === null) {
+      form.establecimiento_id = updatedPatient.establecimiento_registro_id
+    }
+
+    ElMessage.success('Datos del paciente actualizados.')
+  } catch (error) {
+    ElMessage.error(
+      error instanceof Error ? error.message : 'No se pudo actualizar el dato del paciente.',
+    )
+  } finally {
+    patientContextSaving.value = false
+  }
 }
 
 /** Convierte el bloque en el payload del backend; `null` si no se registró nada. */
@@ -716,19 +691,22 @@ function buildNutritionalPayload(): NutritionalSnapshotPayload | null {
   if (!hasNutritionalData.value) return null
   const valoracion = form.valoracion
   return {
-    tipo: valoracion.tipo.trim(),
-    imc: valoracion.imc,
-    whz: valoracion.whz,
-    haz: valoracion.haz,
-    waz: valoracion.waz,
-    hemoglobina: valoracion.hemoglobina,
-    fecha_hemoglobina: valoracion.fecha_hemoglobina || null,
-    edad_gestacional_semanas: valoracion.edad_gestacional_semanas,
     diagnostico_peso_edad: valoracion.diagnostico_peso_edad.trim() || null,
     diagnostico_talla_edad: valoracion.diagnostico_talla_edad.trim() || null,
     diagnostico_peso_talla: valoracion.diagnostico_peso_talla.trim() || null,
-    diagnostico: valoracion.diagnostico.trim() || null,
   }
+}
+
+function selectAttentionMode(mode: AttentionMode): void {
+  form.modalidad_atencion_codigo = mode
+}
+
+function selectCareGroup(group: CareGroup): void {
+  selectedCareGroup.value = group
+}
+
+function notifyUnavailableAction(action: string): void {
+  ElMessage.info(`${action} estará disponible próximamente.`)
 }
 
 async function searchPacientes(query: string): Promise<void> {
@@ -766,14 +744,14 @@ async function searchProfesionales(query: string): Promise<void> {
 }
 
 async function loadConsultorios(): Promise<void> {
-  if (!form.establecimiento_id) {
-    consultorios.value = []
-    form.consultorio_id = null
-    return
-  }
   consultoriosLoading.value = true
   try {
-    const page = await catalogos.consultorios(form.establecimiento_id, undefined, 50, 0)
+    const page = await catalogos.consultorios(
+      form.establecimiento_id ?? undefined,
+      undefined,
+      50,
+      0,
+    )
     consultorios.value = page.items
   } finally {
     consultoriosLoading.value = false
@@ -798,10 +776,14 @@ async function loadHistorial(): Promise<void> {
 }
 
 // Al cambiar el establecimiento, se recargan los consultorios de esa sede.
+// Conservamos el seleccionado si justamente fue él quien definió la sede.
 watch(
   () => form.establecimiento_id,
-  () => {
-    form.consultorio_id = null
+  (establishmentId) => {
+    const selectedOffice = consultorios.value.find((office) => office.id === form.consultorio_id)
+    if (!selectedOffice || selectedOffice.establecimiento_id !== establishmentId) {
+      form.consultorio_id = null
+    }
     void loadConsultorios()
   },
 )
@@ -819,12 +801,15 @@ watch(
   },
 )
 
-// El consultorio define la especialidad de la atención cuando la trae asignada.
+// El consultorio define la sede y la especialidad cuando las trae asignadas.
 watch(
   () => form.consultorio_id,
   (id) => {
     if (id === null) return
     const office = consultorios.value.find((item) => item.id === id)
+    if (office && form.establecimiento_id !== office.establecimiento_id) {
+      form.establecimiento_id = office.establecimiento_id
+    }
     if (office?.especialidad_codigo) {
       form.especialidad_codigo = office.especialidad_codigo
     }
@@ -836,12 +821,6 @@ async function submit(): Promise<void> {
   if (!valid) return
 
   const valoracion = buildNutritionalPayload()
-  if (valoracion && !valoracion.tipo) {
-    errorMessage.value =
-      'Indique el tipo de la valoración nutricional (ej. INGRESO, CONTROL, ALTA).'
-    return
-  }
-
   saving.value = true
   errorMessage.value = null
   try {
@@ -862,9 +841,6 @@ async function submit(): Promise<void> {
       presion_diastolica: form.presion_diastolica,
       hora_inicio: form.hora_inicio,
       hora_fin: form.hora_fin,
-      pe: form.pe || null,
-      te: form.te || null,
-      pt: form.pt || null,
       admision: form.admision || null,
       valoracion_nutricional: valoracion,
     }
@@ -896,13 +872,15 @@ onMounted(async () => {
       return
     }
 
-    const [especialidadesResult, estResult, patient] = await Promise.all([
+    const [especialidadesResult, estResult, profesionalesResult, patient] = await Promise.all([
       catalogos.especialidades(),
       catalogos.establecimientos(undefined, 25, 0),
+      catalogos.profesionales(undefined, 50, 0),
       preselectedPatientId === null ? Promise.resolve(null) : pacientes.get(preselectedPatientId),
     ])
     especialidades.value = especialidadesResult
     establecimientos.value = estResult.items
+    profesionales.value = profesionalesResult.items
 
     if (patient) {
       pacientesOptions.value = [patient]
@@ -911,6 +889,7 @@ onMounted(async () => {
       if (isAdmission.value) {
         admissionPatient.value = patient
         form.fecha_atencion = formatCurrentDateTime()
+        if (!form.establecimiento_id) await loadConsultorios()
       }
     }
   } catch (error) {
@@ -927,9 +906,9 @@ onMounted(async () => {
 
 <style scoped>
 .admission-page {
-  --admission-space-tight: 8px;
-  --admission-space: 16px;
-  --admission-space-wide: 24px;
+  --admission-space-tight: 6px;
+  --admission-space: 12px;
+  --admission-space-wide: 16px;
 }
 
 .form-alert {
@@ -938,23 +917,41 @@ onMounted(async () => {
 
 .admission-workbench {
   display: grid;
-  grid-template-columns: minmax(236px, 280px) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+  grid-template-areas:
+    'patient content'
+    'history history';
+  grid-template-columns: minmax(224px, 260px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
 }
 
 .admission-workbench--standalone {
+  grid-template-areas:
+    'content'
+    'history';
   grid-template-columns: minmax(0, 1fr);
 }
 
 .admission-workbench__patient {
+  grid-area: patient;
+  display: flex;
   min-width: 0;
 }
 
+.admission-workbench__patient :deep(.patient-context) {
+  flex: 1 1 auto;
+}
+
 .admission-workbench__content {
+  grid-area: content;
   display: grid;
   min-width: 0;
-  gap: 20px;
+  gap: 12px;
+}
+
+.admission-workbench__history {
+  grid-area: history;
+  min-width: 0;
 }
 
 .encounter-card {
@@ -965,17 +962,16 @@ onMounted(async () => {
 }
 
 .encounter-card :deep(.el-card__body) {
-  padding: 20px;
+  padding: 14px;
 }
 
 .encounter-form {
   display: grid;
   grid-template-areas:
     'context nutrition'
-    'measurements nutrition'
-    'actions actions';
+    'measurements nutrition';
   grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
-  gap: var(--admission-space-wide) 20px;
+  gap: var(--admission-space-wide) 16px;
 }
 
 .clinical-section {
@@ -988,11 +984,15 @@ onMounted(async () => {
 
 .clinical-section--measurements {
   grid-area: measurements;
+  padding-top: var(--admission-space-wide);
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .clinical-section--nutrition {
   grid-area: nutrition;
-  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  padding-left: 16px;
   border-left: 1px solid var(--el-border-color-lighter);
 }
 
@@ -1001,29 +1001,26 @@ onMounted(async () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--admission-space);
-  margin-bottom: var(--admission-space);
+  margin-bottom: 10px;
 }
 
 .clinical-section__title,
-.form-actions__title,
 .measurement-group__title {
   margin: 0;
   color: var(--el-text-color-primary);
 }
 
-.clinical-section__title,
-.form-actions__title {
-  font-size: 16px;
+.clinical-section__title {
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.3;
 }
 
-.clinical-section__description,
-.form-actions__description {
-  margin: 4px 0 0;
+.clinical-section__description {
+  margin: 2px 0 0;
   color: var(--el-text-color-secondary);
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 .measurement-groups {
@@ -1042,14 +1039,83 @@ onMounted(async () => {
   line-height: 1.35;
 }
 
-.clinical-section--nutrition :deep(.el-col:not(.el-col-24)) {
-  flex: 0 0 50%;
-  max-width: 50%;
+.measurement-group__description {
+  margin: 2px 0 6px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
-.clinical-section--nutrition :deep(.el-col-24) {
-  flex: 0 0 100%;
-  max-width: 100%;
+.nutrition-age {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admission-space);
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  color: var(--el-color-primary-dark-2);
+  background-color: var(--el-color-primary-light-9);
+  border-top: 1px solid var(--el-color-primary-light-7);
+  border-bottom: 1px solid var(--el-color-primary-light-7);
+}
+
+.nutrition-age__label {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.nutrition-age__value {
+  min-width: 0;
+  color: var(--el-text-color-primary);
+  font-size: clamp(15px, 1.2vw, 18px);
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  text-align: end;
+}
+
+.nutrition-fields {
+  display: grid;
+  gap: 2px;
+}
+
+.vital-signs,
+.vital-signs__pressure,
+.vital-signs__temperature {
+  display: flex;
+  align-items: center;
+}
+
+.vital-signs {
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.vital-signs__pressure,
+.vital-signs__temperature {
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.vital-signs__label,
+.vital-signs__unit,
+.vital-signs__separator {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.vital-signs__separator {
+  color: var(--el-text-color-regular);
+}
+
+.vital-signs :deep(.vital-signs__input) {
+  width: clamp(46px, 6vw, 64px);
 }
 
 .clinical-details {
@@ -1082,43 +1148,80 @@ onMounted(async () => {
 }
 
 :deep(.encounter-form .el-form-item) {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 :deep(.encounter-form .el-form-item__label) {
   height: auto;
-  padding: 0 0 5px;
+  padding: 0 0 3px;
   color: var(--el-text-color-secondary);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1.35;
 }
 
-:deep(.encounter-form .el-radio-group) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-}
-
-:deep(.encounter-form .el-radio) {
-  margin-right: 0;
-}
-
-.form-actions {
-  grid-area: actions;
+:deep(.admission-context-field) {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--admission-space);
-  padding-top: var(--admission-space-wide);
-  border-top: 1px solid var(--el-border-color-lighter);
 }
 
-.form-actions__buttons {
+:deep(.admission-context-field .el-form-item__label) {
+  flex: 0 0 116px;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+:deep(.admission-context-field .el-form-item__content) {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0 !important;
+}
+
+:deep(.measurement-field),
+:deep(.nutrition-field) {
+  display: flex;
+  align-items: center;
+  gap: var(--admission-space);
+}
+
+.nutrition-fields :deep(.nutrition-field) {
+  margin-bottom: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.nutrition-fields :deep(.el-col:last-child .nutrition-field) {
+  border-bottom: 0;
+}
+
+:deep(.measurement-field .el-form-item__label),
+:deep(.nutrition-field .el-form-item__label) {
+  flex: 0 1 170px;
+  min-width: 124px;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+:deep(.measurement-field .el-form-item__content),
+:deep(.nutrition-field .el-form-item__content) {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0 !important;
+}
+
+:deep(.encounter-form .el-radio-group),
+:deep(.encounter-form .el-checkbox-group),
+.attention-mode-selector,
+.care-group-selector {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--admission-space-tight);
+  gap: 2px 10px;
+}
+
+:deep(.encounter-form .el-radio),
+:deep(.encounter-form .el-checkbox) {
+  margin-right: 0;
 }
 
 @container (max-width: 700px) {
@@ -1141,22 +1244,55 @@ onMounted(async () => {
 
 @media (max-width: 900px) {
   .admission-workbench {
+    grid-template-areas:
+      'patient'
+      'content'
+      'history';
     grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .admission-workbench--standalone {
+    grid-template-areas:
+      'content'
+      'history';
   }
 }
 
 @media (max-width: 680px) {
-  .form-actions {
+  .nutrition-age {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nutrition-age__value {
+    text-align: start;
+  }
+
+  :deep(.admission-context-field) {
     flex-direction: column;
     align-items: stretch;
+    gap: 0;
   }
 
-  .form-actions__buttons {
-    justify-content: stretch;
+  :deep(.admission-context-field .el-form-item__label) {
+    flex-basis: auto;
+    padding-bottom: 5px;
   }
 
-  .form-actions__buttons :deep(.el-button) {
-    flex: 1 1 auto;
+  :deep(.measurement-field),
+  :deep(.nutrition-field) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  :deep(.measurement-field .el-form-item__label),
+  :deep(.nutrition-field .el-form-item__label) {
+    flex-basis: auto;
+    min-width: 0;
+    padding-bottom: 5px;
   }
 
   .encounter-card :deep(.el-card__body) {

@@ -49,14 +49,10 @@ class AttentionDiagnosisInput(BaseModel):
 class NutritionalSnapshotInput(BaseModel):
     """Optional historic nutrition record created atomically with an attention."""
 
-    tipo: Annotated[str, Field(min_length=1, max_length=20)]
+    tipo: Annotated[str, Field(max_length=20)] | None = None
     hemoglobina: Annotated[Decimal, Field(ge=0, max_digits=5, decimal_places=2)] | None = None
     fecha_hemoglobina: date | None = None
     edad_gestacional_semanas: Annotated[int, Field(ge=0, le=60)] | None = None
-    imc: Annotated[Decimal, Field(max_digits=6, decimal_places=3)] | None = None
-    whz: Annotated[Decimal, Field(max_digits=6, decimal_places=3)] | None = None
-    haz: Annotated[Decimal, Field(max_digits=6, decimal_places=3)] | None = None
-    waz: Annotated[Decimal, Field(max_digits=6, decimal_places=3)] | None = None
     diagnostico_peso_edad: Annotated[str, Field(max_length=100)] | None = None
     diagnostico_talla_edad: Annotated[str, Field(max_length=100)] | None = None
     diagnostico_peso_talla: Annotated[str, Field(max_length=100)] | None = None
@@ -80,9 +76,6 @@ class AttentionCreate(BaseModel):
     presion_sistolica: Annotated[int, Field(gt=0, le=999)] | None = None
     presion_diastolica: Annotated[int, Field(gt=0, le=999)] | None = None
     temperatura_c: Annotated[Decimal, Field(max_digits=4, decimal_places=1)] | None = None
-    pe: Annotated[str, Field(max_length=50)] | None = None
-    te: Annotated[str, Field(max_length=50)] | None = None
-    pt: Annotated[str, Field(max_length=50)] | None = None
     hora_inicio: time | None = None
     hora_fin: time | None = None
     admision: Annotated[str, Field(max_length=100)] | None = None
@@ -96,7 +89,7 @@ class AttentionCreate(BaseModel):
     def normalize_specialty(cls, value: Any) -> Any:
         return value.strip().upper() if isinstance(value, str) else value
 
-    @field_validator("pe", "te", "pt", "admision", "observaciones", mode="before")
+    @field_validator("admision", "observaciones", mode="before")
     @classmethod
     def trim_text(cls, value: Any) -> Any:
         return value.strip() if isinstance(value, str) else value
@@ -119,6 +112,25 @@ class AttentionCancellationInput(BaseModel):
         if not isinstance(value, str) or not value.strip():
             raise ValueError("La anulación requiere una justificación")
         return value.strip()
+
+
+class NutritionalIndicatorsPreviewInput(BaseModel):
+    """Only measurements and patient context used for a server-side preview."""
+
+    paciente_id: Annotated[int, Field(gt=0)]
+    fecha_atencion: datetime
+    peso_kg: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
+    talla_cm: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
+
+
+class NutritionalIndicatorsResponse(BaseModel):
+    imc: Decimal | None
+    pe: Decimal | None
+    te: Decimal | None
+    pt: Decimal | None
+    estado: str
+    mensaje: str
+    referencia: str | None
 
 
 class AttentionServiceResponse(BaseModel):
@@ -147,21 +159,25 @@ class AttentionResponse(BaseModel):
     profesional_id: int
     especialidad_codigo: str | None
     consultorio_id: int
+    consultorio_nombre: str | None
     modalidad_atencion_codigo: str
     grupo_etario_codigo: str
     fecha_atencion: datetime
     fecha_atendido: datetime | None
     historia_clinica_snapshot: str | None
     edad_anios: int | None
+    edad_detallada: str | None
     peso_kg: Decimal | None
     talla_cm: Decimal | None
     perimetro_abdominal_cm: Decimal | None
     presion_sistolica: int | None
     presion_diastolica: int | None
     temperatura_c: Decimal | None
+    imc: Decimal | None
     pe: str | None
     te: str | None
     pt: str | None
+    referencia_nutricional: str | None
     hora_inicio: time | None
     hora_fin: time | None
     admision: str | None

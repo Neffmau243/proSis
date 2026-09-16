@@ -15,7 +15,19 @@ Creadas por `python -m app.scripts.seed_demo_data` (o `reset_demo_database --dem
 | `admin` | `IpressDev!Admin2026` | **ADMIN** | Gestión administrativa completa |
 | `medico.demo` | `IpressDev!Medico2026` | **PROFESIONAL** | Dra. Andrea Prueba — flujo clínico |
 
-Datos demo útiles: paciente adulto `99900001` (Ana), menor `99900002` (Luis), consultorio `MED-GEN`, especialidad `MED_GEN`, prestación `CONSULTA_MED`, CIE-10 `Z00.0`, riesgo `RIESGO_DEMO`.
+La semilla también carga un cohorte para probar el sistema con volumen: **14 pacientes** con nombres, DNI e historias clínicas distintos (`HC-DEMO-0001`…`HC-DEMO-0012` más los dos originales), repartidos entre IPRESS Demo Central (11) e IPRESS Demo Destino (3), con niños, adolescentes, adultos y adultos mayores, responsables para cada menor, antecedentes de riesgo, seguros variados (SIS, EsSalud, Particular, Sin seguro) y tres distritos.
+
+| Dato | Valor |
+| --- | --- |
+| Paciente original adulto | DNI `99900001` (Ana Prueba Demo), `HC-DEMO-ADULTO` |
+| Paciente original menor | DNI `99900002` (Luis), `HC-DEMO-MENOR` |
+| Consultorio / especialidad | `MED-GEN` / `MED_GEN` |
+| Prestación / CIE-10 | `CONSULTA_MED` / `Z00.0` |
+| Riesgos | `RIESGO_DEMO`, `RIESGO_CARDIO`, `RIESGO_METABOLICO` |
+| Atenciones demo | 5 en total (ids 10–14) con signos vitales e indicadores del servidor |
+| Documentos demo | 1 FUA, 1 certificado y 1 referencia a la sede Destino |
+
+Los 3 pacientes de IPRESS Demo Destino están a propósito sin asignación ni atención de `medico.demo`: sirven para comprobar que el ámbito asistencial los filtra (no aparecen ni buscándolos por DNI).
 
 ---
 
@@ -26,7 +38,7 @@ El backend define un mapa de permisos (`app/domain/authorization.py`) y lo entre
 | Permiso | ADMIN | PROFESIONAL |
 | --- | :---: | :---: |
 | Pacientes: leer | ✅ | ✅ (ámbito clínico) |
-| Pacientes: crear/editar (+ responsables/riesgos) | ✅ | ✅ (solo sus establecimientos asignados) |
+| Pacientes: crear/editar (+ responsables/riesgos) | ✅ | ✅ (solo su ámbito: sede asignada, atención propia o registro/traslado propio) |
 | Pacientes: dar de baja | ✅ | ❌ |
 | Atenciones: crear / leer / anular | ❌ | ✅ (solo las propias) |
 | FUA / certificados / referencias | ❌ | ✅ (solo de sus atenciones) |
@@ -47,7 +59,7 @@ El backend define un mapa de permisos (`app/domain/authorization.py`) y lo entre
 
 ### PROFESIONAL — rol asistencial
 
-1. **Pacientes** de su ámbito (establecimientos asignados o relación asistencial propia).
+1. **Pacientes** de su ámbito: sedes con asignación vigente, pacientes con atención propia no anulada y pacientes que él registró o trasladó de sede.
 2. **Atenciones**: registra, consulta y anula **solo las suyas** (el `profesional_id` sale de la sesión, nunca del formulario).
 3. **Documentos**: FUA (único por atención), certificados y referencias de sus atenciones.
 4. **No puede**: dar de baja pacientes ni administrar usuarios/configuración.
@@ -104,7 +116,8 @@ Configuración             (solo ADMIN)
 | Vista | Ruta | Endpoints usados |
 | --- | --- | --- |
 | **Base de datos**: tabla con las columnas del sistema antiguo (N° Historia, H. Familiar, N° DNI, apellidos, nombres, Sexo, Disi) y 5 modos de búsqueda | `/` | `GET /patients` |
-| Admisión / Nuevo paciente (con historia familiar, responsables y riesgos) | `/admision`, `/pacientes/nuevo` | `POST /patients` |
+| Admisión (contexto del paciente editable + atención) | `/admision?patientId=` | `GET /patients/{id}`, `PATCH /patients/{id}`, `POST /atenciones` |
+| Nuevo paciente (con historia familiar, responsables y riesgos) | `/pacientes/nuevo` | `POST /patients` |
 | Ficha con pestañas Datos/Responsables/Riesgos/Atenciones | `/pacientes/:id` | `GET /patients/{id}`, `GET /atenciones?paciente_id=`, POST/PATCH responsables y riesgos |
 | Modificar datos | `/pacientes/:id/editar` | `PATCH /patients/{id}` |
 | Borrar (baja lógica, solo ADMIN) | desde la tabla o la ficha | `DELETE /patients/{id}` |
@@ -130,10 +143,12 @@ La columna **Disi** reproduce el indicador de estado del sistema antiguo: `ALT` 
 | Vista | Ruta | Endpoints usados |
 | --- | --- | --- |
 | Historial con filtros y paginación | `/atenciones` | `GET /atenciones/busqueda` |
-| Nueva atención / Admisión (contexto + antropometría + presión/temperatura + PE/TE/PT + valoración nutricional + prestaciones + CIE-10 + historial del paciente) | `/atenciones/nueva`, `/admision?patientId=` | `POST /atenciones`, `GET /atenciones?paciente_id=` |
+| Nueva atención / Admisión (contexto + antropometría + presión/temperatura + PE/TE/PT calculados + valoración nutricional + prestaciones + CIE-10 + historial del paciente) | `/atenciones/nueva`, `/admision?patientId=` | `POST /atenciones`, `POST /atenciones/indicadores-nutricionales/vista-previa`, `GET /atenciones?paciente_id=` |
 | Detalle con anulación y documentos | `/atenciones/:id` | `GET /atenciones/{id}`, `POST .../anulacion`, `POST /documentos/fua`, `POST /documentos/certificados`, `POST /documentos/referencias` |
 
-Reglas respetadas por la UI: no se envía `grupo_etario_codigo` ni edad (el backend los calcula); la anulación exige justificación ≥ 5 caracteres; una referencia nueva siempre inicia `PENDIENTE`; los consultorios se cargan según el establecimiento elegido. La **valoración nutricional** es opcional y solo se envía si el profesional registra al menos un dato; su `tipo` (ej. `INGRESO`, `CONTROL`, `ALTA`) es obligatorio en el backend cuando se envía. Admisión muestra el resultado como "Guardar atención" y el botón de escape como "Salir", igual que el sistema antiguo.
+Reglas respetadas por la UI: no se envía `grupo_etario_codigo`, edad, estado, `imc`, `pe`, `te` ni `pt` (el backend los calcula); la anulación exige justificación ≥ 5 caracteres; una referencia nueva siempre inicia `PENDIENTE`; los consultorios se cargan según el establecimiento elegido. La **valoración nutricional** es opcional y solo se envía si el profesional registra al menos un dato (su `tipo` es opcional en el backend). El formulario muestra los indicadores que devuelve `POST /atenciones/indicadores-nutricionales/vista-previa` (IMC y, para menores de 60 meses, P/E, T/E y P/T con referencia OMS 2006) sin persistir nada. Admisión muestra el resultado como "Guardar atención" y el botón de escape como "Salir", igual que el sistema antiguo.
+
+La **tarjeta lateral “Datos del paciente”** de `/admision` permite corregir en línea `sexo_codigo`, `localidad`, `direccion`, `establecimiento_registro_id` y `seguro_id`. Cada cambio manda un `PATCH` de un solo campo (`exclude_unset` en el backend) y deshabilita los editores mientras guarda; la misma tarjeta muestra `HC-DEMO-ADULTO` y la edad calculada por `utils/calendarAge.ts`.
 
 ### Configuración (ADMIN)
 | Vista | Ruta | Endpoints usados |
@@ -182,7 +197,7 @@ npm run dev
 src/
 ├── main.ts                  # bootstrap: Pinia, Router, Element Plus (es) e iconos
 ├── App.vue                  # <el-config-provider> es + hidratación de sesión al arrancar
-├── router/index.ts          # rutas de la GUIA + guards de auth/permisos (lee localStorage)
+├── router/index.ts          # rutas + guards de auth/permisos (lee localStorage)
 ├── stores/auth.ts           # sesión reactiva (token, roles, permisos, hasPermission)
 ├── services/
 │   ├── http.ts              # axios: Bearer automático, 401 → /login, sobre de error → ApiError
@@ -194,12 +209,17 @@ src/
 │   ├── configuracion.ts     # grupos etarios
 │   └── usuarios.ts          # alta de usuarios
 ├── types/api.ts             # sobre de error, PageResponse, LoginResponse
+├── utils/calendarAge.ts     # edad calendario para la ficha del paciente
 ├── composables/
-│   ├── usePagination.ts     # limit/offset/total/has_more
-│   └── usePacienteSeleccionado.ts  # fila activa compartida tabla ↔ sidebar
+│   ├── usePagination.ts             # limit/offset/total/has_more
+│   ├── usePacienteSeleccionado.ts   # fila activa compartida tabla ↔ sidebar
+│   ├── useAdmissionPatientDetails.ts # catálogos y filas de la tarjeta de admisión
+│   └── useNutritionalIndicatorsPreview.ts # vista previa OMS 2006 con debounce
 ├── components/
-│   ├── PagePlaceholder.vue  # estado vacío para vistas pendientes
-│   └── patient/             # ResponsibleDialog.vue, RiskDialog.vue
+│   ├── PagePlaceholder.vue          # estado vacío para vistas pendientes
+│   ├── admission/                   # AdmissionPatientSummary, AdmissionHistory, AdmissionFinalActions
+│   ├── patient/                     # DniSearchMatch, ResponsibleDialog, RiskDialog
+│   └── patients/                    # PatientRegistrationFamilySections
 ├── layouts/AppLayout.vue    # sidebar por rol + header
 └── views/                   # una vista por ruta
 ```
@@ -224,17 +244,22 @@ src/
 2. **Menú/botones invisibles al refrescar o entrar directo a una URL**: el store de Pinia no se hidrataba desde localStorage → se agregó `hydrateFromStorage()` en `App.vue`.
 3. **403 silencioso en la ficha**: el ADMIN no debe cargar el tab de atenciones (no tiene `ATENCION_LEER`); ahora la carga se condiciona al permiso.
 4. **`eslint-plugin-oxlint` desalineado con `oxlint`** en el template de create-vue → ambos fijados en `~1.82.0`.
+5. **Panel “Datos del paciente” con controles de distinto ancho y filas superpuestas** en `/admision?patientId=1`: la regla de la grilla (`.patient-context__details div`) alcanzaba también al `div` raíz de `el-input`/`el-select`, que terminaba dentro de una columna de 94px, y los editores iban con `position:absolute` dentro de una fila de 26px aunque medían 32px (`el-input`) y 26px (`el-select`). Ahora la grilla se limita a `> div`, ambos wrappers comparten `--patient-context-control-height: 26px` y el editor ya no flota. En Chrome headless las 18 filas quedan en `142×26` con paso uniforme de 29px.
+6. **403 al cambiar de establecimiento en admisión**: intervenía la regla RB-02 (asignación vigente en la sede destino). El backend la retiró: registrar o trasladar solo exige una sede activa y el profesional que lo hace conserva el acceso al paciente. El detalle está en [`../GUIA_FRONTEND_RUTAS.md`](../GUIA_FRONTEND_RUTAS.md#8-cambios-recientes-del-contrato).
 
 ## 9. Verificación
+
+Última corrida sobre esta rama:
 
 | Chequeo | Resultado |
 | --- | --- |
 | `npm run type-check` | ✅ sin errores |
-| `npm run lint` | ✅ 0 errores |
+| `npm run lint` | ✅ 0 errores (oxlint + eslint) |
 | `npm run build` | ✅ |
 | Render real ADMIN en `/pacientes/4` (Chrome headless + token) | ✅ 0 errores, sidebar administrativa, Editar/Dar de baja |
 | Render real PROFESIONAL en `/pacientes/4` | ✅ 0 errores, sidebar clínica, sin Dar de baja |
+| Render real PROFESIONAL en `/admision?patientId=1` (Chrome headless + token) | ✅ 18 filas del panel medidas en `142×26`, sin solapes |
 | `GET /patients/4` contra backend | ✅ 200 con datos |
-| Backend | sin cambios: `pytest` 46 passed / 1 skipped, `ruff` limpio |
+| Backend | `pytest tests/unit` 54 passed, `ruff` limpio, `alembic check` sin pendientes |
 
-> Nota de alcance: por ahora esta reestructuración es **solo frontend**. Los modos de búsqueda se resuelven con los parámetros que `GET /patients` ya expone (`historia_clinica`, `numero_documento`, `q`, `tipo_documento_codigo`, `incluir_inactivos`).
+> Nota de alcance: las búsquedas de la tabla se resuelven con los parámetros que `GET /patients` expone (`historia_clinica`, `numero_documento`, `q`, `tipo_documento_codigo`, `incluir_inactivos`); la modalidad **H. Familiar** sigue deshabilitada porque el backend todavía no filtra por `historia_familiar`.

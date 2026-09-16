@@ -1,9 +1,9 @@
 <template>
-  <div>
-    <div class="page-header">
+  <div class="patient-registration">
+    <header class="page-header patient-registration__header">
       <h2>{{ titulo }}</h2>
       <el-button @click="router.back()">Volver</el-button>
-    </div>
+    </header>
 
     <el-alert
       v-if="esAdmision"
@@ -21,250 +21,149 @@
       class="form-alert"
     />
 
-    <el-card>
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="180px">
-        <h3>Identidad</h3>
-        <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="Tipo de documento" prop="tipo_documento_codigo">
-              <el-select v-model="form.tipo_documento_codigo" style="width: 100%">
-                <el-option
-                  v-for="tipo in tiposDocumento"
-                  :key="tipo.codigo"
-                  :label="tipo.nombre"
-                  :value="tipo.codigo"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="N° documento" prop="numero_documento">
-              <el-input v-model="form.numero_documento" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Historia clínica">
-              <el-input v-model="form.historia_clinica" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Historia familiar">
-              <el-input v-model="form.historia_familiar" placeholder="Código de historia familiar" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Apellido paterno">
-              <el-input v-model="form.apellido_paterno" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Apellido materno">
-              <el-input v-model="form.apellido_materno" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Primer nombre" prop="primer_nombre">
-              <el-input v-model="form.primer_nombre" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Otros nombres">
-              <el-input v-model="form.otros_nombres" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Fecha de nacimiento" prop="fecha_nacimiento">
-              <el-date-picker
-                v-model="form.fecha_nacimiento"
-                type="date"
-                value-format="YYYY-MM-DD"
-                style="width: 100%"
-                :disabled-date="(d: Date) => d.getTime() > Date.now()"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Sexo">
-              <el-select v-model="form.sexo_codigo" clearable style="width: 100%">
-                <el-option
-                  v-for="sexo in sexos"
-                  :key="sexo.codigo"
-                  :label="sexo.nombre"
-                  :value="sexo.codigo"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Fecha de inscripción">
-              <el-date-picker
-                v-model="form.fecha_inscripcion"
-                type="date"
-                value-format="YYYY-MM-DD"
-                style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Seguro">
-              <el-select v-model="form.seguro_id" clearable filterable style="width: 100%">
-                <el-option
-                  v-for="seguro in seguros"
-                  :key="seguro.id"
-                  :label="seguro.nombre"
-                  :value="seguro.id"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Establecimiento de registro">
-              <el-select
-                v-model="form.establecimiento_registro_id"
-                clearable
-                filterable
-                remote
-                :remote-method="searchEstablecimientos"
-                :loading="establecimientosLoading"
-                style="width: 100%"
-                placeholder="Busque por nombre"
-              >
-                <el-option
-                  v-for="est in establecimientos"
-                  :key="est.id"
-                  :label="est.nombre"
-                  :value="est.id"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Ubigeo de residencia">
-              <el-select
-                v-model="form.ubigeo_residencia_codigo"
-                clearable
-                filterable
-                remote
-                :remote-method="searchUbigeos"
-                :loading="ubigeosLoading"
-                style="width: 100%"
-                placeholder="Busque por departamento"
-              >
-                <el-option
-                  v-for="ubigeo in ubigeos"
-                  :key="ubigeo.codigo"
-                  :label="`${ubigeo.departamento} / ${ubigeo.provincia} / ${ubigeo.distrito}`"
-                  :value="ubigeo.codigo"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Localidad">
-              <el-input v-model="form.localidad" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Dirección">
-              <el-input v-model="form.direccion" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Teléfono principal">
-              <el-input v-model="form.telefono_principal" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="Condición">
-              <el-input v-model="form.condicion" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+    <el-card class="patient-registration__card" shadow="never">
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-position="top"
+        class="patient-registration__form"
+      >
+        <div class="patient-registration__layout">
+          <section class="registration-panel registration-panel--primary" aria-labelledby="patient-data-title">
+            <header class="registration-panel__header">
+              <h3 id="patient-data-title" class="registration-panel__title">Base de datos</h3>
+              <p class="registration-panel__description">
+                Identificación, inscripción y datos de contacto del paciente.
+              </p>
+            </header>
 
-        <el-divider />
-        <div class="section-head">
-          <h3>Responsables (obligatorio si es menor de 18 años)</h3>
-          <el-button size="small" @click="addResponsible">Agregar responsable</el-button>
-        </div>
-        <div v-for="(resp, index) in form.responsables" :key="index" class="repeat-block">
-          <el-row :gutter="12">
-            <el-col :span="4">
-              <el-select v-model="resp.parentesco" placeholder="Parentesco" style="width: 100%">
-                <el-option label="Madre" value="MADRE" />
-                <el-option label="Padre" value="PADRE" />
-                <el-option label="Tutor" value="TUTOR" />
-              </el-select>
-            </el-col>
-            <el-col :span="6">
-              <el-input v-model="resp.nombre_completo" placeholder="Nombre completo" />
-            </el-col>
-            <el-col :span="4">
-              <el-select v-model="resp.tipo_documento_codigo" clearable placeholder="Tipo doc." style="width: 100%">
-                <el-option
-                  v-for="tipo in tiposDocumento"
-                  :key="tipo.codigo"
-                  :label="tipo.nombre"
-                  :value="tipo.codigo"
+            <div class="patient-registration__fields">
+              <el-form-item class="registration-field" label="Tipo de documento" prop="tipo_documento_codigo">
+                <el-select v-model="form.tipo_documento_codigo">
+                  <el-option
+                    v-for="tipo in tiposDocumento"
+                    :key="tipo.codigo"
+                    :label="tipo.nombre"
+                    :value="tipo.codigo"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item class="registration-field" label="N.° documento" prop="numero_documento">
+                <el-input v-model="form.numero_documento" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="N.° historia clínica">
+                <el-input v-model="form.historia_clinica" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Historia familiar">
+                <el-input v-model="form.historia_familiar" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Fecha de nacimiento" prop="fecha_nacimiento">
+                <el-date-picker
+                  v-model="form.fecha_nacimiento"
+                  type="date"
+                  value-format="YYYY-MM-DD"
+                  :disabled-date="(d: Date) => d.getTime() > Date.now()"
                 />
-              </el-select>
-            </el-col>
-            <el-col :span="4">
-              <el-input v-model="resp.numero_documento" placeholder="N° doc." :disabled="!resp.tipo_documento_codigo" />
-            </el-col>
-            <el-col :span="3">
-              <el-input v-model="resp.telefono" placeholder="Teléfono" />
-            </el-col>
-            <el-col :span="2">
-              <el-tooltip content="Principal" placement="top">
-                <el-switch v-model="resp.es_principal" />
-              </el-tooltip>
-            </el-col>
-            <el-col :span="1">
-              <el-button link type="danger" @click="removeResponsible(index)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </el-col>
-          </el-row>
+              </el-form-item>
+              <el-form-item class="registration-field" label="Fecha de inscripción">
+                <el-date-picker v-model="form.fecha_inscripcion" type="date" value-format="YYYY-MM-DD" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Apellido paterno">
+                <el-input v-model="form.apellido_paterno" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Apellido materno">
+                <el-input v-model="form.apellido_materno" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Primer nombre" prop="primer_nombre">
+                <el-input v-model="form.primer_nombre" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Otros nombres">
+                <el-input v-model="form.otros_nombres" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Sexo">
+                <el-select v-model="form.sexo_codigo" clearable>
+                  <el-option
+                    v-for="sexo in sexos"
+                    :key="sexo.codigo"
+                    :label="sexo.nombre"
+                    :value="sexo.codigo"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item class="registration-field" label="Seguro">
+                <el-select v-model="form.seguro_id" clearable filterable>
+                  <el-option
+                    v-for="seguro in seguros"
+                    :key="seguro.id"
+                    :label="seguro.nombre"
+                    :value="seguro.id"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item class="registration-field" label="Establecimiento de registro">
+                <el-select
+                  v-model="form.establecimiento_registro_id"
+                  clearable
+                  filterable
+                  remote
+                  :remote-method="searchEstablecimientos"
+                  :loading="establecimientosLoading"
+                  placeholder="Busque por nombre"
+                >
+                  <el-option
+                    v-for="est in establecimientos"
+                    :key="est.id"
+                    :label="est.nombre"
+                    :value="est.id"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item class="registration-field" label="Ubigeo de residencia">
+                <el-select
+                  v-model="form.ubigeo_residencia_codigo"
+                  clearable
+                  filterable
+                  remote
+                  :remote-method="searchUbigeos"
+                  :loading="ubigeosLoading"
+                  placeholder="Busque por departamento"
+                >
+                  <el-option
+                    v-for="ubigeo in ubigeos"
+                    :key="ubigeo.codigo"
+                    :label="`${ubigeo.departamento} / ${ubigeo.provincia} / ${ubigeo.distrito}`"
+                    :value="ubigeo.codigo"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item class="registration-field" label="Localidad">
+                <el-input v-model="form.localidad" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Dirección">
+                <el-input v-model="form.direccion" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Teléfono principal">
+                <el-input v-model="form.telefono_principal" />
+              </el-form-item>
+              <el-form-item class="registration-field" label="Condición">
+                <el-input v-model="form.condicion" />
+              </el-form-item>
+            </div>
+          </section>
+
+          <PatientRegistrationFamilySections
+            v-model:responsables="form.responsables"
+            v-model:riesgos="form.riesgos"
+            :tipos-documento="tiposDocumento"
+            :grupos-riesgo="gruposRiesgo"
+          />
         </div>
 
-        <el-divider />
-        <div class="section-head">
-          <h3>Grupos de riesgo</h3>
-          <el-button size="small" @click="addRisk">Agregar riesgo</el-button>
-        </div>
-        <div v-for="(riesgo, index) in form.riesgos" :key="index" class="repeat-block">
-          <el-row :gutter="12">
-            <el-col :span="7">
-              <el-select v-model="riesgo.grupo_riesgo_id" placeholder="Grupo de riesgo" style="width: 100%">
-                <el-option
-                  v-for="grupo in gruposRiesgo"
-                  :key="grupo.id"
-                  :label="grupo.nombre"
-                  :value="grupo.id"
-                />
-              </el-select>
-            </el-col>
-            <el-col :span="5">
-              <el-date-picker v-model="riesgo.fecha_inicio" type="date" value-format="YYYY-MM-DD" placeholder="Inicio" style="width: 100%" />
-            </el-col>
-            <el-col :span="5">
-              <el-date-picker v-model="riesgo.fecha_fin" type="date" value-format="YYYY-MM-DD" placeholder="Fin (opcional)" clearable style="width: 100%" />
-            </el-col>
-            <el-col :span="6">
-              <el-input v-model="riesgo.observacion" placeholder="Observación" />
-            </el-col>
-            <el-col :span="1">
-              <el-button link type="danger" @click="removeRisk(index)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </el-col>
-          </el-row>
-        </div>
-
-        <div class="form-actions">
+        <footer class="form-actions">
           <el-button type="primary" :loading="saving" @click="submit">Registrar paciente</el-button>
           <el-button @click="router.back()">Cancelar</el-button>
-        </div>
+        </footer>
       </el-form>
     </el-card>
   </div>
@@ -275,6 +174,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 
+import PatientRegistrationFamilySections from '@/components/patients/PatientRegistrationFamilySections.vue'
 import { catalogos, type CodeCatalogItem, type EstablishmentCatalogItem, type IdCatalogItem, type RiskGroupCatalogItem, type UbigeoCatalogItem } from '@/services/catalogos'
 import { pacientes } from '@/services/pacientes'
 
@@ -370,34 +270,6 @@ async function searchUbigeos(query: string): Promise<void> {
   }
 }
 
-function addResponsible(): void {
-  form.responsables.push({
-    parentesco: 'MADRE',
-    nombre_completo: '',
-    tipo_documento_codigo: null,
-    numero_documento: null,
-    telefono: null,
-    es_principal: false,
-  })
-}
-
-function removeResponsible(index: number): void {
-  form.responsables.splice(index, 1)
-}
-
-function addRisk(): void {
-  form.riesgos.push({
-    grupo_riesgo_id: null,
-    fecha_inicio: '',
-    fecha_fin: null,
-    observacion: '',
-  })
-}
-
-function removeRisk(index: number): void {
-  form.riesgos.splice(index, 1)
-}
-
 async function submit(): Promise<void> {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
@@ -464,11 +336,16 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.patient-registration {
+  min-width: 0;
+}
+
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .page-header h2 {
@@ -476,29 +353,127 @@ onMounted(async () => {
 }
 
 .form-alert {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.patient-registration__card {
+  min-width: 0;
+  border-color: var(--el-border-color-lighter);
+  border-radius: 12px;
 }
 
-.section-head h3 {
+.patient-registration__card :deep(.el-card__body) {
+  padding: 14px;
+}
+
+.patient-registration__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(300px, 0.82fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.registration-panel {
+  min-width: 0;
+}
+
+.registration-panel--primary {
+  padding-right: 16px;
+  border-right: 1px solid var(--el-border-color-lighter);
+}
+
+.registration-panel__header {
+  margin-bottom: 10px;
+}
+
+.registration-panel__title {
   margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
-.repeat-block {
-  padding: 12px;
-  margin-bottom: 8px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+.registration-panel__description {
+  margin: 2px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.patient-registration__fields {
+  display: grid;
+  gap: 5px;
+}
+
+.patient-registration__fields :deep(.registration-field) {
+  display: grid;
+  grid-template-columns: minmax(126px, 0.45fr) minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.patient-registration__fields :deep(.registration-field .el-form-item__label) {
+  height: auto;
+  padding: 0 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.patient-registration__fields :deep(.registration-field .el-form-item__content) {
+  min-width: 0;
+  margin-left: 0 !important;
+}
+
+.patient-registration__fields :deep(.registration-field .el-select),
+.patient-registration__fields :deep(.registration-field .el-date-editor) {
+  width: 100%;
 }
 
 .form-actions {
-  margin-top: 24px;
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
+  padding-top: 12px;
+  margin-top: 14px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+@media (max-width: 1060px) {
+  .patient-registration__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .registration-panel--primary {
+    padding-right: 0;
+    padding-bottom: 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+}
+
+@media (max-width: 640px) {
+  .patient-registration__card :deep(.el-card__body) {
+    padding: 12px;
+  }
+
+  .patient-registration__fields :deep(.registration-field) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .patient-registration__fields :deep(.registration-field .el-form-item__label) {
+    padding-right: 0;
+  }
+
+  .form-actions {
+    justify-content: stretch;
+  }
+
+  .form-actions :deep(.el-button) {
+    flex: 1 1 0;
+  }
 }
 </style>

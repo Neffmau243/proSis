@@ -136,9 +136,11 @@ class Attention(Base):
     temperatura_c: Mapped[Decimal | None] = mapped_column(
         mysql.DECIMAL(4, 1), nullable=True
     )
+    imc: Mapped[Decimal | None] = mapped_column(mysql.DECIMAL(6, 3), nullable=True)
     pe: Mapped[str | None] = mapped_column(String(50), nullable=True)
     te: Mapped[str | None] = mapped_column(String(50), nullable=True)
     pt: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    referencia_nutricional: Mapped[str | None] = mapped_column(String(80), nullable=True)
     hora_inicio: Mapped[time | None] = mapped_column(Time, nullable=True)
     hora_fin: Mapped[time | None] = mapped_column(Time, nullable=True)
     admision: Mapped[str | None] = mapped_column(String(100), nullable=True)

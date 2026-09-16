@@ -97,9 +97,10 @@ class PatientDiscoveryRepository:
             )
         if professional_id is not None:
             # A professional may discover a patient registered at one of
-            # their active workplaces, or one with a prior non-cancelled
-            # attention of their own.  EXISTS keeps the result/count stable
-            # even when a patient has many historical attentions.
+            # their active workplaces, one with a prior non-cancelled
+            # attention of their own, or one they registered/transferred
+            # themselves.  EXISTS keeps the result/count stable even when a
+            # patient has many historical attentions.
             own_attention = exists(
                 select(Attention.id).where(
                     Attention.paciente_id == Patient.id,
@@ -112,7 +113,8 @@ class PatientDiscoveryRepository:
                 if establishment_ids
                 else false()
             )
-            conditions.append(or_(allowed_establishment, own_attention))
+            own_registration = Patient.profesional_registro_id == professional_id
+            conditions.append(or_(allowed_establishment, own_attention, own_registration))
 
         statement = select(Patient).options(
             selectinload(Patient.responsables),
@@ -212,6 +214,8 @@ class AttentionDiscoveryRepository:
             .options(
                 selectinload(Attention.prestaciones),
                 selectinload(Attention.diagnosticos),
+                selectinload(Attention.paciente),
+                selectinload(Attention.consultorio),
             )
             .where(*conditions)
             .order_by(Attention.fecha_atencion.desc(), Attention.id.desc())

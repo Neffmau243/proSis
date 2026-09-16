@@ -122,7 +122,7 @@ class NutritionalEvaluation(Base):
         ),
         nullable=False,
     )
-    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+    tipo: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fecha: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     peso_kg: Mapped[Decimal | None] = mapped_column(
         mysql.DECIMAL(6, 2), nullable=True

@@ -2,6 +2,8 @@
 defineProps<{
   saving: boolean
   primaryLabel: string
+  disabled?: boolean
+  disabledReason?: string
 }>()
 
 const emit = defineEmits<{
@@ -13,11 +15,15 @@ const emit = defineEmits<{
 
 <template>
   <footer class="admission-final-actions" aria-label="Acciones de admisión">
+    <p v-if="disabledReason" class="admission-final-actions__reason" role="status">
+      {{ disabledReason }}
+    </p>
     <div class="admission-final-actions__tray" role="group" aria-label="Acciones de admisión">
       <el-button
         class="admission-final-actions__button"
         type="primary"
         :loading="saving"
+        :disabled="disabled"
         @click="emit('submit')"
       >
         <el-icon><DocumentChecked /></el-icon>
@@ -30,17 +36,11 @@ const emit = defineEmits<{
         <el-icon><Printer /></el-icon>
         <span>Imprimir S.I.S.</span>
       </el-button>
-      <el-button
-        class="admission-final-actions__button"
-        @click="emit('pending', 'Otra consulta')"
-      >
+      <el-button class="admission-final-actions__button" @click="emit('pending', 'Otra consulta')">
         <el-icon><SwitchButton /></el-icon>
         <span>Otra consulta</span>
       </el-button>
-      <el-button
-        class="admission-final-actions__button"
-        @click="emit('pending', 'FUA adicional')"
-      >
+      <el-button class="admission-final-actions__button" @click="emit('pending', 'FUA adicional')">
         <el-icon><DocumentAdd /></el-icon>
         <span>FUA adicional</span>
       </el-button>
@@ -57,6 +57,13 @@ const emit = defineEmits<{
   margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.admission-final-actions__reason {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-regular);
 }
 
 .admission-final-actions__tray {

@@ -17,6 +17,7 @@ from sqlalchemy.engine import URL, make_url
 from sqlalchemy.pool import NullPool
 
 from app.core.config import Settings, get_settings
+from app.core.security import validate_password_format
 from app.scripts.bootstrap_database import (
     _database_name,
     create_database_if_missing,
@@ -63,12 +64,10 @@ def drop_configured_database(settings: Settings | None = None) -> str:
 
 def _read_password(cli_password: str | None, *, generate_password: bool) -> str:
     if generate_password:
-        # Hexadecimal avoids quote/whitespace issues when the user copies the
-        # generated local-development credential into Postman.
-        return f"IpressDemo!{secrets.token_hex(16)}"
+        return f"{secrets.randbelow(100_000_000):08d}"
     if cli_password is not None:
         return cli_password
-    password = getpass("Contraseña para el nuevo ADMIN (mínimo 12 caracteres): ")
+    password = getpass("Contraseña para el nuevo ADMIN (8 dígitos): ")
     confirmation = getpass("Repita la contraseña: ")
     if password != confirmation:
         raise ValueError("Las contraseñas no coinciden.")
@@ -118,8 +117,7 @@ def main() -> None:
         if args.demo_credentials
         else _read_password(args.password, generate_password=args.generate_password)
     )
-    if len(password) < 12:
-        raise ValueError("La contraseña debe tener al menos 12 caracteres.")
+    validate_password_format(password)
 
     deleted_database = drop_configured_database()
     database_name = create_database_if_missing()

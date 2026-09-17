@@ -7,6 +7,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.security import PASSWORD_FORMAT_MESSAGE, validate_password_format
 from app.domain.authorization import ASSIGNABLE_ROLE_CODES
 
 
@@ -23,22 +24,9 @@ def _validate_assignable_roles(roles: list[str]) -> list[str]:
     return roles
 
 
-def _validate_password_byte_length(password: str) -> str:
-    """Mirror bcrypt's byte limit at the HTTP boundary.
-
-    Pydantic's ``max_length`` counts characters, whereas bcrypt truncates by
-    UTF-8 bytes. Rejecting oversized input here prevents two distinct Unicode
-    values from being silently treated as the same password.
-    """
-
-    if len(password.encode("utf-8")) > 72:
-        raise ValueError("La contraseña no puede superar 72 bytes UTF-8.")
-    return password
-
-
 class LoginRequest(BaseModel):
     nombre_usuario: Annotated[str, Field(min_length=1, max_length=100)]
-    password: Annotated[str, Field(min_length=1, max_length=72)]
+    password: Annotated[str, Field(description=PASSWORD_FORMAT_MESSAGE)]
 
     @field_validator("nombre_usuario", mode="before")
     @classmethod
@@ -47,8 +35,8 @@ class LoginRequest(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def validate_password_byte_length(cls, value: str) -> str:
-        return _validate_password_byte_length(value)
+    def validate_numeric_password(cls, value: str) -> str:
+        return validate_password_format(value)
 
 
 class AccessTokenResponse(BaseModel):
@@ -60,10 +48,16 @@ class AccessTokenResponse(BaseModel):
     permisos: list[str]
 
 
+class LoginUsernameOption(BaseModel):
+    """A username available to the internal login selector."""
+
+    nombre_usuario: str
+
+
 class UserCreate(BaseModel):
     profesional_id: Annotated[int, Field(gt=0)] | None = None
     nombre_usuario: Annotated[str, Field(min_length=3, max_length=100)]
-    password: Annotated[str, Field(min_length=12, max_length=72)]
+    password: Annotated[str, Field(description=PASSWORD_FORMAT_MESSAGE)]
     roles: list[Annotated[str, Field(min_length=1, max_length=50)]] = Field(min_length=1)
 
     @field_validator("nombre_usuario", "roles", mode="before")
@@ -82,8 +76,8 @@ class UserCreate(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def validate_password_byte_length(cls, value: str) -> str:
-        return _validate_password_byte_length(value)
+    def validate_numeric_password(cls, value: str) -> str:
+        return validate_password_format(value)
 
 
 class UserRolesUpdate(BaseModel):
@@ -103,28 +97,28 @@ class UserRolesUpdate(BaseModel):
 
 
 class _NewPasswordRequest(BaseModel):
-    new_password: Annotated[str, Field(min_length=12, max_length=72)]
-    new_password_confirmation: Annotated[str, Field(min_length=12, max_length=72)]
+    new_password: Annotated[str, Field(description=PASSWORD_FORMAT_MESSAGE)]
+    new_password_confirmation: Annotated[str, Field(description=PASSWORD_FORMAT_MESSAGE)]
 
     @field_validator("new_password", "new_password_confirmation")
     @classmethod
-    def validate_password_byte_length(cls, value: str) -> str:
-        return _validate_password_byte_length(value)
+    def validate_numeric_password(cls, value: str) -> str:
+        return validate_password_format(value)
 
     @model_validator(mode="after")
-    def passwords_match(self) -> "_NewPasswordRequest":
+    def passwords_match(self) -> _NewPasswordRequest:
         if self.new_password != self.new_password_confirmation:
             raise ValueError("La confirmación de contraseña no coincide.")
         return self
 
 
 class PasswordChangeRequest(_NewPasswordRequest):
-    current_password: Annotated[str, Field(min_length=1, max_length=72)]
+    current_password: Annotated[str, Field(description=PASSWORD_FORMAT_MESSAGE)]
 
     @field_validator("current_password")
     @classmethod
-    def validate_current_password_byte_length(cls, value: str) -> str:
-        return _validate_password_byte_length(value)
+    def validate_current_password_format(cls, value: str) -> str:
+        return validate_password_format(value)
 
 
 class PasswordResetRequest(_NewPasswordRequest):

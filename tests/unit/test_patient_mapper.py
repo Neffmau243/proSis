@@ -41,6 +41,7 @@ def test_patient_mapper_never_returns_orm_entities() -> None:
         otros_nombres=None,
         sexo_codigo="F",
         ubigeo_residencia_codigo=None,
+        ubigeo_residencia=SimpleNamespace(distrito="Arequipa"),
         localidad=None,
         direccion=None,
         establecimiento_registro_id=None,
@@ -57,5 +58,6 @@ def test_patient_mapper_never_returns_orm_entities() -> None:
     response = patient_to_response(patient)
 
     assert response.id == 9
+    assert response.distrito_residencia == "Arequipa"
     assert response.riesgos[0].grupo_riesgo_codigo == "GESTANTE"
     assert risk_to_response(risk).model_dump()["grupo_riesgo_nombre"] == "Gestante"

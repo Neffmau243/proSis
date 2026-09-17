@@ -12,7 +12,7 @@ import app.scripts.seed_demo_data as demo_seed
 import app.services.auth as auth_module
 from app.core.config import Settings
 from app.exceptions import BusinessRuleError
-from app.schemas.auth import LoginRequest, UserRolesUpdate
+from app.schemas.auth import LoginRequest, PasswordChangeRequest, UserCreate, UserRolesUpdate
 from app.services.auth import AuthenticationService
 from app.services.user import UserService
 
@@ -42,9 +42,30 @@ def test_demo_seed_stops_before_opening_a_session_outside_development(monkeypatc
         demo_seed.seed_demo_data()
 
 
-def test_password_contract_rejects_more_than_72_utf8_bytes() -> None:
-    with pytest.raises(ValidationError, match="72 bytes UTF-8"):
-        LoginRequest(nombre_usuario="medico.demo", password="á" * 37)
+@pytest.mark.parametrize("password", ["1234567", "123456789", "1234abcd"])
+def test_password_contract_requires_exactly_eight_ascii_digits(password: str) -> None:
+    with pytest.raises(ValidationError, match="exactamente 8 dígitos"):
+        LoginRequest(nombre_usuario="medico.demo", password=password)
+
+
+def test_all_password_entry_contracts_accept_eight_digits() -> None:
+    assert LoginRequest(nombre_usuario="medico.demo", password="12345678").password == "12345678"
+    assert (
+        UserCreate(
+            nombre_usuario="medico.demo",
+            password="12345678",
+            roles=["ADMIN"],
+        ).password
+        == "12345678"
+    )
+    assert (
+        PasswordChangeRequest(
+            current_password="12345678",
+            new_password="87654321",
+            new_password_confirmation="87654321",
+        ).new_password
+        == "87654321"
+    )
 
 
 class _RateLimitRepository:
@@ -53,6 +74,19 @@ class _RateLimitRepository:
 
     def add_login_rate_limit(self, limiter: object) -> None:
         self.limiter = limiter
+
+
+class _LoginUsernameRepository:
+    @staticmethod
+    def list_active_usernames() -> list[str]:
+        return ["admin", "medico.demo"]
+
+
+def test_login_username_directory_returns_active_accounts() -> None:
+    service = AuthenticationService(SimpleNamespace())
+    service._users = _LoginUsernameRepository()  # type: ignore[assignment]
+
+    assert service.list_active_usernames() == ["admin", "medico.demo"]
 
 
 def test_login_controls_rate_and_progressive_account_lock(monkeypatch) -> None:

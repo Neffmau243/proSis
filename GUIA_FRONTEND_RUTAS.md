@@ -32,7 +32,6 @@ Navegador → ruta de la SPA → cliente HTTP → /api/v1 → FastAPI → MySQL
 | `/admision?patientId=:id` | Admisión: contexto del paciente + atención | `ATENCION_CREAR` |
 | `/pacientes/nuevo` | Registro de paciente | `PACIENTE_EDITAR` |
 | `/pacientes/:id` | Ficha del paciente | `PACIENTE_LEER` |
-| `/pacientes/:id/editar` | Edición de datos base | `PACIENTE_EDITAR` |
 | `/pacientes` | Redirección a `/` | Sesión |
 | `/atenciones` | Historial de atenciones | `ATENCION_LEER` |
 | `/atenciones/nueva` | Nueva atención fuera de admisión | `ATENCION_CREAR` |
@@ -49,7 +48,7 @@ Si falta un permiso, el guard redirige a `/`; si no hay sesión, a `/login` con
 Use una única variable de configuración en el frontend:
 
 ```text
-API_BASE_URL=http://127.0.0.1:8000/api/v1
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 ```
 
 No agregar `/api/v1` dos veces. En desarrollo, si frontend y backend se sirven
@@ -62,10 +61,14 @@ desde orígenes distintos, el backend debe tener el origen del frontend en
 
 | Página propuesta | Acción | API | Resultado que debe conservar el cliente |
 | --- | --- | --- | --- |
+| `/login` | Mostrar y filtrar usuarios activos | `GET /auth/usuarios-activos` | Lista de `{ nombre_usuario }` para el selector interno |
 | `/login` | Iniciar sesión | `POST /auth/login` | `access_token`, `expires_in`, `usuario_id`, `roles` y `permisos` |
 | `/cuenta/cambiar-contrasena` | Cambiar la clave del usuario actual | `PUT /auth/me/password` | Responde `204 No Content`; cerrar la sesión local y pedir nuevo inicio |
 
-El login recibe `{ "nombre_usuario", "password" }`. Cada petición protegida
+El selector del login consulta `GET /auth/usuarios-activos`: es público por el
+requerimiento del equipo interno y entrega solo cuentas activas. El login recibe
+`{ "nombre_usuario", "password" }`; la contraseña debe tener exactamente ocho
+dígitos. Cada petición protegida
 debe enviar `Authorization: Bearer <access_token>`. No existe endpoint de
 refresh ni `/auth/me`; el estado inicial del usuario proviene de la respuesta
 del login. Por ello el cliente debe vencer la sesión con `expires_in` y volver
@@ -136,23 +139,37 @@ PROFESIONAL
 
 ## 4. Mapa de páginas y ventanas
 
+Las tablas administrativas de diseño incluyen rutas propuestas que aún no
+están implementadas. La tabla de la sección 1 y el [README del frontend](frontend/README.md)
+describen las rutas reales. La revisión completa está en
+[docs/REVISION_FLUJO_Y_ARQUITECTURA.md](docs/REVISION_FLUJO_Y_ARQUITECTURA.md).
+
 ### Páginas compartidas
 
 | Ruta de la SPA | Vista / ventana | Lecturas | Escrituras | Roles |
 | --- | --- | --- | --- | --- |
-| `/login` | Formulario de acceso | — | `POST /auth/login` | Pública |
+| `/login` | Formulario de acceso | `GET /auth/usuarios-activos` | `POST /auth/login` | Pública |
 | `/cuenta/cambiar-contrasena` | Formulario con clave actual, nueva y confirmación | — | `PUT /auth/me/password` | Autenticado |
 | `/` | Tabla/buscador de pacientes (“Base de datos”) | `GET /patients` | — | ADMIN, PROFESIONAL |
 | `/pacientes/nuevo` | Registro de paciente | Catálogos de identidad, seguro, ubigeo, riesgos y establecimientos | `POST /patients` | ADMIN, PROFESIONAL |
 | `/pacientes/:id` | Ficha del paciente con pestañas Datos, Responsables, Riesgos y Atenciones | `GET /patients/{id}`; `GET /atenciones?paciente_id={id}` | Según pestaña | ADMIN, PROFESIONAL |
-| `/pacientes/:id/editar` | Edición de datos base | `GET /patients/{id}` y catálogos | `PATCH /patients/{id}` | ADMIN, PROFESIONAL |
 | `/admision?patientId=:id` | Admisión: tarjeta lateral del paciente con edición en línea + formulario de atención | `GET /patients/{id}`, catálogos, `GET /atenciones?paciente_id={id}` | `PATCH /patients/{id}`, `POST /atenciones` | PROFESIONAL |
 
-En `/admision` la tarjeta “Datos del paciente” guarda al vuelo los campos que el
-mostrador necesita corregir durante la atención: `sexo_codigo`, `localidad`,
-`direccion`, `establecimiento_registro_id` y `seguro_id`. Cada cambio envía un
-`PATCH` de **un solo campo** (el backend aplica `exclude_unset`) y el panel se
-deshabilita mientras guarda; no hay botón de guardar para esa tarjeta.
+En `/admision`, “Datos del paciente” utiliza un borrador y el botón **Guardar
+cambios**. Permite editar las columnas de `PatientUpdate`: identidad, historias,
+nacimiento, sexo, residencia, establecimiento, seguro, teléfono, inscripción y
+condición. Un único `PATCH /patients/{id}` incluye solo las diferencias;
+`exclude_unset` conserva los campos omitidos. No hay autoguardado al escribir.
+Se pueden descartar cambios; un error conserva el borrador. El POST de atención
+se bloquea mientras haya cambios del paciente pendientes u operaciones en curso.
+
+La edad y el grupo etario son derivados. Madre/responsables y riesgos se editan
+desde el mismo panel reutilizando los diálogos de la ficha y sus endpoints
+propios. No se envían en el PATCH maestro. El backend rechaza campos extra y
+`null` explícito en tipo/número de documento o nacimiento.
+La antigua ruta `/pacientes/:id/editar` redirige a Admisión. ADMIN tiene permiso
+para PATCH en la API, pero aún no puede entrar al editor SPA por el guard
+`ATENCION_CREAR`; esta diferencia se documenta como pendiente.
 
 En la ficha de paciente abrir ventanas laterales o modales, no páginas nuevas,
 para estos cambios puntuales:
@@ -184,9 +201,10 @@ El formulario de nueva atención necesita `paciente_id`, `establecimiento_id`,
 o `EMERGENCIA`) y `fecha_atencion`. Puede añadir signos vitales, horas,
 observaciones, prestaciones, diagnósticos y valoración nutricional. No enviar
 `grupo_etario_codigo`, edad, estado, `imc`, `pe`, `te` ni `pt`: el backend los
-calcula. Mientras el usuario escribe peso y talla, pedir
-`POST /atenciones/indicadores-nutricionales/vista-previa` para mostrar la vista
-previa, sin persistir nada.
+calcula. `POST /atenciones/indicadores-nutricionales/vista-previa` permite
+calcular sin persistir. Estado actual de la SPA: el composable existe, pero
+la vista no lo conecta; tampoco ofrece controles de prestaciones/CIE-10
+al crear atención. Estas son capacidades del contrato, no funciones terminadas.
 
 La búsqueda paginada acepta `paciente_id`, `establecimiento_id`,
 `profesional_id`, `desde`, `hasta`, `estado` (`ATENDIDO` o `ANULADO`), `limit`
@@ -241,7 +259,7 @@ filtro “incluir inactivos” y no implementar un borrado irreversible en la UI
 
 | Ruta web propuesta | Acciones que sí tienen API | Bloqueo actual |
 | --- | --- | --- |
-| `/usuarios/nuevo` | `POST /usuarios` | Puede crear usuario con `profesional_id` opcional, clave de mínimo 12 caracteres y roles `ADMIN`/`PROFESIONAL`. |
+| `/usuarios/nuevo` | `POST /usuarios` | Puede crear usuario con `profesional_id` opcional, clave numérica de 8 dígitos y roles `ADMIN`/`PROFESIONAL`. |
 | `/usuarios/:userId/seguridad` | `PUT /usuarios/{userId}/roles`, `PUT /usuarios/{userId}/password`, `DELETE /usuarios/{userId}` | Funciona solo si ya se conoce el ID por otro contexto. |
 | `/usuarios` | — | **No existe `GET /usuarios` ni `GET /usuarios/{userId}`.** No construir una tabla de usuarios funcional hasta que backend exponga lectura. |
 
@@ -312,13 +330,13 @@ anulación mientras no existan endpoints de anulación/cierre de documentos.
 ## 7. Inventario completo de API por módulo
 
 Esta lista complementa las páginas anteriores y permite al frontend comparar
-su cliente HTTP con las **55 operaciones** disponibles (la colección Postman
-cubre 54: todavía no incluye la vista previa de indicadores nutricionales).
+su cliente HTTP con las **56 operaciones** disponibles (la colección Postman
+cubre 54: faltan la vista previa nutricional y `GET /auth/usuarios-activos`).
 
 | Módulo | Operaciones reales |
 | --- | --- |
 | Salud | `GET /health` (pública, no conecta a MySQL). |
-| Autenticación | `POST /auth/login`; `PUT /auth/me/password`. |
+| Autenticación | `GET /auth/usuarios-activos`; `POST /auth/login`; `PUT /auth/me/password`. |
 | Pacientes | `GET`, `POST /patients`; `GET`, `PATCH`, `DELETE /patients/{patientId}`; `POST /patients/{patientId}/responsibles`; `PATCH /patients/{patientId}/responsibles/{responsibleId}`; `POST /patients/{patientId}/risk-groups`; `PATCH /patients/{patientId}/risk-groups/{riskGroupId}/{startDate}`. |
 | Catálogos | Los 14 `GET /catalogos/...` de la sección anterior. |
 | Grupos etarios | `GET`, `PUT /configuracion/grupos-etarios`. |
@@ -330,8 +348,12 @@ cubre 54: todavía no incluye la vista previa de indicadores nutricionales).
 
 ## 8. Cambios recientes del contrato
 
+Al 17/09/2026, el head es `20260916_0010_locality`: distrito y localidad se
+mantienen separados. El editor de admisión guarda un PATCH explícito por botón.
+Los siguientes cambios de ámbito corresponden a la revisión anterior:
+
 Estos puntos cambiaron respecto de versiones anteriores de esta guía y ya están
-implementados en el backend (`revisión 20260912_0009_patient_prof`):
+implementados desde la revisión `20260912_0009_patient_prof`:
 
 - **Ámbito del paciente para un PROFESIONAL**: se compone de (1) pacientes
   registrados en una sede donde tiene asignación vigente, (2) pacientes con una
@@ -372,7 +394,7 @@ implementados en el backend (`revisión 20260912_0009_patient_prof`):
 
 ## 10. Lista de verificación antes de conectar el frontend
 
-- [ ] Configurar `API_BASE_URL` como `http://127.0.0.1:8000/api/v1`.
+- [ ] Configurar `VITE_API_BASE_URL` como `http://127.0.0.1:8000/api/v1`.
 - [ ] Iniciar el backend con `uvicorn app.main:app --reload` y comprobar
   `GET /api/v1/health`.
 - [ ] Configurar `CORS_ORIGINS` con el origen real del frontend si no comparten

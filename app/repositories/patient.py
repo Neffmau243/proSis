@@ -38,6 +38,7 @@ class PatientRepository:
         statement = (
             select(Patient)
             .options(
+                selectinload(Patient.ubigeo_residencia),
                 selectinload(Patient.responsables),
                 selectinload(Patient.riesgos).selectinload(PatientRisk.grupo_riesgo),
             )
@@ -283,12 +284,15 @@ class PatientRepository:
         self._session.add(risk)
         return risk
 
-    @staticmethod
-    def update_fields(entity: Any, values: dict[str, Any]) -> None:
+    def update_fields(self, entity: Any, values: dict[str, Any]) -> None:
         """Assigns already-whitelisted persistence fields to an ORM entity."""
 
         for field, value in values.items():
             setattr(entity, field, value)
+        if isinstance(entity, Patient) and "ubigeo_residencia_codigo" in values:
+            # The response and audit snapshot must use the new district, not
+            # the relationship that was loaded before changing the foreign key.
+            self._session.expire(entity, ["ubigeo_residencia"])
 
     @staticmethod
     def deactivate(patient: Patient) -> None:

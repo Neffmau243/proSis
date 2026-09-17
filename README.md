@@ -6,11 +6,12 @@ Documentación relacionada:
 
 - [frontend/README.md](frontend/README.md) — la aplicación Vue 3: módulos implementados, barra lateral, estructura y verificación.
 - [GUIA_FRONTEND_RUTAS.md](GUIA_FRONTEND_RUTAS.md) — contrato HTTP por pantalla, permisos, catálogos y vacíos del API.
+- [docs/REVISION_FLUJO_Y_ARQUITECTURA.md](docs/REVISION_FLUJO_Y_ARQUITECTURA.md) — revisión del 17/09/2026: flujo real, mejoras aplicadas y deuda técnica.
 
 ## Arranque rápido (desarrollo)
 
 Requisitos: Python 3.12 con `requirements.txt` instalado, MySQL local y Node
->= 22.18. Detalle completo en [Puesta en marcha local](#puesta-en-marcha-local).
+22.18+ de la rama 22 o 24.12+ (ver `frontend/package.json`). Detalle completo en [Puesta en marcha local](#puesta-en-marcha-local).
 
 ```bash
 # terminal 1 — backend, desde la raíz del repo
@@ -28,8 +29,8 @@ Abrir <http://localhost:5173> e ingresar con una cuenta demo. La API queda en
 
 | Usuario | Contraseña | Rol |
 | --- | --- | --- |
-| `admin` | `IpressDev!Admin2026` | ADMIN |
-| `medico.demo` | `IpressDev!Medico2026` | PROFESIONAL |
+| `admin` | `74028519` | ADMIN |
+| `medico.demo` | `18594027` | PROFESIONAL |
 
 Las credenciales son exclusivamente para la base local desechable; nunca se
 reutilizan fuera de desarrollo.
@@ -60,17 +61,16 @@ Los modelos nunca se devuelven desde HTTP. Los routers se limitan a autenticar, 
 
 La organización es una arquitectura por capas pragmática: carpetas transversales para hacer visibles los límites de cada capa y módulos de dominio cohesionados dentro de ellas. Las políticas puras de edad y validación clínica viven en `app/domain`, para que no dependan ni de HTTP ni de SQLAlchemy.
 
-## Estado verificado de MySQL
+## Esquema MySQL y revisión de migraciones
 
-La API usa directamente la MySQL configurada en .env: localhost:3306, base
-sistema_salud_ipress, en modo development. Para este flujo no existe una base
-alterna ni se usa TEST_DATABASE_URL.
+La API usa la conexión de `.env` (`MYSQL_*` o `DATABASE_URL`). El head del
+código es `20260916_0010_locality`: normaliza localidad y conserva el distrito
+como catálogo de ubigeo. El ORM declara 39 tablas funcionales;
+`alembic_version` es una tabla técnica adicional.
 
-La base está en la revisión Alembic 20260912_0009_patient_prof, igual al head
-local. Se verificó una correspondencia 1:1 entre las 39 tablas del ORM y las 39
-tablas funcionales en MySQL; alembic_version es la única tabla técnica
-adicional. No faltan tablas, columnas, índices, claves foráneas ni
-restricciones clínicas, y `alembic check` no reporta operaciones pendientes.
+Compruebe cada instalación con `alembic current`, `alembic heads` y
+`alembic check`. El head del repositorio no demuestra que una base desplegada
+esté migrada. `TEST_DATABASE_URL` se reserva para integración en MySQL desechable.
 
 | Dominio | Tablas MySQL |
 | --- | --- |
@@ -120,12 +120,12 @@ tests/
 frontend/                # SPA Vue 3 + TypeScript (ver frontend/README.md)
 ```
 
-## Operaciones HTTP (55)
+## Operaciones HTTP (56)
 
 | Dominio | Operaciones | Éxito |
 | --- | --- | --- |
 | Salud | GET /health | 200 |
-| Autenticación | POST /auth/login; PUT /auth/me/password | 200, 204 |
+| Autenticación | GET /auth/usuarios-activos; POST /auth/login; PUT /auth/me/password | 200, 204 |
 | Usuarios | POST /usuarios; PUT /usuarios/{id}/roles; PUT /usuarios/{id}/password; DELETE /usuarios/{id} | 201, 200, 204 |
 | Pacientes | GET y POST /patients; GET, PATCH y DELETE /patients/{id}; responsables y riesgos POST/PATCH | 200/201 |
 | Catálogos | 14 GET bajo /catalogos para identidad, clínica, establecimientos, consultorios, profesionales y ubigeos | 200 |
@@ -235,7 +235,7 @@ python -m app.scripts.reset_demo_database --demo-credentials --confirm-delete
 ```
 
 Las credenciales son exclusivamente para esa BD desechable: `admin` /
-`IpressDev!Admin2026` y `medico.demo` / `IpressDev!Medico2026`. El script no
+`74028519` y `medico.demo` / `18594027`. El script no
 puede ejecutarse en producción. Si prefiere una contraseña propia, omita
 `--demo-credentials` y use el modo interactivo o `--generate-password`.
 
@@ -244,7 +244,8 @@ en una base con información real.
 
 Para una corrida completa sobre la MySQL ya configurada use solamente
 [`postman/IPRESS_API_flujo_feliz.postman_collection.json`](postman/IPRESS_API_flujo_feliz.postman_collection.json).
-Cubre 54 de las 55 operaciones publicadas, genera y captura los IDs/tokens propios y
+Cubre 54 de las 56 operaciones publicadas (faltan el selector de usuarios y la
+vista previa nutricional), genera y captura los IDs/tokens propios y
 fuerza sus variables de colección para que un Environment de Postman activo no
 pueda reemplazar URL, credenciales ni IDs. Antes de correrla, edite
 `adminUsername` y `adminPassword` dentro de la colección si su cuenta ADMIN
@@ -268,7 +269,8 @@ aparece. La respuesta vacía inicial es correcta, no un error.
 El sistema opera con dos roles separados por responsabilidad:
 
 - `ADMIN`: gestiona usuarios, profesionales, consultorios, asignaciones,
-  configuración y admisión de pacientes. No puede registrar/anular atenciones
+  configuración y registro de pacientes mediante el API. La SPA aún tiene
+  módulos administrativos pendientes. No puede registrar/anular atenciones
   ni emitir FUA, certificados o referencias clínicas.
 - `PROFESIONAL` (rol del médico o profesional de salud): debe estar vinculado
   a un profesional activo. Puede buscar y trabajar pacientes dentro de sus
@@ -284,6 +286,28 @@ sesiones JWT anteriores quedan invalidadas cuando cambia la contraseña.
 
 ## Flujo clínico longitudinal
 
+En la SPA: iniciar sesión → buscar o registrar paciente → seleccionarlo →
+**Iniciar admisión**. `/admision?patientId=<id>` reúne guardados explícitos:
+
+| Acción | Contrato | Resultado |
+| --- | --- | --- |
+| Crear paciente | `POST /api/v1/patients` | Nuevo paciente con responsables/riesgos iniciales cuando corresponda. |
+| **Guardar cambios** en “Datos del paciente” | `PATCH /api/v1/patients/{id}` | Un payload con los campos modificados; conserva los omitidos. |
+| Guardar madre/responsable o riesgo | `POST`/`PATCH` de `responsibles` y `risk-groups` | Cada relación se guarda desde su formulario y conserva el historial. |
+| **Guardar atención** | `POST /api/v1/atenciones` | Nuevo acto clínico con los datos del paciente ya guardados. |
+
+Se editan identidad, historia clínica/familiar, nacimiento, sexo, distrito,
+localidad, dirección, establecimiento, seguro, teléfono, inscripción y condición.
+Edad y grupo etario son derivados. El borrador se conserva si falla el PATCH,
+se puede descartar y bloquea el POST de atención mientras tenga cambios.
+Un fallo del POST no revierte un PATCH confirmado. La ruta antigua
+`/pacientes/:id/editar` redirige a Admisión.
+
+Admisión exige `ATENCION_CREAR`; su editor verifica `PACIENTE_EDITAR`.
+Un ADMIN sin permiso clínico conserva el PATCH en la API pero no tiene acceso
+al editor de datos maestros en la SPA. Esta diferencia figura como pendiente
+en la revisión de arquitectura.
+
 `pacientes` guarda identidad y datos maestros; cada `POST /atenciones` inserta
 una fila nueva vinculada al paciente, con fecha, profesional, sede,
 consultorio, signos vitales, edad e historia clínica de ese acto. No existe un
@@ -297,8 +321,9 @@ Los indicadores nutricionales derivados los calcula el servidor
 talla, y P/E, T/E y P/T son los puntajes Z OMS 2006 (WAZ/HAZ/WHZ) para menores
 de 60 meses con sexo registrado. Son indicadores, no diagnósticos: la
 clasificación clínica y las etiquetas del snapshot (`evaluaciones_nutricionales`)
-siguen siendo responsabilidad del profesional. El formulario obtiene el mismo
-cálculo, sin persistir, con `POST /atenciones/indicadores-nutricionales/vista-previa`.
+siguen siendo responsabilidad del profesional. La API ofrece el mismo cálculo sin persistir mediante
+`POST /atenciones/indicadores-nutricionales/vista-previa`; el servicio y el
+composable frontend existen, pero la vista actual aún no conecta esa vista previa.
 El perímetro abdominal y la valoración gestacional no tienen referencia
 automática conectada.
 
@@ -326,6 +351,10 @@ Los rangos clínicos y las políticas de numeración son configurables o puertos
 
 ### RB-01: autenticación y autorización
 
+- Por requerimiento del equipo, las contraseñas tienen exactamente ocho dígitos
+  ASCII y el login ofrece una lista pública de nombres de usuarios activos.
+  Esta decisión expone nombres de cuenta y reduce el espacio de claves;
+  el límite de intentos y el bloqueo siguen activos.
 - Las contraseñas se comparan con bcrypt; nunca se almacenan ni devuelven en
   texto plano.
 - Solo ADMIN crea, desactiva o asigna roles. Un PROFESIONAL activo y vinculado
@@ -414,7 +443,15 @@ python -m ruff check app tests migrations --select F
 > Git Bash exporte `MSYS2_ENV_CONV_EXCL='API_V1_PREFIX'` antes de ejecutar
 > `pytest`.
 
-Las pruebas unitarias no requieren MySQL (54 pruebas al día de hoy). Las pruebas de integración se habilitan al definir `TEST_DATABASE_URL` contra una base MySQL desechable; no se ejecutan contra la base productiva.
+Las pruebas unitarias no requieren MySQL. El 17/09/2026 se ejecutaron 70 pruebas
+backend y 6 del editor frontend; la integración MySQL se omitió por no estar
+definido `TEST_DATABASE_URL`. La fixture de integración aplica y revierte
+migraciones en una base desechable cuyo nombre incluya `test`.
+
+En `frontend/`, ejecute `npm test`, `npm run lint:check` y `npm run build`.
+CI comprueba backend y frontend. El control Ruff de CI está limitado a reglas
+`F`; no equivale a comprobar toda la política de estilo. Resultados y límites
+en [la revisión de arquitectura](docs/REVISION_FLUJO_Y_ARQUITECTURA.md).
 
 `tests/unit/test_migration_contract.py` es la red de seguridad del esquema:
 falla si el head de Alembic o el número de tablas del ORM dejan de coincidir con

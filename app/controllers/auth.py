@@ -12,14 +12,15 @@ from app.core.dependencies import AuthenticatedPrincipal, CurrentPrincipal, requ
 from app.schemas.auth import (
     AccessTokenResponse,
     LoginRequest,
+    LoginUsernameOption,
     PasswordChangeRequest,
     PasswordResetRequest,
     UserCreate,
     UserResponse,
     UserRolesUpdate,
 )
-from app.services.auth import AuthenticationService
 from app.services.audit import AuditService
+from app.services.auth import AuthenticationService
 from app.services.user import UserService
 
 auth_router = APIRouter(prefix="/auth", tags=["Autenticación"])
@@ -27,6 +28,20 @@ users_router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
 DatabaseSession = Annotated[Session, Depends(get_db)]
 Administrator = Annotated[AuthenticatedPrincipal, Depends(require_roles("ADMIN"))]
+
+
+@auth_router.get(
+    "/usuarios-activos",
+    response_model=list[LoginUsernameOption],
+    summary="Listar usuarios disponibles para iniciar sesión",
+)
+def list_active_login_users(db: DatabaseSession) -> list[LoginUsernameOption]:
+    # Deliberately public for the internal team's login selector. It exposes
+    # only usernames for accounts that can actually authenticate.
+    return [
+        LoginUsernameOption(nombre_usuario=username)
+        for username in AuthenticationService(db).list_active_usernames()
+    ]
 
 
 @auth_router.post("/login", response_model=AccessTokenResponse, summary="Iniciar sesión")

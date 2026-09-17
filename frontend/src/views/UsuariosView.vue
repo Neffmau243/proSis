@@ -24,7 +24,10 @@
       <h3>Nuevo usuario</h3>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="180px" class="user-form">
         <el-form-item label="Nombre de usuario" prop="nombre_usuario">
-          <el-input v-model="form.nombre_usuario" placeholder="nombre.usuario (mín. 3 caracteres)" />
+          <el-input
+            v-model="form.nombre_usuario"
+            placeholder="nombre.usuario (mín. 3 caracteres)"
+          />
         </el-form-item>
         <el-form-item label="Contraseña" prop="password">
           <el-input
@@ -32,7 +35,10 @@
             type="password"
             show-password
             autocomplete="new-password"
-            placeholder="Mínimo 12 caracteres"
+            inputmode="numeric"
+            :maxlength="PASSWORD_LENGTH"
+            placeholder="8 dígitos"
+            @input="form.password = normalizeNumericPassword($event)"
           />
         </el-form-item>
         <el-form-item label="Confirmar contraseña" prop="confirm">
@@ -41,6 +47,9 @@
             type="password"
             show-password
             autocomplete="new-password"
+            inputmode="numeric"
+            :maxlength="PASSWORD_LENGTH"
+            @input="form.confirm = normalizeNumericPassword($event)"
           />
         </el-form-item>
         <el-form-item label="Roles" prop="roles">
@@ -84,6 +93,12 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 
 import { catalogos, type ProfessionalCatalogItem } from '@/services/catalogos'
 import { usuarios } from '@/services/usuarios'
+import {
+  PASSWORD_LENGTH,
+  normalizeNumericPassword,
+  passwordFormatMessage,
+  passwordPattern,
+} from '@/utils/password'
 
 const router = useRouter()
 
@@ -109,10 +124,11 @@ const rules: FormRules = {
   ],
   password: [
     { required: true, message: 'Ingrese la contraseña.', trigger: 'blur' },
-    { min: 12, message: 'Mínimo 12 caracteres.', trigger: 'blur' },
+    { pattern: passwordPattern, message: passwordFormatMessage, trigger: 'blur' },
   ],
   confirm: [
     { required: true, message: 'Confirme la contraseña.', trigger: 'blur' },
+    { pattern: passwordPattern, message: passwordFormatMessage, trigger: 'blur' },
     {
       validator: (_rule, value, callback) => {
         if (value && value !== form.password) {
@@ -166,8 +182,7 @@ async function submit(): Promise<void> {
     form.roles = []
     form.profesional_id = null
   } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : 'No se pudo crear el usuario.'
+    errorMessage.value = error instanceof Error ? error.message : 'No se pudo crear el usuario.'
   } finally {
     saving.value = false
   }

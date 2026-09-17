@@ -84,6 +84,11 @@ function searchParams(params: Record<string, unknown>): Record<string, unknown> 
   const clean: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === '') continue
+    if (key === 'q' && typeof value === 'string') {
+      const query = value.trim()
+      if (query.length >= 2) clean[key] = query
+      continue
+    }
     clean[key] = value
   }
   return clean

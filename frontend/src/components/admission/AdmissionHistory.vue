@@ -4,6 +4,7 @@ import type { Attention } from '@/services/atenciones'
 defineProps<{
   entries: Attention[]
   loading: boolean
+  error?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -29,7 +30,8 @@ function formatDate(value: string | null): string {
       <el-button size="small" :loading="loading" @click="emit('refresh')">Refrescar</el-button>
     </header>
 
-    <div class="admission-history__table-wrap">
+    <el-alert v-if="error" :title="error" type="error" :closable="false" />
+    <div v-else class="admission-history__table-wrap">
       <el-table
         :data="entries"
         :height="124"

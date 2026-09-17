@@ -1,265 +1,176 @@
 # IPRESS Frontend
 
-Interfaz web del **Sistema de Salud IPRESS**, construida con **Vue 3 + TypeScript (Composition API, `<script setup>`) + Vite + Pinia + Vue Router 5 + Element Plus** (locale español).
+Aplicación de operación de IPRESS con Vue 3, TypeScript, Composition API,
+Vite, Pinia, Vue Router y Element Plus en español. Contraste de implementación:
+17/09/2026. El backend FastAPI está en la raíz del repositorio.
 
-El backend (FastAPI) vive en la raíz del repo. La integración de rutas, permisos, sobre de errores, paginación y vacíos actuales está documentada en [`../GUIA_FRONTEND_RUTAS.md`](../GUIA_FRONTEND_RUTAS.md).
+- [Arranque y reglas del backend](../README.md).
+- [Contratos y rutas HTTP](../GUIA_FRONTEND_RUTAS.md).
+- [Revisión de flujo, mantenibilidad y escalabilidad](../docs/REVISION_FLUJO_Y_ARQUITECTURA.md).
 
----
+## Arranque
 
-## 1. Credenciales demo (solo BD local desechable)
+Requisitos: backend iniciado y Node `^22.18.0 || >=24.12.0`.
 
-Creadas por `python -m app.scripts.seed_demo_data` (o `reset_demo_database --demo-credentials`). **Nunca usar fuera de desarrollo.**
-
-| Usuario | Contraseña | Rol | Notas |
-| --- | --- | --- | --- |
-| `admin` | `IpressDev!Admin2026` | **ADMIN** | Gestión administrativa completa |
-| `medico.demo` | `IpressDev!Medico2026` | **PROFESIONAL** | Dra. Andrea Prueba — flujo clínico |
-
-La semilla también carga un cohorte para probar el sistema con volumen: **14 pacientes** con nombres, DNI e historias clínicas distintos (`HC-DEMO-0001`…`HC-DEMO-0012` más los dos originales), repartidos entre IPRESS Demo Central (11) e IPRESS Demo Destino (3), con niños, adolescentes, adultos y adultos mayores, responsables para cada menor, antecedentes de riesgo, seguros variados (SIS, EsSalud, Particular, Sin seguro) y tres distritos.
-
-| Dato | Valor |
-| --- | --- |
-| Paciente original adulto | DNI `99900001` (Ana Prueba Demo), `HC-DEMO-ADULTO` |
-| Paciente original menor | DNI `99900002` (Luis), `HC-DEMO-MENOR` |
-| Consultorio / especialidad | `MED-GEN` / `MED_GEN` |
-| Prestación / CIE-10 | `CONSULTA_MED` / `Z00.0` |
-| Riesgos | `RIESGO_DEMO`, `RIESGO_CARDIO`, `RIESGO_METABOLICO` |
-| Atenciones demo | 5 en total (ids 10–14) con signos vitales e indicadores del servidor |
-| Documentos demo | 1 FUA, 1 certificado y 1 referencia a la sede Destino |
-
-Los 3 pacientes de IPRESS Demo Destino están a propósito sin asignación ni atención de `medico.demo`: sirven para comprobar que el ámbito asistencial los filtra (no aparecen ni buscándolos por DNI).
-
----
-
-## 2. Roles: qué hace cada uno
-
-El backend define un mapa de permisos (`app/domain/authorization.py`) y lo entrega en el login (`permisos`). El frontend **solo** usa ese arreglo para mostrar menú y botones; el backend sigue siendo la autoridad final.
-
-| Permiso | ADMIN | PROFESIONAL |
-| --- | :---: | :---: |
-| Pacientes: leer | ✅ | ✅ (ámbito clínico) |
-| Pacientes: crear/editar (+ responsables/riesgos) | ✅ | ✅ (solo su ámbito: sede asignada, atención propia o registro/traslado propio) |
-| Pacientes: dar de baja | ✅ | ❌ |
-| Atenciones: crear / leer / anular | ❌ | ✅ (solo las propias) |
-| FUA / certificados / referencias | ❌ | ✅ (solo de sus atenciones) |
-| Grupos etarios (configurar) | ✅ | ❌ |
-| Profesionales (gestionar) | ✅ | ❌ |
-| Consultorios + asignaciones | ✅ | ❌ |
-| Usuarios (crear, roles, contraseñas, baja) | ✅ | ❌ |
-| Auditoría (permiso existe, sin endpoint aún) | ✅ | ❌ |
-
-### ADMIN — rol administrativo
-
-1. **Usuarios**: alta de cuentas, roles `ADMIN`/`PROFESIONAL`, restablecer contraseñas, baja. No puede quitarse/desactivar al último ADMIN activo.
-2. **Profesionales**: alta, edición, especialidades, baja lógica.
-3. **Consultorios**: alta/edición y asignación de profesionales con fechas (requisito para atender).
-4. **Grupos etarios**: rangos sin solapes, cobertura continua opcional.
-5. **Pacientes**: admisión, edición, responsables, riesgos y baja lógica.
-6. **No puede** operar atenciones ni emitir documentos clínicos (ni aunque lo intente: los servicios lo rechazan con 403).
-
-### PROFESIONAL — rol asistencial
-
-1. **Pacientes** de su ámbito: sedes con asignación vigente, pacientes con atención propia no anulada y pacientes que él registró o trasladó de sede.
-2. **Atenciones**: registra, consulta y anula **solo las suyas** (el `profesional_id` sale de la sesión, nunca del formulario).
-3. **Documentos**: FUA (único por atención), certificados y referencias de sus atenciones.
-4. **No puede**: dar de baja pacientes ni administrar usuarios/configuración.
-
----
-
-## 3. Barra lateral (flujo del sistema antiguo, rediseñada)
-
-Un solo layout (`src/layouts/AppLayout.vue`) que filtra por permisos. La navegación va **por secciones** y el paciente activo vive en una **tarjeta contextual**, en lugar de ítems de menú deshabilitados (eso era lo que se veía "soso" y redundante).
-
-```text
-🏥 IPRESS · Sistema de Salud
-
-[ Admisión ]            (botón principal)
-[ Nuevo paciente ]      (botón secundario)
-
-┌ Paciente seleccionado ─────────────┐
-│ Ana Pérez                          │
-│ DNI 99900001 · HC 99900001         │
-│ [Modificar] [Borrar] [Quitar]      │
-└────────────────────────────────────┘
-
-Principal
-├─ Base de datos        → /            (tabla)
-└─ Ref. Laboratorio     → /laboratorio
-
-Clínico                  (solo PROFESIONAL)
-├─ Historial de atenciones → /atenciones
-└─ Nueva atención          → /atenciones/nueva
-
-Administración            (solo ADMIN)
-├─ Usuarios              → /configuracion/usuarios
-└─ Auditoría             → /configuracion/auditoria
-
-Configuración             (solo ADMIN)
-├─ Grupos etarios        → /configuracion/grupos-etarios
-├─ Profesionales         → /configuracion/profesionales
-└─ Consultorios          → /configuracion/consultorios
-
-👤 <usuario> · <rol>
-[ Salir ]
-```
-
-- Seleccionar una fila en la tabla llena la tarjeta **Paciente seleccionado** con sus acciones (Modificar / Borrar / Quitar). Se eliminaron los ítems de menú duplicados ("Ver paciente" apuntaba a la misma página y Modificar/Borrar repetían las acciones de la tabla).
-- El pie muestra el usuario y su rol, con **Salir**; el header conserva **Cambiar contraseña**.
-- Si un usuario tuviera ambos roles, vería las tres secciones (los ítems se filtran por permisos reales, no por rol escrito).
-
----
-
-## 4. Módulos implementados (conectados al API real)
-
-### Pacientes — tabla "Base de datos" (dashboard)
-
-| Vista | Ruta | Endpoints usados |
-| --- | --- | --- |
-| **Base de datos**: tabla con las columnas del sistema antiguo (N° Historia, H. Familiar, N° DNI, apellidos, nombres, Sexo, Disi) y 5 modos de búsqueda | `/` | `GET /patients` |
-| Admisión (contexto del paciente editable + atención) | `/admision?patientId=` | `GET /patients/{id}`, `PATCH /patients/{id}`, `POST /atenciones` |
-| Nuevo paciente (con historia familiar, responsables y riesgos) | `/pacientes/nuevo` | `POST /patients` |
-| Ficha con pestañas Datos/Responsables/Riesgos/Atenciones | `/pacientes/:id` | `GET /patients/{id}`, `GET /atenciones?paciente_id=`, POST/PATCH responsables y riesgos |
-| Modificar datos | `/pacientes/:id/editar` | `PATCH /patients/{id}` |
-| Borrar (baja lógica, solo ADMIN) | desde la tabla o la ficha | `DELETE /patients/{id}` |
-
-**Búsqueda dinámica** (selector segmentado; el **DNI** es la modalidad por defecto porque es la más usada):
-
-| Modalidad | Parámetro |
-| --- | --- |
-| **DNI** | `q` (coincidencia parcial mientras se escribe) |
-| H. Clínica exacta | `historia_clinica` (exacto) |
-| H. Clínica similar | `q` (parcial) |
-| Apellidos y nombres | `q` (parcial) |
-| H. Familiar | — *(pendiente: el backend aún no filtra por `historia_familiar`; opción deshabilitada)* |
-
-- La tabla **filtra mientras se escribe** (debounce 280 ms) y **lista toda la base** cuando el campo está vacío, como el sistema antiguo. Ya no hay botón "Buscar": el refresco manual es el botón ↻.
-- Con menos de 2 caracteres el backend no filtra por `q`, así que se sigue mostrando toda la base.
-- Si el filtro deja **un único paciente**, se selecciona automáticamente y queda listo para Modificar/Borrar.
-- Las modalidades parciales usan `q` porque el backend solo expone `numero_documento` **exacto** (la coincidencia parcial existe únicamente en `q`, que abarca DNI, historia clínica y nombres).
-
-La columna **Disi** reproduce el indicador de estado del sistema antiguo: `ALT` = activo, `BAJA` = inactivo (la baja es lógica). El checkbox **Incluir bajas** (solo ADMIN) los muestra en la tabla.
-
-### Atenciones
-| Vista | Ruta | Endpoints usados |
-| --- | --- | --- |
-| Historial con filtros y paginación | `/atenciones` | `GET /atenciones/busqueda` |
-| Nueva atención / Admisión (contexto + antropometría + presión/temperatura + PE/TE/PT calculados + valoración nutricional + prestaciones + CIE-10 + historial del paciente) | `/atenciones/nueva`, `/admision?patientId=` | `POST /atenciones`, `POST /atenciones/indicadores-nutricionales/vista-previa`, `GET /atenciones?paciente_id=` |
-| Detalle con anulación y documentos | `/atenciones/:id` | `GET /atenciones/{id}`, `POST .../anulacion`, `POST /documentos/fua`, `POST /documentos/certificados`, `POST /documentos/referencias` |
-
-Reglas respetadas por la UI: no se envía `grupo_etario_codigo`, edad, estado, `imc`, `pe`, `te` ni `pt` (el backend los calcula); la anulación exige justificación ≥ 5 caracteres; una referencia nueva siempre inicia `PENDIENTE`; los consultorios se cargan según el establecimiento elegido. La **valoración nutricional** es opcional y solo se envía si el profesional registra al menos un dato (su `tipo` es opcional en el backend). El formulario muestra los indicadores que devuelve `POST /atenciones/indicadores-nutricionales/vista-previa` (IMC y, para menores de 60 meses, P/E, T/E y P/T con referencia OMS 2006) sin persistir nada. Admisión muestra el resultado como "Guardar atención" y el botón de escape como "Salir", igual que el sistema antiguo.
-
-La **tarjeta lateral “Datos del paciente”** de `/admision` permite corregir en línea `sexo_codigo`, `localidad`, `direccion`, `establecimiento_registro_id` y `seguro_id`. Cada cambio manda un `PATCH` de un solo campo (`exclude_unset` en el backend) y deshabilita los editores mientras guarda; la misma tarjeta muestra `HC-DEMO-ADULTO` y la edad calculada por `utils/calendarAge.ts`.
-
-### Configuración (ADMIN)
-| Vista | Ruta | Endpoints usados |
-| --- | --- | --- |
-| Grupos etarios | `/configuracion/grupos-etarios` | `GET` y `PUT /configuracion/grupos-etarios` (reemplaza configuración completa) |
-| Usuarios (alta) | `/configuracion/usuarios` | `POST /usuarios` |
-
-### Pendientes
-- **Profesionales** y **Consultorios**: vistas placeholder (listas para implementar con los endpoints de la GUIA).
-- **Auditoría**: el permiso `AUDITORIA_LEER` existe y la base registra todo, pero el backend no expone endpoint de consulta.
-- **Gestión de usuarios completa**: no existe `GET /usuarios`, así que no hay listado; roles/contraseñas/baja requieren conocer el ID por otro medio.
-
----
-
-## 5. Puesta en marcha
-
-Requisitos: Node >= 22.18 y el backend corriendo (`uvicorn app.main:app --reload`).
-
-```bash
+```powershell
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-- App en `http://localhost:5173` (si el puerto está ocupado, Vite usa 5174, 5175…).
-- Vite reenvía `/api` al backend (`http://127.0.0.1:8000`) por proxy (`vite.config.ts`): **no hace falta configurar CORS** en desarrollo.
-- Para otro host: crear `.env.local` con `VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1`.
+Vite sirve normalmente [localhost:5173](http://localhost:5173) y reenvía
+`/api` a `http://127.0.0.1:8000`. Si el puerto está ocupado puede elegir otro.
+Para una API en otro origen, configure `VITE_API_BASE_URL` en `.env.local`,
+incluyendo una sola vez `/api/v1`, y configure CORS en el backend.
 
-> En Windows, si algo luce viejo tras cambios, hacer **Ctrl+F5** (caché del navegador).
+Cuentas de la semilla local desechable:
 
-### Scripts
+| Usuario | Contraseña | Uso |
+| --- | --- | --- |
+| `admin` | `74028519` | Registro/configuración administrativa. |
+| `medico.demo` | `18594027` | Flujo clínico de los pacientes de su ámbito. |
 
-| Comando | Qué hace |
+La semilla no sobrescribe cuentas existentes. Los identificadores de pacientes,
+consultorios y profesionales dependen de la base; búsquelos en la aplicación,
+no suponga que un ID fijo pertenece siempre al mismo paciente.
+
+## Flujo de trabajo
+
+1. Iniciar sesión. El selector lista y filtra nombres de usuarios activos.
+   La contraseña tiene exactamente ocho dígitos. Si falla el directorio,
+   se permite escribir el usuario. Un 429 se informa sin reintentar en bucle.
+2. Buscar en **Base de datos**, seleccionar una fila o crear un paciente.
+   La búsqueda tiene debounce, páginas y carga adicional con `has_more`.
+3. Pulsar **Iniciar admisión** en el paciente seleccionado.
+4. Corregir **Datos del paciente** y pulsar **Guardar cambios**.
+5. Completar consultorio, profesional y datos clínicos; pulsar **Guardar atención**.
+6. Consultar el detalle, emitir documentos o anular cuando las reglas lo permitan.
+
+La ficha `/pacientes/:id` conserva datos, responsables, riesgos e historial.
+No hay pantalla independiente de edición de datos maestros: los enlaces antiguos
+`/pacientes/:id/editar` redirigen a `/admision?patientId=:id`.
+
+## Admisión: PATCH y POST
+
+En `/admision?patientId=<id>`, `admission-workbench__patient` contiene el editor.
+
+| Acción visible | Petición | Comportamiento |
+| --- | --- | --- |
+| Escribir en los datos del paciente | Ninguna | Modifica un borrador local. |
+| **Guardar cambios** | `PATCH /patients/{id}` | Envía juntos únicamente los campos modificados. |
+| **Descartar cambios** | Ninguna | Restaura los datos guardados; no revierte operaciones ya confirmadas. |
+| Guardar madre/responsable | `POST /patients/{id}/responsibles` o `PATCH .../{responsibleId}` | Guarda desde el diálogo del responsable. |
+| Guardar periodo de riesgo | `POST /patients/{id}/risk-groups` o `PATCH .../{riskId}/{startDate}` | Conserva los periodos anteriores; permite cerrar/anotar uno existente. |
+| **Guardar atención** | `POST /atenciones` | Crea una atención; no vuelve a enviar el PATCH del paciente. |
+
+Todos los endpoints de esta tabla llevan el prefijo `/api/v1`.
+
+Campos editables: historia clínica, historia familiar, tipo/número de documento,
+fecha de nacimiento, apellidos, nombres, sexo, distrito por ubigeo, localidad,
+dirección, establecimiento de registro, seguro, teléfono, fecha de inscripción
+y condición. **Edad actual** y **Grupo etario** se calculan con el nacimiento
+guardado; la edad y el grupo de la atención los determina el backend.
+
+La madre es un responsable con parentesco `MADRE`; los riesgos son periodos
+relacionados, no columnas del paciente. Se reutilizan sus formularios desde el
+mismo panel, con guardado propio. Una edición de esas relaciones no borra un
+borrador pendiente de datos maestros.
+
+Se validan campos obligatorios, longitudes, fechas y distrito/localidad.
+La API conserva la validación definitiva de duplicados, catálogos, permisos y
+responsables para menores. Los fallos conservan lo escrito. Se bloquean doble
+envío, guardar atención con cambios del paciente pendientes y salir del editor
+sin guardar o descartar. La expiración de sesión puede llevar al login.
+
+El establecimiento de registro solo cambia la sede inicial de la atención si
+todavía no se eligió consultorio. Si ya se eligió, se conserva esa sede clínica.
+
+## Pantallas y alcance real
+
+| Ruta | Implementación actual |
 | --- | --- |
-| `npm run dev` | Servidor de desarrollo con recarga en caliente |
-| `npm run type-check` | `vue-tsc --build` |
-| `npm run build` | Type-check + build de producción |
-| `npm run lint` | Oxlint + ESLint con autocorrección |
-| `npm run format` | Prettier sobre `src/` |
+| `/login` | Selector de usuarios, validación y sesión. |
+| `/` | Lista de pacientes, búsqueda, selección, detalle y baja lógica por permiso. |
+| `/pacientes/nuevo` | Alta con identidad, residencia, responsables y riesgos. |
+| `/pacientes/:id` | Ficha y gestión de responsables/riesgos; historial según permiso. |
+| `/admision?patientId=<id>` | Editor del paciente y alta de atención. |
+| `/atenciones/nueva` | Alta clínica con selección de paciente. |
+| `/atenciones` | Búsqueda paginada de atenciones. |
+| `/atenciones/:id` | Detalle, anulación, FUA, certificado y referencia. |
+| `/cuenta/cambiar-contrasena` | Cambio de contraseña propia y cierre de sesión. |
+| `/configuracion/usuarios` | Solo alta; la API no ofrece lista/detalle de usuarios. |
+| `/configuracion/grupos-etarios` | Lectura y reemplazo de rangos completos. |
+| `/configuracion/profesionales`, `/configuracion/consultorios` | Pantallas pendientes; sí existen APIs administrativas. |
+| `/configuracion/auditoria`, `/laboratorio` | Pantallas pendientes, sin API de consulta implementada. |
 
----
+Las búsquedas DNI, historia clínica similar y nombres usan `q` (mínimo dos
+caracteres); historia clínica exacta usa `historia_clinica`. Historia familiar
+continúa deshabilitada porque no hay filtro backend.
 
-## 6. Estructura
+La vista clínica actual registra contexto, medidas y valoración nutricional
+escrita. La API y los tipos soportan prestaciones y CIE-10, pero la vista de alta
+no ofrece esos controles. El composable de vista previa nutricional existe,
+aunque no está conectado a la vista actual. IMC y puntajes se calculan al
+crear la atención y se muestran en historial/detalle.
 
-```text
-src/
-├── main.ts                  # bootstrap: Pinia, Router, Element Plus (es) e iconos
-├── App.vue                  # <el-config-provider> es + hidratación de sesión al arrancar
-├── router/index.ts          # rutas + guards de auth/permisos (lee localStorage)
-├── stores/auth.ts           # sesión reactiva (token, roles, permisos, hasPermission)
-├── services/
-│   ├── http.ts              # axios: Bearer automático, 401 → /login, sobre de error → ApiError
-│   ├── session-storage.ts   # persistencia de sesión (fuente de verdad para guards)
-│   ├── auth.ts              # POST /auth/login, PUT /auth/me/password
-│   ├── catalogos.ts         # los 14 catálogos tipados
-│   ├── pacientes.ts         # pacientes + responsables + riesgos
-│   ├── atenciones.ts        # atenciones + FUA/certificados/referencias
-│   ├── configuracion.ts     # grupos etarios
-│   └── usuarios.ts          # alta de usuarios
-├── types/api.ts             # sobre de error, PageResponse, LoginResponse
-├── utils/calendarAge.ts     # edad calendario para la ficha del paciente
-├── composables/
-│   ├── usePagination.ts             # limit/offset/total/has_more
-│   ├── usePacienteSeleccionado.ts   # fila activa compartida tabla ↔ sidebar
-│   ├── useAdmissionPatientDetails.ts # catálogos y filas de la tarjeta de admisión
-│   └── useNutritionalIndicatorsPreview.ts # vista previa OMS 2006 con debounce
-├── components/
-│   ├── PagePlaceholder.vue          # estado vacío para vistas pendientes
-│   ├── admission/                   # AdmissionPatientSummary, AdmissionHistory, AdmissionFinalActions
-│   ├── patient/                     # DniSearchMatch, ResponsibleDialog, RiskDialog
-│   └── patients/                    # PatientRegistrationFamilySections
-├── layouts/AppLayout.vue    # sidebar por rol + header
-└── views/                   # una vista por ruta
-```
+**Imprimir S.I.S.**, **Otra consulta** y **FUA adicional** solo muestran un aviso
+de función pendiente. Emitir documentos desde el detalle sí llama a la API,
+pero no existe descarga/impresión persistida de esos documentos.
 
----
+## Permisos
 
-## 7. Convenciones
+La fuente de permisos es el backend; menús, guard de rutas y botones los
+consultan. `ADMIN` gestiona datos administrativos; `PROFESIONAL` atiende
+únicamente dentro de su ámbito. El profesional elegido en el formulario viaja
+en el POST y el servidor comprueba que corresponde al usuario autenticado.
 
-- **Composition API** con `<script setup lang="ts">` en todo.
-- La sesión vive en `localStorage` (`ipress:session`); el guard de rutas y el cliente HTTP la leen de ahí para evitar ciclos de importación. `App.vue` hidrata el store al arrancar (cubre refresco y entrada directa por URL).
-- Menú, rutas y botones se controlan por **permisos** (`auth.hasPermission`), nunca por rol escrito.
-- Los errores llegan como `ApiError` con el `message` del sobre del backend: mostrar `error.message` y conservar `error.requestId` para soporte.
-- Toda tabla paginada usa `limit`/`offset`/`has_more`; nunca asumir que una página incompleta es la última.
-- Los catálogos paginados exigen `q` con mínimo 2 caracteres; el servicio omite `q` vacío (el backend valida `min_length=2`).
-- No llamar endpoints que el rol no puede usar (ej. el ADMIN no carga atenciones en la ficha de paciente: el backend respondería 403).
+Admisión requiere `ATENCION_CREAR` y el editor comprueba `PACIENTE_EDITAR`.
+Actualmente ADMIN conserva permiso de PATCH en la API, pero no puede entrar
+a Admisión ni editar datos maestros desde la SPA: pendiente de resolver como
+decisión de flujo. La combinación ADMIN + PROFESIONAL también requiere revisar
+la precedencia de roles en los servicios clínicos; no se debe asumir que la
+unión de menús implica que todas las operaciones estén autorizadas.
 
----
+## Organización y criterios de mantenimiento
 
-## 8. Bugs corregidos durante el desarrollo
-
-1. **Página en blanco en `/pacientes/:id`**: la tabla de atenciones usaba `:data="atenciones"` (el objeto de servicio) en vez de `:data="atencionesList"` → `TypeError: rows is not iterable` que tiraba todo el render. Detectado con Chrome headless + consola.
-2. **Menú/botones invisibles al refrescar o entrar directo a una URL**: el store de Pinia no se hidrataba desde localStorage → se agregó `hydrateFromStorage()` en `App.vue`.
-3. **403 silencioso en la ficha**: el ADMIN no debe cargar el tab de atenciones (no tiene `ATENCION_LEER`); ahora la carga se condiciona al permiso.
-4. **`eslint-plugin-oxlint` desalineado con `oxlint`** en el template de create-vue → ambos fijados en `~1.82.0`.
-5. **Panel “Datos del paciente” con controles de distinto ancho y filas superpuestas** en `/admision?patientId=1`: la regla de la grilla (`.patient-context__details div`) alcanzaba también al `div` raíz de `el-input`/`el-select`, que terminaba dentro de una columna de 94px, y los editores iban con `position:absolute` dentro de una fila de 26px aunque medían 32px (`el-input`) y 26px (`el-select`). Ahora la grilla se limita a `> div`, ambos wrappers comparten `--patient-context-control-height: 26px` y el editor ya no flota. En Chrome headless las 18 filas quedan en `142×26` con paso uniforme de 29px.
-6. **403 al cambiar de establecimiento en admisión**: intervenía la regla RB-02 (asignación vigente en la sede destino). El backend la retiró: registrar o trasladar solo exige una sede activa y el profesional que lo hace conserva el acceso al paciente. El detalle está en [`../GUIA_FRONTEND_RUTAS.md`](../GUIA_FRONTEND_RUTAS.md#8-cambios-recientes-del-contrato).
-
-## 9. Verificación
-
-Última corrida sobre esta rama:
-
-| Chequeo | Resultado |
+| Pieza | Responsabilidad |
 | --- | --- |
-| `npm run type-check` | ✅ sin errores |
-| `npm run lint` | ✅ 0 errores (oxlint + eslint) |
-| `npm run build` | ✅ |
-| Render real ADMIN en `/pacientes/4` (Chrome headless + token) | ✅ 0 errores, sidebar administrativa, Editar/Dar de baja |
-| Render real PROFESIONAL en `/pacientes/4` | ✅ 0 errores, sidebar clínica, sin Dar de baja |
-| Render real PROFESIONAL en `/admision?patientId=1` (Chrome headless + token) | ✅ 18 filas del panel medidas en `142×26`, sin solapes |
-| `GET /patients/4` contra backend | ✅ 200 con datos |
-| Backend | `pytest tests/unit` 54 passed, `ruff` limpio, `alembic check` sin pendientes |
+| `router/index.ts`, `layouts/AppLayout.vue` | Navegación, estructura y permisos de interfaz. |
+| `stores/auth.ts`, `services/session-storage.ts` | Sesión reactiva y persistencia local. |
+| `services/http.ts` | Axios, Bearer, errores normalizados y redirección por 401. |
+| `services/*.ts` | Contratos TypeScript y llamadas a cada recurso HTTP. |
+| `AdmissionPatientSummary.vue` | Formulario del paciente, estado de guardado y composición de relaciones. |
+| `AdmissionPatientRelations.vue` | Madre, responsables y periodos; reutiliza los diálogos existentes. |
+| `useAdmissionPatientEditor.ts` | Borrador, validación y ciclo del PATCH; persistencia inyectada para pruebas. |
+| `useAdmissionPatientDetails.ts`, `useRemoteCatalog.ts` | Catálogos, etiquetas, búsqueda remota acotada y descarte de respuestas antiguas. |
+| `utils/patientDraft.ts` | Lista de campos editables, diferencias y validaciones puras. |
+| `AtencionNuevaView.vue` | Orquestación de paciente guardado y POST clínico; aún necesita dividir sus secciones grandes. |
 
-> Nota de alcance: las búsquedas de la tabla se resuelven con los parámetros que `GET /patients` expone (`historia_clinica`, `numero_documento`, `q`, `tipo_documento_codigo`, `incluir_inactivos`); la modalidad **H. Familiar** sigue deshabilitada porque el backend todavía no filtra por `historia_familiar`.
+Los datos fluyen por props y eventos tipados. El editor nunca modifica el
+objeto del paciente recibido. Un `null` explícito vacía un campo opcional;
+un campo omitido se conserva. Los valores calculados y las colecciones
+relacionadas nunca se mezclan con el PATCH maestro.
+
+Hay deuda adicional de paginación, sesión, errores y tamaño del bundle.
+La barra lateral de 264 px todavía dificulta operar en móvil.
+Consulte la revisión de arquitectura antes de considerar completada una
+adaptación móvil o una validación de escalabilidad.
+
+## Comandos y verificación
+
+| Comando | Efecto |
+| --- | --- |
+| `npm run dev` | Desarrollo con recarga. |
+| `npm test` | Pruebas Node del borrador y del guardado. |
+| `npm run lint:check` | Oxlint + ESLint sin modificar archivos. |
+| `npm run lint` | Oxlint + ESLint con correcciones. |
+| `npm run type-check` | Comprobación TypeScript/Vue. |
+| `npm run build` | Tipos y compilación de producción. |
+| `npm run preview` | Sirve la compilación local. |
+| `npm run format` | Formatea `src/` con Prettier. |
+
+Las pruebas del editor cubren diferencias, borrado de opcionales, validación,
+ausencia de peticiones mientras se escribe, un solo PATCH por guardado,
+reintento tras fallo, descarte y conservación del borrador al actualizar relaciones.
+Son pruebas con persistencia simulada; no escriben en la base del usuario.
+CI ejecuta lint, pruebas y build del frontend, además del job de backend.

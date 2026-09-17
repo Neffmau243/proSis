@@ -157,6 +157,10 @@ class PatientService:
                 ubigeo_code=command.ubigeo_residencia_codigo,
                 establishment_id=command.establecimiento_registro_id,
             )
+            self._validate_patient_residence(
+                ubigeo_code=command.ubigeo_residencia_codigo,
+                locality=command.localidad,
+            )
             self._ensure_document_is_available(
                 command.tipo_documento_codigo,
                 command.numero_documento,
@@ -255,6 +259,14 @@ class PatientService:
                 )
 
             self._validate_changed_patient_catalogs(values)
+            effective_ubigeo_code = values.get(
+                "ubigeo_residencia_codigo", patient.ubigeo_residencia_codigo
+            )
+            effective_locality = values.get("localidad", patient.localidad)
+            self._validate_patient_residence(
+                ubigeo_code=effective_ubigeo_code,
+                locality=effective_locality,
+            )
             if "establecimiento_registro_id" in values:
                 # Trasladar la inscripción no debe dejar al autor del traslado
                 # sin acceso al paciente que acaba de mover de sede.
@@ -657,6 +669,27 @@ class PatientService:
             and self._repository.get_active_establishment(establishment_id) is None
         ):
             self._raise_unavailable_catalog("establecimiento", establishment_id)
+
+    @staticmethod
+    def _validate_patient_residence(
+        *,
+        ubigeo_code: str | None,
+        locality: str | None,
+    ) -> None:
+        """Keep the residence hierarchy explicit: district, locality, address."""
+
+        if not locality:
+            return
+        if ubigeo_code is None:
+            raise ValidationDomainError(
+                code="LOCALIDAD_SIN_DISTRITO",
+                message="Seleccione un distrito antes de registrar la localidad.",
+            )
+        if locality == ubigeo_code:
+            raise ValidationDomainError(
+                code="LOCALIDAD_NO_PUEDE_SER_CODIGO_UBIGEO",
+                message="La localidad debe ser un nombre, no el código de ubigeo.",
+            )
 
     def _validate_changed_patient_catalogs(self, values: dict[str, Any]) -> None:
         if "sexo_codigo" in values and values["sexo_codigo"] is not None:

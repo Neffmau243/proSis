@@ -8,7 +8,7 @@ from getpass import getpass
 from sqlalchemy import select
 
 from app.core.database import SessionLocal
-from app.core.security import hash_password
+from app.core.security import hash_password, validate_password_format
 from app.models.audit import AuditLog
 from app.models.security import Role, User, UserRole
 
@@ -17,10 +17,7 @@ def create_admin(username: str, password: str) -> int:
     normalized_username = username.strip()
     if len(normalized_username) < 3:
         raise ValueError("El nombre de usuario debe tener al menos 3 caracteres.")
-    if len(password) < 12:
-        raise ValueError("La contraseña debe tener al menos 12 caracteres.")
-    if len(password.encode("utf-8")) > 72:
-        raise ValueError("La contraseña no puede superar 72 bytes UTF-8.")
+    validate_password_format(password)
 
     session = SessionLocal()
     try:
@@ -64,7 +61,7 @@ def main() -> None:
         help="Evite pasarla por línea de comandos; si se omite se solicita de forma oculta.",
     )
     args = parser.parse_args()
-    password = args.password or getpass("Contraseña inicial (mínimo 12 caracteres): ")
+    password = args.password or getpass("Contraseña inicial (8 dígitos): ")
     confirmation = password if args.password else getpass("Repita la contraseña: ")
     if password != confirmation:
         raise ValueError("Las contraseñas no coinciden.")

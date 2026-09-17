@@ -147,6 +147,11 @@ class AuthenticationService:
             permisos=sorted(permissions),
         )
 
+    def list_active_usernames(self) -> list[str]:
+        """Return login-eligible accounts for the internal username selector."""
+
+        return self._users.list_active_usernames()
+
     @staticmethod
     def _now() -> datetime:
         return datetime.now(timezone.utc).replace(tzinfo=None)

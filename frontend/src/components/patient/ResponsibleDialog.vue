@@ -2,7 +2,10 @@
   <el-dialog
     :model-value="modelValue"
     :title="responsible ? 'Editar responsable' : 'Agregar responsable'"
-    width="520px"
+    width="min(520px, 94vw)"
+    :close-on-click-modal="!saving"
+    :close-on-press-escape="!saving"
+    :show-close="!saving"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @open="init"
@@ -15,7 +18,7 @@
       class="dialog-alert"
     />
 
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="160px">
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" :disabled="saving">
       <el-form-item label="Parentesco" prop="parentesco">
         <el-select v-model="form.parentesco" style="width: 100%">
           <el-option label="Madre" value="MADRE" />
@@ -51,7 +54,7 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="emit('update:modelValue', false)">Cancelar</el-button>
+      <el-button :disabled="saving" @click="emit('update:modelValue', false)">Cancelar</el-button>
       <el-button type="primary" :loading="saving" @click="save">Guardar</el-button>
     </template>
   </el-dialog>
@@ -125,10 +128,14 @@ function init(): void {
 }
 
 async function save(): Promise<void> {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
-
+  if (saving.value) return
   saving.value = true
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) {
+    saving.value = false
+    return
+  }
+
   errorMessage.value = null
   try {
     const payload = {
@@ -142,11 +149,7 @@ async function save(): Promise<void> {
     } satisfies ResponsibleCreatePayload | ResponsibleUpdatePayload
 
     const saved = props.responsible
-      ? await pacientes.updateResponsible(
-          props.patientId,
-          props.responsible.id,
-          payload,
-        )
+      ? await pacientes.updateResponsible(props.patientId, props.responsible.id, payload)
       : await pacientes.addResponsible(props.patientId, payload)
 
     emit('saved', saved)

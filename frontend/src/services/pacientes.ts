@@ -36,6 +36,7 @@ export interface Patient {
   otros_nombres: string | null
   sexo_codigo: string | null
   ubigeo_residencia_codigo: string | null
+  distrito_residencia: string | null
   localidad: string | null
   direccion: string | null
   establecimiento_registro_id: number | null
@@ -116,9 +117,7 @@ export interface PatientCreatePayload {
 }
 
 /** Payload parcial del PATCH; el backend conserva los campos no enviados. */
-export type PatientUpdatePayload = Partial<
-  Omit<PatientCreatePayload, 'responsables' | 'riesgos'>
->
+export type PatientUpdatePayload = Partial<Omit<PatientCreatePayload, 'responsables' | 'riesgos'>>
 
 export interface PatientDeactivationResponse {
   id: number
@@ -169,10 +168,7 @@ export const pacientes = {
     return data
   },
   async addRisk(patientId: number, payload: RiskCreatePayload): Promise<PatientRisk> {
-    const { data } = await http.post<PatientRisk>(
-      `/patients/${patientId}/risk-groups`,
-      payload,
-    )
+    const { data } = await http.post<PatientRisk>(`/patients/${patientId}/risk-groups`, payload)
     return data
   },
   async updateRisk(

@@ -72,9 +72,12 @@ const router = createRouter({
         },
         {
           path: 'pacientes/:id/editar',
-          name: 'paciente-editar',
-          component: () => import('@/views/PacienteEditarView.vue'),
-          meta: { title: 'Editar paciente', permissions: ['PACIENTE_EDITAR'] },
+          // Conserva los enlaces antiguos, pero concentra la corrección de
+          // datos del paciente en el contexto de admisión.
+          redirect: (to) => ({
+            name: 'admision',
+            query: { patientId: String(to.params.id) },
+          }),
         },
         {
           path: 'atenciones',

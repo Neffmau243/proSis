@@ -1,128 +1,91 @@
-<template>
-  <div class="login">
-    <el-card class="login__card">
-      <h1 class="login__title">Sistema de Salud IPRESS</h1>
-      <p class="login__subtitle">Inicie sesión para continuar</p>
-
-      <el-alert
-        v-if="errorMessage"
-        :title="errorMessage"
-        type="error"
-        :closable="false"
-        class="login__error"
-      />
-
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        label-position="top"
-        @submit.prevent="submit"
-      >
-        <el-form-item label="Usuario" prop="nombre_usuario">
-          <el-input
-            v-model="form.nombre_usuario"
-            name="username"
-            autocomplete="username"
-            placeholder="nombre.usuario"
-          />
-        </el-form-item>
-        <el-form-item label="Contraseña" prop="password">
-          <el-input
-            v-model="form.password"
-            type="password"
-            name="password"
-            autocomplete="current-password"
-            show-password
-            placeholder="••••••••"
-            @keyup.enter="submit"
-          />
-        </el-form-item>
-        <el-button type="primary" native-type="submit" :loading="loading" class="login__submit">
-          Ingresar
-        </el-button>
-      </el-form>
-    </el-card>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { FormInstance, FormRules } from 'element-plus'
 
+import LoginAccessForm from '@/components/auth/LoginAccessForm.vue'
+import LoginBrandPanel from '@/components/auth/LoginBrandPanel.vue'
+import type { LoginPayload } from '@/services/auth'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const formRef = ref<FormInstance>()
-const loading = ref(false)
-const errorMessage = ref<string | null>(null)
+const loading = shallowRef(false)
+const errorMessage = shallowRef<string | null>(null)
 
-const form = reactive({
-  nombre_usuario: '',
-  password: '',
-})
-
-const rules: FormRules = {
-  nombre_usuario: [
-    { required: true, message: 'Ingrese su nombre de usuario.', trigger: 'blur' },
-  ],
-  password: [{ required: true, message: 'Ingrese su contraseña.', trigger: 'blur' }],
-}
-
-async function submit(): Promise<void> {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
-
+async function submit(payload: LoginPayload): Promise<void> {
   loading.value = true
   errorMessage.value = null
   try {
-    await auth.login(form)
-    const redirect =
-      typeof route.query.redirect === 'string' ? route.query.redirect : undefined
+    await auth.login(payload)
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
     router.push(redirect || { name: 'inicio' })
   } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : 'No se pudo iniciar sesión.'
+    errorMessage.value = error instanceof Error ? error.message : 'No se pudo iniciar sesión.'
   } finally {
     loading.value = false
   }
 }
 </script>
 
+<template>
+  <main class="login">
+    <LoginBrandPanel />
+
+    <section class="login__access">
+      <div class="login__form-wrap">
+        <el-card class="login__card" shadow="never">
+          <LoginAccessForm :loading="loading" :error-message="errorMessage" @submit="submit" />
+        </el-card>
+      </div>
+    </section>
+  </main>
+</template>
+
 <style scoped>
 .login {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  background: linear-gradient(135deg, #1d4ed8 0%, #0f766e 100%);
+  display: grid;
+  min-height: 100dvh;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  background: #f5f7fa;
+}
+
+.login__access {
+  display: grid;
+  box-sizing: border-box;
+  min-width: 0;
+  place-items: center;
+  padding: clamp(2.5rem, 6vw, 6rem);
+  background: #f5f7fa;
+}
+
+.login__form-wrap {
+  width: min(100%, 25rem);
 }
 
 .login__card {
-  width: 100%;
-  max-width: 380px;
+  border-radius: 12px;
 }
 
-.login__title {
-  margin: 0 0 4px;
-  font-size: 20px;
+.login__card :deep(.el-card__body) {
+  padding: 28px;
 }
 
-.login__subtitle {
-  margin: 0 0 16px;
-  color: var(--el-text-color-secondary);
+@media (max-width: 919px) {
+  .login {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .login__access {
+    min-height: 100dvh;
+    padding: clamp(2rem, 9vw, 4rem) clamp(1.5rem, 6vw, 3rem);
+  }
 }
 
-.login__error {
-  margin-bottom: 16px;
-}
-
-.login__submit {
-  width: 100%;
-  margin-top: 4px;
+@media (max-height: 640px) and (min-width: 920px) {
+  .login__access {
+    padding-block: 2rem;
+  }
 }
 </style>

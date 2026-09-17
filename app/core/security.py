@@ -15,6 +15,9 @@ import jwt
 
 from app.core.config import get_settings
 
+PASSWORD_DIGITS_LENGTH = 8
+PASSWORD_FORMAT_MESSAGE = "La contraseña debe contener exactamente 8 dígitos."
+
 
 class TokenValidationError(ValueError):
     """Raised when an access token cannot be trusted."""
@@ -41,15 +44,23 @@ def _normalize_claim_values(values: Iterable[str] | str | None) -> list[str]:
     return sorted(normalized)
 
 
+def validate_password_format(password: str) -> str:
+    """Enforce the team's agreed numeric credential format everywhere."""
+
+    if (
+        not isinstance(password, str)
+        or len(password) != PASSWORD_DIGITS_LENGTH
+        or not password.isascii()
+        or not password.isdecimal()
+    ):
+        raise ValueError(PASSWORD_FORMAT_MESSAGE)
+    return password
+
+
 def _validate_password_input(password: str) -> bytes:
-    if not isinstance(password, str) or not password:
-        raise ValueError("La contraseña no puede estar vacía.")
-    password_bytes = password.encode("utf-8")
-    # bcrypt only considers the first 72 bytes.  Reject rather than silently
-    # truncating so two distinct passwords can never authenticate as one.
-    if len(password_bytes) > 72:
-        raise ValueError("La contraseña no puede superar 72 bytes UTF-8.")
-    return password_bytes
+    # The format is far below bcrypt's 72-byte input limit and ASCII keeps
+    # the digit count identical to the byte count used for hashing.
+    return validate_password_format(password).encode("ascii")
 
 
 def hash_password(password: str) -> str:

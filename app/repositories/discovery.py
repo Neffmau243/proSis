@@ -117,6 +117,7 @@ class PatientDiscoveryRepository:
             conditions.append(or_(allowed_establishment, own_attention, own_registration))
 
         statement = select(Patient).options(
+            selectinload(Patient.ubigeo_residencia),
             selectinload(Patient.responsables),
             selectinload(Patient.riesgos).selectinload(PatientRisk.grupo_riesgo),
         )

@@ -24,8 +24,11 @@
         <aside v-if="isAdmission && admissionPatient" class="admission-workbench__patient">
           <AdmissionPatientSummary
             :patient="admissionPatient"
-            :saving="patientContextSaving"
-            @update="updateAdmissionPatient"
+            :can-edit="auth.hasPermission('PACIENTE_EDITAR')"
+            :blocked="saving"
+            @saved="applyUpdatedPatient"
+            @dirty-change="patientContextDirty = $event"
+            @busy-change="patientContextSaving = $event"
           />
         </aside>
 
@@ -467,6 +470,14 @@
 
                 <AdmissionFinalActions
                   :saving="saving"
+                  :disabled="patientContextDirty || patientContextSaving"
+                  :disabled-reason="
+                    patientContextSaving
+                      ? 'Termine de guardar los datos del paciente.'
+                      : patientContextDirty
+                        ? 'Guarde o descarte los cambios del paciente antes de guardar la atención.'
+                        : undefined
+                  "
                   :primary-label="isAdmission ? 'Guardar atención' : 'Registrar atención'"
                   @submit="submit"
                   @exit="cancel"
@@ -481,6 +492,7 @@
           <AdmissionHistory
             :entries="historial"
             :loading="historialLoading"
+            :error="historialError"
             @refresh="loadHistorial"
           />
         </div>
@@ -490,8 +502,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, shallowRef, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 
 import AdmissionHistory from '@/components/admission/AdmissionHistory.vue'
@@ -504,7 +516,9 @@ import {
   type ProfessionalCatalogItem,
   type SpecialtyCatalogItem,
 } from '@/services/catalogos'
-import { pacientes, type Patient, type PatientUpdatePayload } from '@/services/pacientes'
+import { pacientes, type Patient } from '@/services/pacientes'
+import { useAuthStore } from '@/stores/auth'
+import { usePacienteSeleccionado } from '@/composables/usePacienteSeleccionado'
 import {
   atenciones,
   type Attention,
@@ -522,6 +536,8 @@ const props = withDefaults(
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
+const { seleccionado, seleccionar, notificarCambio } = usePacienteSeleccionado()
 const isAdmission = computed(() => props.admission)
 // `patientId` es el parámetro canónico de la ruta de admisión. Conservamos
 // `pacienteId` para que los accesos creados antes de este cambio no se rompan.
@@ -529,6 +545,7 @@ const preselectedPatientId = patientIdFromQuery(route.query.patientId ?? route.q
 
 const formRef = ref<FormInstance>()
 const saving = ref(false)
+const attentionCreated = shallowRef(false)
 const errorMessage = ref<string | null>(null)
 const initialLoading = ref(false)
 const expandedContextDetails = shallowRef<string[]>([])
@@ -537,6 +554,7 @@ const pacientesOptions = ref<Patient[]>([])
 const pacientesLoading = ref(false)
 const admissionPatient = ref<Patient | null>(null)
 const patientContextSaving = ref(false)
+const patientContextDirty = shallowRef(false)
 const lockPatientSelection = ref(false)
 const establecimientos = ref<EstablishmentCatalogItem[]>([])
 const establecimientosLoading = ref(false)
@@ -547,6 +565,8 @@ const profesionalesLoading = ref(false)
 const especialidades = ref<SpecialtyCatalogItem[]>([])
 const historial = ref<Attention[]>([])
 const historialLoading = ref(false)
+const historialError = shallowRef<string | null>(null)
+let historyRequest = 0
 
 const form = reactive({
   paciente_id: null as number | null,
@@ -575,15 +595,6 @@ const form = reactive({
 
 type AttentionMode = 'AMBULATORIA' | 'EMERGENCIA'
 type CareGroup = 'NINOS_ADOLESCENTES_ADULTOS_MAYORES' | 'GESTANTES' | 'PUERPERAS'
-type AdmissionPatientContextUpdate = Pick<
-  PatientUpdatePayload,
-  | 'sexo_codigo'
-  | 'localidad'
-  | 'direccion'
-  | 'establecimiento_registro_id'
-  | 'seguro_id'
->
-
 /** Temporary UI-only selection; no clinical persistence is attached yet. */
 const selectedCareGroup = ref<CareGroup>('NINOS_ADOLESCENTES_ADULTOS_MAYORES')
 
@@ -612,7 +623,7 @@ const showHistorial = computed(() => !initialLoading.value && historialPatientId
 const nutritionalPatient = computed<Patient | null>(() =>
   isAdmission.value
     ? admissionPatient.value
-    : pacientesOptions.value.find((patient) => patient.id === form.paciente_id) ?? null,
+    : (pacientesOptions.value.find((patient) => patient.id === form.paciente_id) ?? null),
 )
 const nutritionalAge = computed(() => {
   const birthDate = nutritionalPatient.value?.fecha_nacimiento
@@ -626,8 +637,8 @@ const hasNutritionalData = computed(() => {
   const valoracion = form.valoracion
   return Boolean(
     valoracion.diagnostico_peso_edad.trim() ||
-      valoracion.diagnostico_talla_edad.trim() ||
-      valoracion.diagnostico_peso_talla.trim(),
+    valoracion.diagnostico_talla_edad.trim() ||
+    valoracion.diagnostico_peso_talla.trim(),
   )
 })
 
@@ -659,30 +670,18 @@ function applyPatientContext(patient: Patient): void {
   }
 }
 
-/** Persiste las correcciones mínimas hechas desde el resumen de admisión. */
-async function updateAdmissionPatient(payload: AdmissionPatientContextUpdate): Promise<void> {
-  const currentPatient = admissionPatient.value
-  if (!currentPatient || patientContextSaving.value) return
-
-  patientContextSaving.value = true
-  try {
-    const updatedPatient = await pacientes.update(currentPatient.id, payload)
-    admissionPatient.value = updatedPatient
-    pacientesOptions.value = [updatedPatient]
-
-    // La sede clínica ya elegida no se altera. Si aún no se escogió un consultorio,
-    // sí se toma la nueva sede de registro como contexto inicial de la atención.
-    if ('establecimiento_registro_id' in payload && form.consultorio_id === null) {
-      form.establecimiento_id = updatedPatient.establecimiento_registro_id
-    }
-
-    ElMessage.success('Datos del paciente actualizados.')
-  } catch (error) {
-    ElMessage.error(
-      error instanceof Error ? error.message : 'No se pudo actualizar el dato del paciente.',
-    )
-  } finally {
-    patientContextSaving.value = false
+/** Consume a confirmed patient save; the editor owns its PATCH lifecycle. */
+function applyUpdatedPatient(updated: Patient): void {
+  const previous = admissionPatient.value
+  admissionPatient.value = updated
+  pacientesOptions.value = [updated]
+  if (seleccionado.value?.id === updated.id) seleccionar(updated)
+  notificarCambio()
+  if (
+    previous?.establecimiento_registro_id !== updated.establecimiento_registro_id &&
+    form.consultorio_id === null
+  ) {
+    form.establecimiento_id = updated.establecimiento_registro_id
   }
 }
 
@@ -759,19 +758,27 @@ async function loadConsultorios(): Promise<void> {
 }
 
 async function loadHistorial(): Promise<void> {
+  const request = ++historyRequest
   const patientId = historialPatientId.value
+  historialError.value = null
   if (!patientId) {
     historial.value = []
+    historialLoading.value = false
     return
   }
   historialLoading.value = true
   try {
-    historial.value = await atenciones.listByPatient(patientId)
-  } catch {
-    // Sin permiso de lectura clínica (o sin atenciones) se deja la tabla vacía.
-    historial.value = []
+    const entries = await atenciones.listByPatient(patientId)
+    if (request === historyRequest) historial.value = entries
+  } catch (error) {
+    if (request === historyRequest) {
+      historialError.value =
+        error instanceof Error
+          ? error.message
+          : 'No se pudo cargar el historial. Pulse Refrescar para reintentar.'
+    }
   } finally {
-    historialLoading.value = false
+    if (request === historyRequest) historialLoading.value = false
   }
 }
 
@@ -817,11 +824,21 @@ watch(
 )
 
 async function submit(): Promise<void> {
+  if (
+    saving.value ||
+    attentionCreated.value ||
+    patientContextSaving.value ||
+    patientContextDirty.value
+  )
+    return
+  saving.value = true
   const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
+  if (!valid) {
+    saving.value = false
+    return
+  }
 
   const valoracion = buildNutritionalPayload()
-  saving.value = true
   errorMessage.value = null
   try {
     const payload: AttentionCreatePayload = {
@@ -845,7 +862,8 @@ async function submit(): Promise<void> {
       valoracion_nutricional: valoracion,
     }
     const created = await atenciones.create(payload)
-    router.push({ name: 'atencion-detalle', params: { id: created.id } })
+    attentionCreated.value = true
+    await router.push({ name: 'atencion-detalle', params: { id: created.id } })
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : 'No se pudo registrar la atención.'
@@ -861,6 +879,28 @@ function cancel(): void {
   }
   router.back()
 }
+
+function canLeavePatientEditor(): boolean {
+  if (
+    !patientContextDirty.value &&
+    !patientContextSaving.value &&
+    (!saving.value || attentionCreated.value)
+  )
+    return true
+  ElMessage.warning(
+    'Guarde o descarte los cambios del paciente y termine las operaciones en curso antes de salir.',
+  )
+  return false
+}
+onBeforeRouteLeave((to) => to.name === 'login' || canLeavePatientEditor())
+onBeforeRouteUpdate(() => canLeavePatientEditor())
+function beforeUnload(event: BeforeUnloadEvent): void {
+  if (!patientContextDirty.value && !patientContextSaving.value && !saving.value) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+onMounted(() => window.addEventListener('beforeunload', beforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
 onMounted(async () => {
   initialLoading.value = true
@@ -899,7 +939,6 @@ onMounted(async () => {
       error instanceof Error ? error.message : 'No se pudo preparar la admisión del paciente.'
   } finally {
     initialLoading.value = false
-    void loadHistorial()
   }
 })
 </script>
@@ -920,9 +959,9 @@ onMounted(async () => {
   grid-template-areas:
     'patient content'
     'history history';
-  grid-template-columns: minmax(224px, 260px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .admission-workbench--standalone {

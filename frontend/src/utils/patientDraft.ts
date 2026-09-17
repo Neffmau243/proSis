@@ -1,0 +1,91 @@
+import type { Patient, PatientUpdatePayload } from '../services/pacientes'
+
+/** The editable patient columns; derived values and child records never enter PATCH. */
+export const patientFields = [
+  { key: 'historia_clinica', label: 'N.° H. clínica', kind: 'text', max: 255 },
+  { key: 'historia_familiar', label: 'Historia familiar', kind: 'text' },
+  { key: 'tipo_documento_codigo', label: 'Tipo documento', kind: 'select', required: true },
+  { key: 'numero_documento', label: 'N.° documento', kind: 'text', max: 30, required: true },
+  { key: 'fecha_nacimiento', label: 'Fecha nacimiento', kind: 'date', required: true },
+  { key: 'apellido_paterno', label: 'Apellido paterno', kind: 'text', max: 100 },
+  { key: 'apellido_materno', label: 'Apellido materno', kind: 'text', max: 100 },
+  { key: 'primer_nombre', label: 'Primer nombre', kind: 'text', max: 100 },
+  { key: 'otros_nombres', label: 'Otros nombres', kind: 'text', max: 150 },
+  { key: 'sexo_codigo', label: 'Sexo', kind: 'select' },
+  { key: 'ubigeo_residencia_codigo', label: 'Distrito', kind: 'select' },
+  { key: 'localidad', label: 'Localidad', kind: 'text', max: 150 },
+  { key: 'direccion', label: 'Dirección', kind: 'text', max: 300 },
+  { key: 'establecimiento_registro_id', label: 'Establecimiento', kind: 'select' },
+  { key: 'seguro_id', label: 'Seguro', kind: 'select' },
+  { key: 'telefono_principal', label: 'Teléfono', kind: 'text', max: 30 },
+  { key: 'fecha_inscripcion', label: 'Fecha inscripción', kind: 'date' },
+  { key: 'condicion', label: 'Condición', kind: 'text', max: 100 },
+] as const satisfies ReadonlyArray<{
+  key: keyof PatientUpdatePayload
+  label: string
+  kind: 'text' | 'date' | 'select'
+  max?: number
+  required?: boolean
+}>
+
+export type PatientField = (typeof patientFields)[number]
+export type PatientFieldKey = PatientField['key']
+export type PatientDraft = { [K in PatientFieldKey]: Exclude<PatientUpdatePayload[K], undefined> }
+export type PatientDraftErrors = Partial<Record<PatientFieldKey, string>>
+
+function normalized(value: string | number | null | undefined): string | number | null {
+  return typeof value === 'string' ? value.trim() || null : (value ?? null)
+}
+
+export function createPatientDraft(patient: Patient): PatientDraft {
+  return Object.fromEntries(patientFields.map(({ key }) => [key, patient[key]])) as PatientDraft
+}
+
+/** Compare only whitelisted fields, preserving explicit nulls and omitting unchanged data. */
+export function buildPatientPatch(
+  baseline: PatientDraft,
+  draft: PatientDraft,
+): PatientUpdatePayload {
+  return Object.fromEntries(
+    patientFields
+      .filter(({ key }) => normalized(draft[key]) !== normalized(baseline[key]))
+      .map(({ key }) => [key, normalized(draft[key])]),
+  ) as PatientUpdatePayload
+}
+
+export function validatePatientDraft(draft: PatientDraft, today: string): PatientDraftErrors {
+  const errors: PatientDraftErrors = {}
+  for (const field of patientFields) {
+    const value = normalized(draft[field.key])
+    if ('required' in field && field.required && value === null) {
+      errors[field.key] = 'Complete este campo.'
+    } else if ('max' in field && typeof value === 'string' && value.length > field.max) {
+      errors[field.key] = `Máximo ${field.max} caracteres.`
+    }
+    if (field.kind === 'date' && value) {
+      const text = String(value)
+      const parsed = new Date(`${text}T00:00:00Z`)
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(text) ||
+        Number.isNaN(parsed.getTime()) ||
+        parsed.toISOString().slice(0, 10) !== text
+      ) {
+        errors[field.key] = 'Ingrese una fecha válida.'
+      } else if (text > today) {
+        errors[field.key] = 'La fecha no puede estar en el futuro.'
+      }
+    }
+  }
+  if (draft.fecha_inscripcion && draft.fecha_nacimiento > draft.fecha_inscripcion) {
+    errors.fecha_nacimiento = 'Debe ser anterior o igual a la inscripción.'
+  }
+  if (normalized(draft.localidad) && !draft.ubigeo_residencia_codigo) {
+    errors.localidad = 'Seleccione primero el distrito.'
+  } else if (
+    normalized(draft.localidad) &&
+    normalized(draft.localidad) === draft.ubigeo_residencia_codigo
+  ) {
+    errors.localidad = 'Escriba el nombre de la localidad, no su código.'
+  }
+  return errors
+}

@@ -133,6 +133,7 @@ def risk_to_response(entity: "PatientRisk") -> PatientRiskResponse:
 def patient_to_response(entity: "Patient") -> PatientResponse:
     """Maps the patient aggregate loaded by the repository to a public DTO."""
 
+    ubigeo = getattr(entity, "ubigeo_residencia", None)
     return PatientResponse(
         id=entity.id,
         codclie_legacy=entity.codclie_legacy,
@@ -148,6 +149,7 @@ def patient_to_response(entity: "Patient") -> PatientResponse:
         otros_nombres=entity.otros_nombres,
         sexo_codigo=entity.sexo_codigo,
         ubigeo_residencia_codigo=entity.ubigeo_residencia_codigo,
+        distrito_residencia=getattr(ubigeo, "distrito", None),
         localidad=entity.localidad,
         direccion=entity.direccion,
         establecimiento_registro_id=entity.establecimiento_registro_id,

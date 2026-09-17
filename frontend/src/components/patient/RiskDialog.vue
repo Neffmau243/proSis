@@ -2,7 +2,10 @@
   <el-dialog
     :model-value="modelValue"
     :title="riesgo ? 'Editar periodo de riesgo' : 'Agregar periodo de riesgo'"
-    width="520px"
+    width="min(520px, 94vw)"
+    :close-on-click-modal="!saving"
+    :close-on-press-escape="!saving"
+    :show-close="!saving"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @open="init"
@@ -15,7 +18,7 @@
       class="dialog-alert"
     />
 
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="160px">
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" :disabled="saving">
       <el-form-item label="Grupo de riesgo" prop="grupo_riesgo_id">
         <el-select
           v-model="form.grupo_riesgo_id"
@@ -51,12 +54,18 @@
         />
       </el-form-item>
       <el-form-item label="Observación">
-        <el-input v-model="form.observacion" type="textarea" :rows="2" maxlength="500" show-word-limit />
+        <el-input
+          v-model="form.observacion"
+          type="textarea"
+          :rows="2"
+          maxlength="500"
+          show-word-limit
+        />
       </el-form-item>
     </el-form>
 
     <template #footer>
-      <el-button @click="emit('update:modelValue', false)">Cancelar</el-button>
+      <el-button :disabled="saving" @click="emit('update:modelValue', false)">Cancelar</el-button>
       <el-button type="primary" :loading="saving" @click="save">Guardar</el-button>
     </template>
   </el-dialog>
@@ -102,9 +111,7 @@ const rules: FormRules = {
   grupo_riesgo_id: [
     { required: true, message: 'Seleccione el grupo de riesgo.', trigger: 'change' },
   ],
-  fecha_inicio: [
-    { required: true, message: 'Indique la fecha de inicio.', trigger: 'change' },
-  ],
+  fecha_inicio: [{ required: true, message: 'Indique la fecha de inicio.', trigger: 'change' }],
 }
 
 function init(): void {
@@ -117,10 +124,14 @@ function init(): void {
 }
 
 async function save(): Promise<void> {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
-
+  if (saving.value) return
   saving.value = true
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) {
+    saving.value = false
+    return
+  }
+
   errorMessage.value = null
   try {
     const saved = props.riesgo
@@ -133,15 +144,12 @@ async function save(): Promise<void> {
             observacion: form.observacion || null,
           } satisfies RiskUpdatePayload,
         )
-      : await pacientes.addRisk(
-          props.patientId,
-          {
-            grupo_riesgo_id: form.grupo_riesgo_id!,
-            fecha_inicio: form.fecha_inicio,
-            fecha_fin: form.fecha_fin,
-            observacion: form.observacion || null,
-          } satisfies RiskCreatePayload,
-        )
+      : await pacientes.addRisk(props.patientId, {
+          grupo_riesgo_id: form.grupo_riesgo_id!,
+          fecha_inicio: form.fecha_inicio,
+          fecha_fin: form.fecha_fin,
+          observacion: form.observacion || null,
+        } satisfies RiskCreatePayload)
 
     emit('saved', saved)
     emit('update:modelValue', false)

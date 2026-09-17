@@ -57,9 +57,9 @@ Entity = TypeVar("Entity")
 # ``seed_demo_data`` refuses every environment other than ``development``.
 # Never reuse them outside a disposable local database.
 DEMO_ADMIN_USERNAME = "admin"
-DEMO_ADMIN_PASSWORD = "IpressDev!Admin2026"
+DEMO_ADMIN_PASSWORD = "74028519"
 DEMO_PROFESSIONAL_USERNAME = "medico.demo"
-DEMO_PROFESSIONAL_PASSWORD = "IpressDev!Medico2026"
+DEMO_PROFESSIONAL_PASSWORD = "18594027"
 
 #: Fechas fijas para que la semilla siga siendo idempotente entre ejecuciones.
 DEMO_REGISTRATION_DATE = date(2024, 1, 15)
@@ -69,6 +69,15 @@ DEMO_DISTRICTS: tuple[tuple[str, str], ...] = (
     ("040102", "Cayma"),
     ("040104", "Cerro Colorado"),
 )
+
+# La residencia se registra con tres niveles distintos. El código de ubigeo
+# identifica el distrito; la localidad es el sector dentro de ese distrito; la
+# dirección es el domicilio puntual. Nunca se persiste el código como localidad.
+DEMO_LOCALITY_BY_DISTRICT: dict[str, str] = {
+    "040101": "Alto Selva Alegre",
+    "040102": "Cayma",
+    "040104": "Cerro Colorado",
+}
 
 DEMO_RISK_GROUPS: tuple[tuple[str, str], ...] = (
     ("RIESGO_CARDIO", "Riesgo cardiovascular"),
@@ -292,6 +301,19 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         insurance_code="SIN_SEGURO",
         at_destination=True,
     ),
+    DemoPatient(
+        document_number="52345678",
+        clinical_history="HC-DEMO-0013",
+        birth_date=date(1996, 6, 12),
+        paternal_surname="Cahuide",
+        maternal_surname="Quispe",
+        first_name="María Elena",
+        sex_code="F",
+        address="Calle Cahuide 504",
+        phone="955005566",
+        district_code="040101",
+        insurance_code="SIS",
+    ),
 )
 
 DEMO_ENCOUNTERS: tuple[DemoEncounter, ...] = (
@@ -422,6 +444,7 @@ def _seed_demo_patients(
 
     patients: dict[str, Patient] = {}
     for demo in DEMO_PATIENTS:
+        locality = DEMO_LOCALITY_BY_DISTRICT[demo.district_code]
         patient = session.scalar(
             select(Patient).where(
                 Patient.tipo_documento_codigo == "DNI",
@@ -441,7 +464,7 @@ def _seed_demo_patients(
                 primer_nombre=demo.first_name,
                 sexo_codigo=demo.sex_code,
                 ubigeo_residencia_codigo=districts[demo.district_code],
-                localidad=districts[demo.district_code],
+                localidad=locality,
                 direccion=demo.address,
                 telefono_principal=demo.phone,
                 seguro_id=insurances[demo.insurance_code].id,
@@ -450,6 +473,10 @@ def _seed_demo_patients(
             )
             session.add(patient)
             session.flush()
+        elif patient.localidad in {None, patient.ubigeo_residencia_codigo}:
+            # Repara datos de semilla antiguos que guardaban el código de
+            # ubigeo en vez del nombre de la localidad.
+            patient.localidad = locality
         patients[demo.document_number] = patient
 
         if demo.responsible is not None:
@@ -732,6 +759,7 @@ def seed_demo_data() -> dict[str, int]:
             {"codigo": "040101"},
             {"departamento": "Arequipa", "provincia": "Arequipa", "distrito": "Arequipa", "localidad": "Demo"},
         )
+        ubigeo.localidad = DEMO_LOCALITY_BY_DISTRICT["040101"]
         districts = {"040101": ubigeo.codigo}
         for code, name in DEMO_DISTRICTS:
             district = _get_or_create(
@@ -745,6 +773,7 @@ def seed_demo_data() -> dict[str, int]:
                     "localidad": "Demo",
                 },
             )
+            district.localidad = DEMO_LOCALITY_BY_DISTRICT[code]
             districts[code] = district.codigo
 
         origin = _get_or_create(
@@ -823,6 +852,8 @@ def seed_demo_data() -> dict[str, int]:
                 "primer_nombre": "Ana",
                 "sexo_codigo": "F",
                 "ubigeo_residencia_codigo": ubigeo.codigo,
+                "localidad": DEMO_LOCALITY_BY_DISTRICT["040101"],
+                "direccion": "Calle Cahuide 504",
                 "establecimiento_registro_id": origin.id,
                 "telefono_principal": "999888777",
             },
@@ -839,9 +870,19 @@ def seed_demo_data() -> dict[str, int]:
                 "primer_nombre": "Luis",
                 "sexo_codigo": "M",
                 "ubigeo_residencia_codigo": ubigeo.codigo,
+                "localidad": DEMO_LOCALITY_BY_DISTRICT["040101"],
+                "direccion": "Pasaje Los Pinos 120",
                 "establecimiento_registro_id": origin.id,
             },
         )
+        if adult.localidad is None:
+            adult.localidad = DEMO_LOCALITY_BY_DISTRICT["040101"]
+        if adult.direccion is None:
+            adult.direccion = "Calle Cahuide 504"
+        if minor.localidad is None:
+            minor.localidad = DEMO_LOCALITY_BY_DISTRICT["040101"]
+        if minor.direccion is None:
+            minor.direccion = "Pasaje Los Pinos 120"
         _get_or_create(
             session,
             PatientResponsible,

@@ -1,229 +1,221 @@
 <script setup lang="ts">
-import { Delete } from '@element-plus/icons-vue'
+import { computed } from 'vue'
 
-import type { CodeCatalogItem, RiskGroupCatalogItem } from '@/services/catalogos'
+import type { RiskGroupCatalogItem } from '@/services/catalogos'
 
-interface ResponsibleRow {
-  parentesco: 'MADRE' | 'PADRE' | 'TUTOR'
-  nombre_completo: string
-  tipo_documento_codigo: string | null
-  numero_documento: string | null
-  telefono: string | null
-  es_principal: boolean
-}
+import type { ResponsibleRelationship, ResponsibleRow, RiskRow } from './patientRegistration.types'
 
-interface RiskRow {
-  grupo_riesgo_id: number | null
-  fecha_inicio: string
-  fecha_fin: string | null
-  observacion: string
-}
+type ParentRelationship = Extract<ResponsibleRelationship, 'MADRE' | 'PADRE'>
+type ParentField = 'nombre_completo' | 'numero_documento'
 
 defineProps<{
-  tiposDocumento: CodeCatalogItem[]
   gruposRiesgo: RiskGroupCatalogItem[]
 }>()
 
 const responsables = defineModel<ResponsibleRow[]>('responsables', { required: true })
 const riesgos = defineModel<RiskRow[]>('riesgos', { required: true })
+const telefonoPrincipal = defineModel<string>('telefonoPrincipal', { required: true })
 
-function addResponsible(): void {
-  responsables.value = [
-    ...responsables.value,
-    {
-      parentesco: 'MADRE',
-      nombre_completo: '',
-      tipo_documento_codigo: null,
-      numero_documento: null,
-      telefono: null,
-      es_principal: false,
-    },
-  ]
+const relacionAlMenor = computed<ResponsibleRelationship | null>(() => {
+  const principal = responsables.value.find((responsable) => responsable.es_principal)
+  return (principal ?? responsables.value[0])?.parentesco ?? null
+})
+
+const riesgoPrincipal = computed<RiskRow | null>(() => riesgos.value[0] ?? null)
+
+function newResponsible(parentesco: ResponsibleRelationship, esPrincipal = false): ResponsibleRow {
+  return {
+    parentesco,
+    nombre_completo: '',
+    tipo_documento_codigo: 'DNI',
+    numero_documento: null,
+    telefono: null,
+    es_principal: esPrincipal,
+  }
 }
 
-function updateResponsible(index: number, changes: Partial<ResponsibleRow>): void {
+function responsibleIndex(parentesco: ParentRelationship): number {
+  return responsables.value.findIndex((responsable) => responsable.parentesco === parentesco)
+}
+
+function parentValue(parentesco: ParentRelationship, field: ParentField): string {
+  return responsables.value[responsibleIndex(parentesco)]?.[field] ?? ''
+}
+
+function updateRelacionAlMenor(parentesco: ResponsibleRelationship | null): void {
+  if (!parentesco) return
+
+  const primaryIndex = responsables.value.findIndex((responsable) => responsable.es_principal)
+  const matchingIndex = responsables.value.findIndex(
+    (responsable) => responsable.parentesco === parentesco,
+  )
+
+  if (matchingIndex >= 0) {
+    responsables.value = responsables.value.map((responsable, index) => ({
+      ...responsable,
+      es_principal: index === matchingIndex,
+    }))
+    return
+  }
+
+  if (primaryIndex < 0) {
+    responsables.value = [...responsables.value, newResponsible(parentesco, true)]
+    return
+  }
+
+  responsables.value = responsables.value.map((responsable, index) =>
+    index === primaryIndex ? { ...responsable, parentesco } : responsable,
+  )
+}
+
+function updateParentField(
+  parentesco: ParentRelationship,
+  field: ParentField,
+  value: string,
+): void {
+  const index = responsibleIndex(parentesco)
+  if (index < 0) {
+    if (!value) return
+    responsables.value = [
+      ...responsables.value,
+      {
+        ...newResponsible(parentesco),
+        [field]: value,
+      },
+    ]
+    return
+  }
+
   responsables.value = responsables.value.map((responsable, rowIndex) =>
-    rowIndex === index ? { ...responsable, ...changes } : responsable,
+    rowIndex === index
+      ? { ...responsable, [field]: field === 'numero_documento' ? value || null : value }
+      : responsable,
   )
 }
 
-function removeResponsible(index: number): void {
-  responsables.value = responsables.value.filter((_, rowIndex) => rowIndex !== index)
-}
+function updateRiskGroup(grupoRiesgoId: number | null): void {
+  if (grupoRiesgoId === null) {
+    riesgos.value = riesgos.value.slice(1)
+    return
+  }
 
-function addRisk(): void {
-  riesgos.value = [
-    ...riesgos.value,
-    {
-      grupo_riesgo_id: null,
-      fecha_inicio: '',
-      fecha_fin: null,
-      observacion: '',
-    },
-  ]
-}
+  if (!riesgos.value.length) {
+    riesgos.value = [
+      {
+        grupo_riesgo_id: grupoRiesgoId,
+        fecha_inicio: '',
+        fecha_fin: null,
+        observacion: '',
+      },
+    ]
+    return
+  }
 
-function updateRisk(index: number, changes: Partial<RiskRow>): void {
-  riesgos.value = riesgos.value.map((risk, rowIndex) =>
-    rowIndex === index ? { ...risk, ...changes } : risk,
+  riesgos.value = riesgos.value.map((riesgo, index) =>
+    index === 0 ? { ...riesgo, grupo_riesgo_id: grupoRiesgoId } : riesgo,
   )
 }
 
-function removeRisk(index: number): void {
-  riesgos.value = riesgos.value.filter((_, rowIndex) => rowIndex !== index)
+function updateRiskStartDate(fechaInicio: string): void {
+  if (!riesgos.value.length) return
+
+  riesgos.value = riesgos.value.map((riesgo, index) =>
+    index === 0 ? { ...riesgo, fecha_inicio: fechaInicio } : riesgo,
+  )
 }
 </script>
 
 <template>
   <aside class="family-sections" aria-label="Datos familiares y grupos de riesgo">
-    <section class="family-sections__section">
-      <header class="family-sections__header">
-        <div>
-          <h3 class="family-sections__title">Datos familiares</h3>
-          <p class="family-sections__hint">Registre responsables cuando corresponda.</p>
-        </div>
-        <el-button size="small" @click="addResponsible">Agregar</el-button>
+    <section class="family-section">
+      <header class="family-section__header">
+        <h3 class="family-section__title">Datos familiares <span>(solo niños menores)</span></h3>
       </header>
 
-      <p v-if="!responsables.length" class="family-sections__empty">
-        Sin responsables registrados.
-      </p>
-
-      <div v-else class="family-sections__list">
-        <div v-for="(responsable, index) in responsables" :key="index" class="family-sections__entry">
-          <div class="family-sections__entry-header">
-            <span>Responsable {{ index + 1 }}</span>
-            <el-button
-              link
-              type="danger"
-              size="small"
-              :aria-label="`Quitar responsable ${index + 1}`"
-              @click="removeResponsible(index)"
-            >
-              <el-icon><Delete /></el-icon>
-            </el-button>
-          </div>
-
-          <div class="family-sections__fields">
-            <el-form-item label="Parentesco">
-              <el-select
-                :model-value="responsable.parentesco"
-                @update:model-value="updateResponsible(index, { parentesco: $event })"
-              >
-                <el-option label="Madre" value="MADRE" />
-                <el-option label="Padre" value="PADRE" />
-                <el-option label="Tutor" value="TUTOR" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="Apellidos y nombres">
-              <el-input
-                :model-value="responsable.nombre_completo"
-                @update:model-value="updateResponsible(index, { nombre_completo: $event })"
-              />
-            </el-form-item>
-            <el-form-item label="Tipo de documento">
-              <el-select
-                clearable
-                :model-value="responsable.tipo_documento_codigo"
-                @update:model-value="updateResponsible(index, { tipo_documento_codigo: $event })"
-              >
-                <el-option
-                  v-for="tipo in tiposDocumento"
-                  :key="tipo.codigo"
-                  :label="tipo.nombre"
-                  :value="tipo.codigo"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="N.° documento">
-              <el-input
-                :model-value="responsable.numero_documento"
-                :disabled="!responsable.tipo_documento_codigo"
-                @update:model-value="updateResponsible(index, { numero_documento: $event })"
-              />
-            </el-form-item>
-            <el-form-item label="Teléfono">
-              <el-input
-                :model-value="responsable.telefono"
-                @update:model-value="updateResponsible(index, { telefono: $event })"
-              />
-            </el-form-item>
-            <el-form-item class="family-sections__principal" label="Principal">
-              <el-switch
-                :model-value="responsable.es_principal"
-                @update:model-value="updateResponsible(index, { es_principal: $event })"
-              />
-            </el-form-item>
-          </div>
-        </div>
+      <div class="family-section__fields">
+        <el-form-item class="family-field" label="Relación al menor">
+          <el-select
+            clearable
+            :model-value="relacionAlMenor"
+            @update:model-value="updateRelacionAlMenor"
+          >
+            <el-option label="Madre" value="MADRE" />
+            <el-option label="Padre" value="PADRE" />
+            <el-option label="Tutor" value="TUTOR" />
+          </el-select>
+        </el-form-item>
       </div>
     </section>
 
-    <section class="family-sections__section">
-      <header class="family-sections__header">
-        <div>
-          <h3 class="family-sections__title">Grupo de riesgo</h3>
-          <p class="family-sections__hint">Opcional para el registro del paciente.</p>
-        </div>
-        <el-button size="small" @click="addRisk">Agregar</el-button>
+    <section class="family-section">
+      <header class="family-section__header">
+        <h3 class="family-section__title">Datos del padre</h3>
       </header>
 
-      <p v-if="!riesgos.length" class="family-sections__empty">Sin grupos de riesgo registrados.</p>
+      <div class="family-section__fields">
+        <el-form-item class="family-field" label="Apellidos y nombres">
+          <el-input
+            :model-value="parentValue('PADRE', 'nombre_completo')"
+            @update:model-value="updateParentField('PADRE', 'nombre_completo', $event)"
+          />
+        </el-form-item>
+        <el-form-item class="family-field" label="Nro. DNI">
+          <el-input
+            :model-value="parentValue('PADRE', 'numero_documento')"
+            @update:model-value="updateParentField('PADRE', 'numero_documento', $event)"
+          />
+        </el-form-item>
+      </div>
+    </section>
 
-      <div v-else class="family-sections__list">
-        <div v-for="(riesgo, index) in riesgos" :key="index" class="family-sections__entry">
-          <div class="family-sections__entry-header">
-            <span>Grupo {{ index + 1 }}</span>
-            <el-button
-              link
-              type="danger"
-              size="small"
-              :aria-label="`Quitar grupo de riesgo ${index + 1}`"
-              @click="removeRisk(index)"
-            >
-              <el-icon><Delete /></el-icon>
-            </el-button>
-          </div>
+    <section class="family-section">
+      <header class="family-section__header">
+        <h3 class="family-section__title">Datos de la madre</h3>
+      </header>
 
-          <div class="family-sections__fields family-sections__fields--risk">
-            <el-form-item label="Grupo de riesgo">
-              <el-select
-                :model-value="riesgo.grupo_riesgo_id"
-                @update:model-value="updateRisk(index, { grupo_riesgo_id: $event })"
-              >
-                <el-option
-                  v-for="grupo in gruposRiesgo"
-                  :key="grupo.id"
-                  :label="grupo.nombre"
-                  :value="grupo.id"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="Inicio">
-              <el-date-picker
-                :model-value="riesgo.fecha_inicio"
-                type="date"
-                value-format="YYYY-MM-DD"
-                @update:model-value="updateRisk(index, { fecha_inicio: $event })"
-              />
-            </el-form-item>
-            <el-form-item label="Fin">
-              <el-date-picker
-                clearable
-                :model-value="riesgo.fecha_fin"
-                type="date"
-                value-format="YYYY-MM-DD"
-                @update:model-value="updateRisk(index, { fecha_fin: $event })"
-              />
-            </el-form-item>
-            <el-form-item label="Observación">
-              <el-input
-                :model-value="riesgo.observacion"
-                @update:model-value="updateRisk(index, { observacion: $event })"
-              />
-            </el-form-item>
-          </div>
-        </div>
+      <div class="family-section__fields">
+        <el-form-item class="family-field" label="Apellidos y nombres">
+          <el-input
+            :model-value="parentValue('MADRE', 'nombre_completo')"
+            @update:model-value="updateParentField('MADRE', 'nombre_completo', $event)"
+          />
+        </el-form-item>
+        <el-form-item class="family-field" label="Nro. DNI">
+          <el-input
+            :model-value="parentValue('MADRE', 'numero_documento')"
+            @update:model-value="updateParentField('MADRE', 'numero_documento', $event)"
+          />
+        </el-form-item>
+      </div>
+    </section>
+
+    <section class="family-section family-section--contact">
+      <div class="family-section__fields">
+        <el-form-item class="family-field" label="Nro. celular">
+          <el-input v-model="telefonoPrincipal" />
+        </el-form-item>
+        <el-form-item class="family-field" label="Grupo de riesgo">
+          <el-select
+            clearable
+            :model-value="riesgoPrincipal?.grupo_riesgo_id ?? null"
+            @update:model-value="updateRiskGroup"
+          >
+            <el-option
+              v-for="grupo in gruposRiesgo"
+              :key="grupo.id"
+              :label="grupo.nombre"
+              :value="grupo.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="riesgoPrincipal" class="family-field" label="Inicio del riesgo">
+          <el-date-picker
+            :model-value="riesgoPrincipal.fecha_inicio"
+            type="date"
+            value-format="YYYY-MM-DD"
+            @update:model-value="updateRiskStartDate($event ?? '')"
+          />
+        </el-form-item>
       </div>
     </section>
   </aside>
@@ -232,107 +224,85 @@ function removeRisk(index: number): void {
 <style scoped>
 .family-sections {
   display: grid;
-  min-width: 0;
   align-content: start;
-  gap: 12px;
+  gap: 8px;
+  min-width: 0;
+  --el-component-size: 26px;
 }
 
-.family-sections__section {
-  padding: 12px;
+.family-section {
+  min-width: 0;
+  padding: 8px 10px 10px;
   border: 1px solid var(--el-border-color-lighter);
-  border-radius: 10px;
+  border-radius: 7px;
   background-color: var(--el-fill-color-blank);
 }
 
-.family-sections__header,
-.family-sections__entry-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.family-sections__title,
-.family-sections__entry-header span {
-  margin: 0;
-  color: var(--el-text-color-primary);
-  font-weight: 700;
-}
-
-.family-sections__title {
-  font-size: 14px;
-  line-height: 1.3;
-}
-
-.family-sections__hint,
-.family-sections__empty {
-  margin: 2px 0 0;
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.family-sections__empty {
+.family-section--contact {
   padding-top: 10px;
 }
 
-.family-sections__list {
-  display: grid;
-  gap: 8px;
-  margin-top: 10px;
+.family-section__header {
+  margin-bottom: 6px;
 }
 
-.family-sections__entry {
-  padding-top: 8px;
-  border-top: 1px solid var(--el-border-color-lighter);
-}
-
-.family-sections__entry-header span {
+.family-section__title {
+  margin: 0;
+  color: var(--el-text-color-primary);
   font-size: 12px;
-}
-
-.family-sections__fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 8px;
-  margin-top: 6px;
-}
-
-.family-sections__fields :deep(.el-form-item) {
-  min-width: 0;
-  margin-bottom: 0;
-}
-
-.family-sections__fields :deep(.el-form-item__label) {
-  height: auto;
-  padding: 0 0 2px;
-  color: var(--el-text-color-secondary);
-  font-size: 11px;
+  font-weight: 700;
   line-height: 1.25;
 }
 
-.family-sections__fields :deep(.el-form-item__content),
-.family-sections__fields :deep(.el-select),
-.family-sections__fields :deep(.el-date-editor) {
+.family-section__title span {
+  font-weight: 600;
+}
+
+.family-section__fields {
+  display: grid;
+  gap: 5px;
+}
+
+.family-section__fields :deep(.family-field) {
+  display: grid;
+  grid-template-columns: minmax(108px, 0.55fr) minmax(0, 1fr);
+  align-items: center;
   min-width: 0;
+  margin: 0;
+}
+
+.family-section__fields :deep(.family-field .el-form-item__label) {
+  height: auto;
+  padding: 0 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.family-section__fields :deep(.family-field .el-form-item__content) {
+  min-width: 0;
+  margin-left: 0 !important;
+}
+
+.family-section__fields :deep(.el-select),
+.family-section__fields :deep(.el-date-editor) {
   width: 100%;
 }
 
-.family-sections__principal {
-  align-self: end;
+.family-section__fields :deep(.el-input__inner),
+.family-section__fields :deep(.el-select__selected-item),
+.family-section__fields :deep(.el-select__placeholder) {
+  font-size: 12px;
 }
 
-.family-sections__fields--risk {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-@media (max-width: 560px) {
-  .family-sections__section {
-    padding: 10px;
+@media (max-width: 640px) {
+  .family-section__fields :deep(.family-field) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
   }
 
-  .family-sections__fields {
-    grid-template-columns: minmax(0, 1fr);
+  .family-section__fields :deep(.family-field .el-form-item__label) {
+    padding-right: 0;
   }
 }
 </style>

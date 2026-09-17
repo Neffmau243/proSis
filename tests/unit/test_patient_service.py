@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from app.exceptions import BusinessRuleError, ConflictError
+from app.exceptions import BusinessRuleError, ConflictError, ValidationDomainError
 from app.schemas.patient import (
     PatientCreate,
     PatientResponsibleCreate,
@@ -287,6 +287,58 @@ def test_registers_unique_adult_and_audits_in_one_commit(
     assert session.commits == 1
     assert audit.events[0]["action"] == "INSERT"
     assert audit.events[0]["actor_id"] == 41
+
+
+def test_rejects_locality_without_a_selected_district(
+    environment: PatientTestEnvironment,
+) -> None:
+    service, repository, session, _audit = environment
+
+    with pytest.raises(ValidationDomainError) as error:
+        service.create(adult_command(localidad="Alto Selva Alegre"), actor_id=1)
+
+    assert error.value.code == "LOCALIDAD_SIN_DISTRITO"
+    assert repository.created_patient_count == 0
+    assert session.rollbacks == 1
+
+
+def test_rejects_ubigeo_code_saved_as_locality(
+    environment: PatientTestEnvironment,
+) -> None:
+    service, repository, session, _audit = environment
+
+    with pytest.raises(ValidationDomainError) as error:
+        service.create(
+            adult_command(
+                ubigeo_residencia_codigo="040101",
+                localidad="040101",
+            ),
+            actor_id=1,
+        )
+
+    assert error.value.code == "LOCALIDAD_NO_PUEDE_SER_CODIGO_UBIGEO"
+    assert repository.created_patient_count == 0
+    assert session.rollbacks == 1
+
+
+def test_update_rejects_ubigeo_code_saved_as_locality(
+    environment: PatientTestEnvironment,
+) -> None:
+    service, repository, session, _audit = environment
+    created = service.create(
+        adult_command(
+            ubigeo_residencia_codigo="040101",
+            localidad="Alto Selva Alegre",
+        ),
+        actor_id=1,
+    )
+
+    with pytest.raises(ValidationDomainError) as error:
+        service.update(created.id, PatientUpdate(localidad="040101"), actor_id=1)
+
+    assert error.value.code == "LOCALIDAD_NO_PUEDE_SER_CODIGO_UBIGEO"
+    assert repository.patients[created.id].localidad == "Alto Selva Alegre"
+    assert session.rollbacks == 1
 
 
 def test_rejects_minor_without_an_active_responsible(

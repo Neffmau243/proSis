@@ -37,6 +37,14 @@ class UserRepository:
             statement = statement.with_for_update()
         return self._session.scalar(statement)
 
+    def list_active_usernames(self) -> list[str]:
+        statement = (
+            select(User.nombre_usuario)
+            .where(User.activo.is_(True))
+            .order_by(User.nombre_usuario.asc())
+        )
+        return list(self._session.scalars(statement))
+
     def find_roles_by_codes(self, codes: set[str]) -> list[Role]:
         if not codes:
             return []

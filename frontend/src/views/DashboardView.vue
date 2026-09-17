@@ -62,17 +62,9 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Acciones" width="200" fixed="right">
+        <el-table-column label="Acciones" width="150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click.stop="ver(row)">Ver</el-button>
-            <el-button
-              v-if="can('PACIENTE_EDITAR')"
-              link
-              type="primary"
-              @click.stop="editar(row)"
-            >
-              Modificar
-            </el-button>
             <el-button
               v-if="can('PACIENTE_DAR_BAJA') && row.estado"
               link
@@ -363,11 +355,6 @@ function onRowClick(row: Patient): void {
 function ver(row: Patient): void {
   seleccionar(row)
   router.push({ name: 'paciente-detalle', params: { id: row.id } })
-}
-
-function editar(row: Patient): void {
-  seleccionar(row)
-  router.push({ name: 'paciente-editar', params: { id: row.id } })
 }
 
 async function confirmDeactivate(patient: Patient): Promise<void> {

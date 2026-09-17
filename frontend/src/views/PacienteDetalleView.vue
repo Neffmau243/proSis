@@ -4,21 +4,14 @@
       <div>
         <h2>{{ fullName }}</h2>
         <div class="muted">
-          {{ patient?.tipo_documento_codigo }} {{ patient?.numero_documento }} ·
-          HC: {{ patient?.historia_clinica || '—' }}
+          {{ patient?.tipo_documento_codigo }} {{ patient?.numero_documento }} · HC:
+          {{ patient?.historia_clinica || '—' }}
           <el-tag class="estado-tag" :type="patient?.estado ? 'success' : 'info'" size="small">
             {{ patient?.estado ? 'Activo' : 'Inactivo' }}
           </el-tag>
         </div>
       </div>
       <div>
-        <el-button
-          v-if="can('PACIENTE_EDITAR') && patient?.estado"
-          type="primary"
-          @click="router.push({ name: 'paciente-editar', params: { id: patientId } })"
-        >
-          Editar
-        </el-button>
         <el-button
           v-if="can('ATENCION_CREAR') && patient?.estado"
           @click="router.push({ name: 'atencion-nueva', query: { patientId: String(patientId) } })"
@@ -41,21 +34,51 @@
       <el-tabs v-model="activeTab">
         <el-tab-pane label="Datos" name="datos">
           <el-descriptions :column="3" border>
-            <el-descriptions-item label="Nacimiento">{{ patient?.fecha_nacimiento }}</el-descriptions-item>
-            <el-descriptions-item label="Sexo">{{ sexLabel(patient?.sexo_codigo) }}</el-descriptions-item>
+            <el-descriptions-item label="Nacimiento">{{
+              patient?.fecha_nacimiento
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Sexo">{{
+              sexLabel(patient?.sexo_codigo)
+            }}</el-descriptions-item>
             <el-descriptions-item label="Edad">{{ ageLabel }}</el-descriptions-item>
-            <el-descriptions-item label="Apellido paterno">{{ patient?.apellido_paterno || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Apellido materno">{{ patient?.apellido_materno || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Nombres">{{ patient ? [patient.primer_nombre, patient.otros_nombres].filter(Boolean).join(' ') : '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Inscripción">{{ patient?.fecha_inscripcion || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Seguro">{{ seguroLabel(patient?.seguro_id) }}</el-descriptions-item>
-            <el-descriptions-item label="Establecimiento">{{ establishmentLabel(patient?.establecimiento_registro_id) }}</el-descriptions-item>
-            <el-descriptions-item label="Ubigeo">{{ patient?.ubigeo_residencia_codigo || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Localidad">{{ patient?.localidad || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Dirección">{{ patient?.direccion || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Teléfono">{{ patient?.telefono_principal || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Condición">{{ patient?.condicion || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="Historia familiar">{{ patient?.historia_familiar || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="Apellido paterno">{{
+              patient?.apellido_paterno || '—'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Apellido materno">{{
+              patient?.apellido_materno || '—'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Nombres">{{
+              patient
+                ? [patient.primer_nombre, patient.otros_nombres].filter(Boolean).join(' ')
+                : '—'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Inscripción">{{
+              patient?.fecha_inscripcion || '—'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Seguro">{{
+              seguroLabel(patient?.seguro_id)
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Establecimiento">{{
+              establishmentLabel(patient?.establecimiento_registro_id)
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Distrito">{{
+              patient?.distrito_residencia || '—'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Localidad">{{
+              patient?.localidad || '—'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Dirección">{{
+              patient?.direccion || '—'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Teléfono">{{
+              patient?.telefono_principal || '—'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Condición">{{
+              patient?.condicion || '—'
+            }}</el-descriptions-item>
+            <el-descriptions-item label="Historia familiar">{{
+              patient?.historia_familiar || '—'
+            }}</el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
 
@@ -75,7 +98,11 @@
             <el-table-column prop="parentesco" label="Parentesco" width="110" />
             <el-table-column label="Documento" width="160">
               <template #default="{ row }">
-                {{ row.tipo_documento_codigo ? `${row.tipo_documento_codigo} ${row.numero_documento}` : '—' }}
+                {{
+                  row.tipo_documento_codigo
+                    ? `${row.tipo_documento_codigo} ${row.numero_documento}`
+                    : '—'
+                }}
               </template>
             </el-table-column>
             <el-table-column prop="telefono" label="Teléfono" width="130" />
@@ -131,7 +158,11 @@
         </el-tab-pane>
 
         <el-tab-pane label="Atenciones" name="atenciones">
-          <el-table :data="atencionesList" v-loading="atencionesLoading" empty-text="Sin atenciones">
+          <el-table
+            :data="atencionesList"
+            v-loading="atencionesLoading"
+            empty-text="Sin atenciones"
+          >
             <el-table-column prop="id" label="ID" width="70" />
             <el-table-column prop="fecha_atencion" label="Fecha" width="170" />
             <el-table-column prop="modalidad_atencion_codigo" label="Modalidad" width="130" />
@@ -191,7 +222,12 @@ import {
   type IdCatalogItem,
   type RiskGroupCatalogItem,
 } from '@/services/catalogos'
-import { pacientes, type Patient, type PatientResponsible, type PatientRisk } from '@/services/pacientes'
+import {
+  pacientes,
+  type Patient,
+  type PatientResponsible,
+  type PatientRisk,
+} from '@/services/pacientes'
 import { atenciones, type Attention } from '@/services/atenciones'
 
 const route = useRoute()
@@ -219,7 +255,12 @@ const editingRisk = ref<PatientRisk | null>(null)
 
 const fullName = computed(() =>
   patient.value
-    ? [patient.value.apellido_paterno, patient.value.apellido_materno, patient.value.primer_nombre, patient.value.otros_nombres]
+    ? [
+        patient.value.apellido_paterno,
+        patient.value.apellido_materno,
+        patient.value.primer_nombre,
+        patient.value.otros_nombres,
+      ]
         .filter(Boolean)
         .join(' ')
     : 'Cargando…',
@@ -240,7 +281,7 @@ function can(permission: string): boolean {
 }
 
 function sexLabel(codigo: string | null | undefined): string {
-  return sexos.value.find((sexo) => sexo.codigo === codigo)?.nombre ?? (codigo ?? '—')
+  return sexos.value.find((sexo) => sexo.codigo === codigo)?.nombre ?? codigo ?? '—'
 }
 
 function seguroLabel(id: number | null | undefined): string {
@@ -302,15 +343,21 @@ async function confirmDeactivate(): Promise<void> {
 onMounted(async () => {
   loading.value = true
   try {
-    const [tipos, sexosResult, segurosResult, establecimientosResult, riesgosResult, patientResult] =
-      await Promise.all([
-        catalogos.tiposDocumento(),
-        catalogos.sexos(),
-        catalogos.seguros(),
-        catalogos.establecimientos(undefined, 25, 0),
-        catalogos.gruposRiesgo(),
-        pacientes.get(patientId),
-      ])
+    const [
+      tipos,
+      sexosResult,
+      segurosResult,
+      establecimientosResult,
+      riesgosResult,
+      patientResult,
+    ] = await Promise.all([
+      catalogos.tiposDocumento(),
+      catalogos.sexos(),
+      catalogos.seguros(),
+      catalogos.establecimientos(undefined, 25, 0),
+      catalogos.gruposRiesgo(),
+      pacientes.get(patientId),
+    ])
     tiposDocumento.value = tipos
     sexos.value = sexosResult
     seguros.value = segurosResult

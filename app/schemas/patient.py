@@ -189,6 +189,8 @@ class PatientUpdate(BaseModel):
     history.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     historia_clinica: Annotated[str, Field(max_length=255)] | None = None
     historia_familiar: str | None = None
     tipo_documento_codigo: DocumentCode | None = None
@@ -207,6 +209,15 @@ class PatientUpdate(BaseModel):
     seguro_id: Annotated[int, Field(gt=0)] | None = None
     telefono_principal: Annotated[str, Field(max_length=30)] | None = None
     condicion: Annotated[str, Field(max_length=100)] | None = None
+
+    @field_validator("tipo_documento_codigo", "numero_documento", "fecha_nacimiento")
+    @classmethod
+    def reject_null_required_columns(cls, value: Any) -> Any:
+        # Omitted fields retain their values; explicit null must not reach a
+        # NOT NULL column or date comparison in the domain service.
+        if value is None:
+            raise ValueError("Este campo no puede ser nulo; omítalo para conservar su valor.")
+        return value
 
     @field_validator(
         "historia_clinica",
@@ -279,6 +290,7 @@ class PatientResponse(BaseModel):
     otros_nombres: str | None
     sexo_codigo: str | None
     ubigeo_residencia_codigo: str | None
+    distrito_residencia: str | None = None
     localidad: str | None
     direccion: str | None
     establecimiento_registro_id: int | None

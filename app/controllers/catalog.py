@@ -45,6 +45,11 @@ def list_sexes(_: CatalogReader, db: DatabaseSession) -> list[CodeCatalogItem]:
     return CatalogService(db).sexes()
 
 
+@router.get("/etnias", response_model=list[CodeCatalogItem])
+def list_ethnicities(_: CatalogReader, db: DatabaseSession) -> list[CodeCatalogItem]:
+    return CatalogService(db).ethnicities()
+
+
 @router.get("/seguros", response_model=list[IdCatalogItem])
 def list_insurances(_: CatalogReader, db: DatabaseSession) -> list[IdCatalogItem]:
     return CatalogService(db).insurances()

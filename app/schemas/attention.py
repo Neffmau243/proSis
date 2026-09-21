@@ -9,6 +9,8 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.fua_print import FuaPrintInput, FuaPrintSnapshot
+
 
 class AttentionModeCode(str, Enum):
     AMBULATORY = "AMBULATORIA"
@@ -18,6 +20,25 @@ class AttentionModeCode(str, Enum):
 class AttentionStatus(str, Enum):
     ATTENDED = "ATENDIDO"
     CANCELLED = "ANULADO"
+
+
+class CareGroupCode(str, Enum):
+    """Clinical population the professional declares for the encounter.
+
+    Unlike ``grupo_etario_codigo`` (derived from the patient's age), this is an
+    explicit choice made during admission and is therefore persisted as-is.
+    """
+
+    GENERAL = "NINOS_ADOLESCENTES_ADULTOS_MAYORES"
+    PREGNANT = "GESTANTES"
+    PUERPERAL = "PUERPERAS"
+
+
+class PregnancyTypeCode(str, Enum):
+    """Gestation plurality recorded during a pregnant person's admission."""
+
+    SINGLE = "UNICO"
+    MULTIPLE = "MULTIPLE"
 
 
 class AttentionServiceInput(BaseModel):
@@ -68,8 +89,14 @@ class AttentionCreate(BaseModel):
     especialidad_codigo: Annotated[str, Field(max_length=20)] | None = None
     consultorio_id: Annotated[int, Field(gt=0)]
     modalidad_atencion_codigo: AttentionModeCode
+    grupo_atencion_codigo: CareGroupCode = CareGroupCode.GENERAL
     fecha_atencion: datetime
     fecha_atendido: datetime | None = None
+    tipo_embarazo_codigo: PregnancyTypeCode | None = None
+    peso_antes_embarazo_kg: (
+        Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None
+    ) = None
+    fecha_probable_parto: date | None = None
     peso_kg: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
     talla_cm: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
     perimetro_abdominal_cm: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
@@ -83,6 +110,7 @@ class AttentionCreate(BaseModel):
     prestaciones: list[AttentionServiceInput] = Field(default_factory=list)
     diagnosticos: list[AttentionDiagnosisInput] = Field(default_factory=list)
     valoracion_nutricional: NutritionalSnapshotInput | None = None
+    fua_datos: FuaPrintInput | None = None
 
     @field_validator("especialidad_codigo", mode="before")
     @classmethod
@@ -153,6 +181,8 @@ class AttentionDiagnosisResponse(BaseModel):
 class AttentionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    fua_impresion: FuaPrintSnapshot | None = None
+
     id: int
     paciente_id: int
     establecimiento_id: int
@@ -162,6 +192,7 @@ class AttentionResponse(BaseModel):
     consultorio_nombre: str | None
     modalidad_atencion_codigo: str
     grupo_etario_codigo: str
+    grupo_atencion_codigo: str
     fecha_atencion: datetime
     fecha_atendido: datetime | None
     historia_clinica_snapshot: str | None
@@ -170,6 +201,9 @@ class AttentionResponse(BaseModel):
     peso_kg: Decimal | None
     talla_cm: Decimal | None
     perimetro_abdominal_cm: Decimal | None
+    tipo_embarazo_codigo: str | None
+    peso_antes_embarazo_kg: Decimal | None
+    fecha_probable_parto: date | None
     presion_sistolica: int | None
     presion_diastolica: int | None
     temperatura_c: Decimal | None

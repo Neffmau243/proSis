@@ -30,6 +30,7 @@ from app.schemas.attention import (
     NutritionalIndicatorsResponse,
 )
 from app.services.age_group import AgeGroupService
+from app.services.fua_print import build_fua_snapshot
 
 
 class AttentionService:
@@ -148,6 +149,7 @@ class AttentionService:
                 consultorio_id=command.consultorio_id,
                 modalidad_atencion_codigo=command.modalidad_atencion_codigo.value,
                 grupo_etario_codigo=age_group.codigo,
+                grupo_atencion_codigo=command.grupo_atencion_codigo.value,
                 fecha_atencion=command.fecha_atencion,
                 fecha_atendido=command.fecha_atendido,
                 historia_clinica_snapshot=patient.historia_clinica,
@@ -155,6 +157,13 @@ class AttentionService:
                 peso_kg=command.peso_kg,
                 talla_cm=command.talla_cm,
                 perimetro_abdominal_cm=command.perimetro_abdominal_cm,
+                tipo_embarazo_codigo=(
+                    command.tipo_embarazo_codigo.value
+                    if command.tipo_embarazo_codigo is not None
+                    else None
+                ),
+                peso_antes_embarazo_kg=command.peso_antes_embarazo_kg,
+                fecha_probable_parto=command.fecha_probable_parto,
                 presion_sistolica=command.presion_sistolica,
                 presion_diastolica=command.presion_diastolica,
                 temperatura_c=command.temperatura_c,
@@ -168,6 +177,13 @@ class AttentionService:
                 admision=command.admision,
                 observaciones=command.observaciones,
                 created_by_usuario_id=actor_id,
+            )
+            entity.fua_impresion = build_fua_snapshot(
+                entity,
+                patient,
+                self._attentions.get_active_establishment(command.establecimiento_id),
+                self._attentions.get_active_professional(command.profesional_id),
+                command.fua_datos,
             )
             self._attentions.add(entity)
             self._attentions.flush()
@@ -578,6 +594,7 @@ class AttentionService:
             "consultorio_id": entity.consultorio_id,
             "modalidad_atencion_codigo": entity.modalidad_atencion_codigo,
             "grupo_etario_codigo": entity.grupo_etario_codigo,
+            "grupo_atencion_codigo": entity.grupo_atencion_codigo,
             "fecha_atencion": entity.fecha_atencion.isoformat(),
             "historia_clinica_snapshot": entity.historia_clinica_snapshot,
             "imc": str(entity.imc) if entity.imc is not None else None,

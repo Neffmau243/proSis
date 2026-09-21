@@ -151,6 +151,11 @@ class Establishment(Base):
         nullable=True,
     )
     codigo_renaes: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    # Site defaults, independent of the account's role or medical profession.
+    fua_personal_atiende: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'IPRESS'"))
+    fua_lugar_atencion: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'INTRAMURAL'"))
+    fua_codigo_aisped: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    fua_renipress_preimpreso: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("TRUE"))
     codigo_ideess: Mapped[str | None] = mapped_column(String(30), nullable=True)
     nombre: Mapped[str] = mapped_column(String(200), nullable=False)
     abreviatura: Mapped[str | None] = mapped_column(String(50), nullable=True)

@@ -18,6 +18,7 @@ import {
   type UbigeoCatalogItem,
 } from '@/services/catalogos'
 import { pacientes } from '@/services/pacientes'
+import { emptyPatientSis, patientSisErrors } from '@/utils/patientSis'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,6 +41,7 @@ const ubigeos = ref<UbigeoCatalogItem[]>([])
 const ubigeosLoading = ref(false)
 
 const form = reactive<PatientRegistrationDraft>({
+  ...emptyPatientSis(),
   tipo_documento_codigo: '',
   numero_documento: '',
   historia_clinica: '',
@@ -102,6 +104,11 @@ async function searchUbigeos(query: string): Promise<void> {
 async function submit(): Promise<void> {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
+  const sisErrors = Object.values(patientSisErrors(form))
+  if (sisErrors.length) {
+    errorMessage.value = sisErrors.join(' ')
+    return
+  }
 
   saving.value = true
   errorMessage.value = null
@@ -123,6 +130,11 @@ async function submit(): Promise<void> {
       direccion: form.direccion || null,
       establecimiento_registro_id: form.establecimiento_registro_id,
       seguro_id: form.seguro_id,
+      sis_diresa: form.sis_diresa,
+      sis_tipo: form.sis_tipo,
+      sis_numero: form.sis_numero,
+      sis_secuencia: form.sis_secuencia,
+      etnia_codigo: form.etnia_codigo,
       telefono_principal: form.telefono_principal || null,
       condicion: form.condicion || null,
       responsables: form.responsables.map((responsable) => ({

@@ -114,7 +114,7 @@ profesional. No crear interfaces que supongan esos contratos disponibles.
 Desde la raíz:
 
 ```powershell
-python -m pytest
+python -m pytest        # unitarias + integración + cobertura (umbral en pyproject.toml)
 python -m ruff check app tests migrations --select F
 alembic heads
 ```
@@ -122,11 +122,19 @@ alembic heads
 Desde `frontend/`:
 
 ```powershell
-npm test
+npm run test:coverage
 npm run lint:check
+npm run type-check
 npm run build
 ```
 
 Para integración, usar solamente una MySQL de pruebas: su fixture aplica
 migraciones y las revierte al terminar. No apuntar `TEST_DATABASE_URL` a la
 base de trabajo ni interpretar pruebas unitarias como una prueba de capacidad.
+
+Estado al 20/09/2026: 231 pruebas backend (~92% con ramas) y 134 pruebas de
+frontend. La integración dejó de omitirse: `TEST_DATABASE_URL` apunta a una base
+desechable y CI levanta MySQL 8, por lo que el SQL y los `downgrade` de las
+migraciones sí se ejecutan en cada corrida. Siguen sin cubrirse las pantallas de
+configuración (usuarios, profesionales, consultorios, auditoría, laboratorio) y
+las secciones grandes de `AtencionNuevaView.vue`.

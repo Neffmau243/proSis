@@ -1,0 +1,186 @@
+# Prellenado de la FUA SIS en papel
+
+## Alcance y referencia
+
+Implementado como **prellenado parcial del anexo 1 (prestaciones de salud)**, no
+como FUA digital, emisión oficial, acreditación en línea ni envío SETI-SIS.
+Referencia revisada: [RJ 000178-2024-SIS/J](https://www.gob.pe/institucion/sis/normas-legales/6245149-000178-2024-sis-j),
+[Directiva 002-2024-SIS/GREP V.02 actualizada, anexos 1 y 3](https://cdn.www.gob.pe/uploads/document/file/7310926/6245149-directiva-n-02-2024-sis-grep-v-02-actualizado.pdf?v=1733872542).
+Se verificaron el formulario (p. 11), las categorías (pp. 15–17), identificación y
+afiliación (pp. 19–20), etnia (p. 23), fecha (p. 25) y mediciones (p. 29).
+
+La conformidad integral requiere revisión de la IPRESS y los catálogos/normativa
+aplicables a cada prestación. El módulo no certifica esa conformidad.
+
+## Código SIS: papel, contrato y almacenamiento
+
+Contrastado con la directiva anterior (pp. 19–20) y la
+[trama de datos SIS publicada en 2025](https://www.gob.pe/institucion/sis/informes-publicaciones/7041412-trama-de-datos-del-fua),
+trama Atención, campos 9–12 (p. 9 del PDF).
+
+| Casilla | Contrato admitido en la ficha | Columna existente |
+| --- | --- | --- |
+| DIRESA / DISA | 3 caracteres alfanuméricos; obligatoriedad según contrato | `sis_diresa`, VARCHAR(3) |
+| Tipo / formato | 1 o 2 caracteres alfanuméricos | `sis_tipo`, VARCHAR(2) |
+| Número de afiliación | 8 o 9 dígitos; conserva ceros iniciales | `sis_numero`, VARCHAR(9) |
+| Secuencia / RN | Hasta 2 dígitos, solo cuando corresponda | `sis_secuencia`, VARCHAR(2) |
+
+El ejemplo de tres casillas `040 | 2 | 00000001` es **ilustrativo**, no un
+valor predeterminado. Para el papel, la directiva describe 3 dígitos de DIRESA y
+un dígito/letra de tipo; el contrato electrónico permite las longitudes más
+amplias de la tabla. `2` identifica el régimen subsidiado con DNI; no distingue
+por sí solo SIS Gratuito de SIS Para Todos ni acredita que la cobertura esté activa.
+Para esos planes subsidiados, el número puede corresponder al DNI/CE según la
+directiva, pero debe provenir de la acreditación, no inferirse automáticamente.
+
+Los valores se guardan como texto; no se convierten a números. Frontend y
+backend validan longitud y caracteres. El backend valida el resultado completo
+del PATCH bajo bloqueo de fila: si hay algún dato SIS, tipo y número deben estar
+presentes. Se admite la afiliación íntegramente vacía para carga pendiente.
+Las cuatro columnas ya estaban disponibles en la migración `20260919_0015_patient_sis`;
+este ajuste visual no requiere otra migración ni inventa datos para pacientes.
+
+## Flujo
+
+1. En **Datos del paciente**, debajo de **Seguro**, revise o complete las tres
+   casillas de afiliación SIS. A solicitud del usuario, se retiraron de esta
+   interfaz el control Secuencia/RN y la nota informativa. Esto no borra una
+   secuencia ya guardada: sigue disponible en la ficha inicial, backend e impresión.
+   **Guardar cambios** actualiza la ficha del paciente por PATCH, incluyendo
+   solo campos modificados. Los cambios pendientes deben guardarse antes de la
+   atención. La etnia sigue mostrándose desde la ficha y el catálogo del backend.
+2. Pulse **Guardar atención**. Se muestra la confirmación sin navegar ni borrar
+   los datos; la atención queda en modo lectura para evitar un segundo registro.
+3. **Imprimir S.I.S.** se habilita con la copia devuelta por el servidor. Personal
+   y lugar salen de la sede; el tipo sale de la modalidad de atención. No hay un
+   segundo formulario para definir SIS, etnia, personal o lugar al imprimir.
+4. Revise los pendientes y calibre la hoja en la vista previa conservada.
+   **Imprimir solo datos** abre el diálogo del navegador; también puede elegir
+   «Guardar como PDF». El RENIPRESS preimpreso no se sobreimprime.
+5. Si falta la afiliación, las casillas quedan vacías. El ETL o la captura
+   administrativa deben traer valores reales; no se asignan códigos por defecto
+   ni se copia automáticamente el DNI. No se consultó ni modificó la afiliación
+   de pacientes reales durante las pruebas de esta interfaz.
+6. La reimpresión desde el detalle reutiliza la copia guardada; no hace otro POST
+   de atención ni emite otro número.
+
+Guardar normalmente también conserva la copia, aunque los complementos no
+declarados quedarán vacíos. La copia guardada es de solo lectura: no se ofrece
+edición posterior de información clínica/documental en este módulo. Las
+atenciones anteriores a la migración no se rellenan retrospectivamente ni pueden
+reimprimirse con este flujo; requieren un procedimiento explícito de revisión.
+
+## Correspondencia del backend
+
+| Campo | Origen y tratamiento |
+| --- | --- |
+| Personal y lugar de atención | Configuración del establecimiento guardada en backend; valores iniciales IPRESS e INTRAMURAL. AISPED requiere código. No se eligen al imprimir. |
+| Atención | Modalidad de la atención guardada. No se cambia desde la impresión. Es distinto del módulo de referencias de salida. |
+| Identificación | Documento del paciente. Mapeo explícito DNI → TDI 2, CE → TDI 3. Otros tipos dejan identificación en blanco y generan aviso. |
+| Código del asegurado | `pacientes.sis_diresa`, `sis_tipo`, `sis_numero` y `sis_secuencia`; copia por atención desde la ficha. No se copia `seguro_id` ni se infiere afiliación del DNI. Secuencia no equivale a régimen. |
+| Apellidos, nombres y nacimiento | Datos del paciente al registrar la atención, incluidos otros nombres. Un apellido ausente queda vacío. |
+| Historia clínica | `historia_clinica_snapshot`, no la historia actual después de una modificación. |
+| Etnia | Código declarado del paciente, validado contra el catálogo activo de etnias del backend. No se infiere por nombre, aspecto o domicilio. |
+| Fecha y hora | `fecha_atencion`; si trae zona horaria, la copia usa America/Lima. No usa fecha de impresión ni la hora de fin. |
+| Peso, talla, PA, IMC, PAB | Valores de la atención; IMC calculado por el backend. Unidades kg, cm y mmHg. No imprime PA parcial. |
+| IPRESS | Nombre del catálogo. RENAES se reutiliza únicamente si contiene ocho dígitos. No se imprime RENIPRESS cuando la sede declara papel preimpreso. Nunca se usa el ID interno. |
+| Responsable | Nombre, documento y colegiatura del profesional verificado por el servicio. No imprime firmas ni sellos. |
+| Salud materna y FPP | Marcas según el grupo declarado y fecha probable de parto registrada. |
+
+El contrato agrega `fua_datos` a `AttentionCreate` y `fua_impresion` a
+`AttentionResponse`. `fua_impresion` es JSON versionado, creado **por el servidor**
+en la misma transacción que la atención, con el paciente bloqueado por el flujo
+existente. No se acepta un IMC/documento/nombre proporcionado como complemento.
+La migración `20260919_0014_fua_print` agrega una columna nullable; no borra ni
+modifica las atenciones previas. Se aplicó a la base local durante la implementación.
+
+## Límites detectados
+
+- La afiliación y etnia se conservan **en el paciente** y se copian por atención.
+  No son resultado de una acreditación automática con el SIS. El catálogo local
+  identifica el seguro genérico `SIS`, no discrimina todos sus planes comerciales.
+- La modalidad clínica existente admite ambulatoria/emergencia; la categoría
+  REFERENCIA se declara en el complemento documental. No se amplió el catálogo
+  clínico ni se equiparó una referencia de ingreso a una referencia de salida.
+- Mediciones obligatorias según el caso pueden estar vacías en el sistema. Se
+  advierte antes de imprimir y exige confirmar que se completarán manualmente
+  las que correspondan; no se promete una FUA completa.
+- La admisión existente sustituye PAB por FPP para gestantes y borra PAB al
+  elegir ese grupo. Se preservó esa regla preexistente, sin reinterpretar una
+  medición clínica. PAB ausente aparece en los avisos; requiere revisión del flujo
+  asistencial si debe capturarse también para ese grupo.
+- No se imprimen aún prestaciones, diagnósticos, vacunas, hospitalización,
+  destinos, firmas/sellos, datos de recién nacidos ni todos los campos preventivos.
+- `DocumentNumberFormatter` sigue produciendo un correlativo **interno**. El
+  botón de ese flujo se identifica como «Registrar FUA interno». La impresión no
+  lo usa, no sobrescribe la numeración preimpresa ni gestiona su asignación única.
+
+## Calibración y privacidad
+
+El tamaño inicial **216 × 356 mm es orientativo**, no una afirmación de que esa
+sea la medida de la hoja de la IPRESS. Ajuste ancho, alto, desplazamientos y cada
+campo (X/Y/ancho/alto/fuente/paso por carácter). El omitir caracteres iniciales
+permite no repetir un prefijo de año ya impreso. Los campos pueden desactivarse.
+Las posiciones se basan en proporciones del anexo, no en un escaneo del stock real.
+
+Pruebe cruces sin datos en papel blanco y superponga la hoja. Solo confirme la
+calibración después de comprobarla físicamente. Un cambio de geometría invalida
+esa confirmación. Texto que no cabe o sale de la hoja bloquea la impresión;
+no se corta silenciosamente. Cambiar de impresora/papel exige volver a comprobar.
+
+En el diálogo de impresión: escala 100 %, sin encabezados/pies, márgenes cero y
+tamaño idéntico en el controlador. El navegador no puede validar alimentación,
+área no imprimible, orientación física ni escala impuesta por la impresora.
+
+Se puede cargar una imagen vacía para alinear: permanece en memoria, no se sube
+ni se imprime y se libera al cerrar. Solo la geometría pasa a `localStorage`, con
+un esquema permitido; nunca nombres, documentos, afiliaciones ni mediciones.
+La salida impresa usa texto escapado, sin formulario de fondo ni etiquetas de UI.
+
+## Comprobación
+
+Pruebas unitarias de backend: validación de grupos, campos no admitidos, ceros
+iniciales, equivalencias TDI, copia inmutable y datos no inventados.
+Frontend: marcas, fechas, PA incompleta, escape HTML, almacenamiento permitido,
+límites de texto/hoja y prueba sin datos. Type-check, lint y build de producción.
+Prueba visual con un fixture sintético independiente: `/tests/fua-print-harness.html`
+y `/tests/fua-print-mobile.html` solo en Vite de desarrollo, fuera del build.
+El fixture no usa autenticación, APIs ni historias reales.
+
+Pendientes para la puesta en uso: hoja física/escaneo y medida exacta, impresora,
+validación de códigos y protocolo por la IPRESS, ensayo físico de impresión.
+No se realizó una impresión física ni se crearon atenciones reales para probar.
+
+## Verificación de las casillas SIS (20/09/2026)
+
+El componente `PatientSisCodeFields` agrupa el código bajo Seguro en Datos del
+paciente y conserva el editor y sus permisos. La ficha muestra únicamente las
+tres casillas; el control de secuencia y la nota se retiraron después de la
+primera revisión visual, por solicitud del usuario. La impresión sigue tomando la copia
+generada por el servidor, nunca un formulario alternativo de afiliación.
+Pruebas frontend: 29; pruebas backend focalizadas SIS/paciente/impresión: 48.
+Type-check, lint y build correctos (aviso de tamaño del bundle general existente).
+Fixture visual interactivo: `/tests/patient-sis-code-harness.html`, solo desarrollo,
+sin API ni persistencia de datos. Verificados en escritorio y a 320 px: entrada
+en tres casillas, errores, conservación de ceros, secuencia opcional y bloqueo
+de edición. La ruta real de Admisión solicitó iniciar sesión; no se probó un
+guardado autenticado ni se modificaron pacientes reales. No se acredita cobertura
+SIS en línea.
+
+## Registro de la revisión previa (19/09/2026)
+
+La ampliación conserva los componentes y estilos existentes de Element Plus.
+La revisión original incluía complementos editables; el flujo actual los toma de
+paciente/sede/atención y muestra un resumen de solo lectura junto a la vista previa.
+La vista previa mantiene la geometría en milímetros; el escaneo de apoyo queda
+local y fuera de la impresión. La configuración personal conserva solo geometría,
+sin datos identificativos ni clínicos del paciente.
+
+Al cierre pasaron 129 pruebas de backend y 21 de frontend, además de type-check,
+lint y build. El detector Impeccable no reportó hallazgos (`[]`). La revisión
+externa cerró las incidencias de arrastre de afiliación y espacios, tras comprobar
+la sincronización del borrador y las pruebas de escritura carácter a carácter.
+Las capturas de escritorio y móvil corresponden a la revisión visual previa,
+con datos sintéticos: `frontend/tests/fua-desktop.png` y
+`frontend/tests/fua-mobile.png`. No hubo recaptura final por un fallo de conexión
+del navegador. No se ensayó impresión física ni se crearon atenciones reales.

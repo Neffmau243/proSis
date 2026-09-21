@@ -91,6 +91,10 @@ class InMemoryPatientRepository:
         return object()
 
     @staticmethod
+    def get_active_ethnicity(code: str) -> object | None:
+        return object() if code in {"1", "2", "58"} else None
+
+    @staticmethod
     def get_active_insurance(insurance_id: int) -> object:
         return object()
 
@@ -140,11 +144,16 @@ class InMemoryPatientRepository:
     def create_responsible(self, values: dict[str, Any]) -> SimpleNamespace:
         responsible = SimpleNamespace(id=self._next_responsible_id, **values)
         self._next_responsible_id += 1
+        # The real repository adds the child to the session and SQLAlchemy
+        # attaches it to the parent collection on flush.  The fake has to do
+        # the same, otherwise the service would map an empty relationship.
+        self.patients[values["paciente_id"]].responsables.append(responsible)
         return responsible
 
-    @staticmethod
-    def create_risk(values: dict[str, Any]) -> SimpleNamespace:
-        return SimpleNamespace(**values)
+    def create_risk(self, values: dict[str, Any]) -> SimpleNamespace:
+        risk = SimpleNamespace(**values)
+        self.patients[values["paciente_id"]].riesgos.append(risk)
+        return risk
 
     def get_active_responsibles(self, patient_id: int) -> list[SimpleNamespace]:
         return [
@@ -287,6 +296,28 @@ def test_registers_unique_adult_and_audits_in_one_commit(
     assert session.commits == 1
     assert audit.events[0]["action"] == "INSERT"
     assert audit.events[0]["actor_id"] == 41
+
+
+def test_sis_patch_validates_merged_affiliation_and_audits_master_data(environment):
+    service, repository, session, audit = environment
+    created = service.create(adult_command(sis_diresa="001", sis_tipo="2", sis_numero="00000001", etnia_codigo="58"), actor_id=41)
+    updated = service.update(created.id, PatientUpdate(sis_numero="000000002", sis_secuencia="01"), actor_id=41)
+    assert updated.sis_diresa == "001"
+    assert updated.sis_numero == "000000002"
+    assert updated.etnia_codigo == "58"
+    with pytest.raises(ValidationDomainError):
+        service.update(created.id, PatientUpdate(sis_numero=None), actor_id=41)
+    assert repository.patients[created.id].sis_numero == "000000002"
+    assert audit.events[-1]["after"]["sis_secuencia"] == "01"
+    assert session.rollbacks == 1
+
+
+def test_unknown_ethnicity_is_not_created_or_assigned(environment):
+    service, repository, session, _ = environment
+    with pytest.raises(ValidationDomainError):
+        service.create(adult_command(etnia_codigo="99"), actor_id=41)
+    assert repository.created_patient_count == 0
+    assert session.rollbacks == 1
 
 
 def test_rejects_locality_without_a_selected_district(

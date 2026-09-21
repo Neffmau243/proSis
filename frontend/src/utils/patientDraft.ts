@@ -1,6 +1,7 @@
 import type { Patient, PatientUpdatePayload } from '../services/pacientes'
+import { patientSisContractFields, patientSisErrors } from './patientSis.ts'
 
-/** The editable patient columns; derived values and child records never enter PATCH. */
+/** General controls; the SIS contract is grouped directly below the insurance selector. */
 export const patientFields = [
   { key: 'historia_clinica', label: 'N.° H. clínica', kind: 'text', max: 255 },
   { key: 'historia_familiar', label: 'Historia familiar', kind: 'text' },
@@ -29,7 +30,8 @@ export const patientFields = [
 }>
 
 export type PatientField = (typeof patientFields)[number]
-export type PatientFieldKey = PatientField['key']
+const editableFields = [...patientFields, ...patientSisContractFields] as const
+export type PatientFieldKey = (typeof editableFields)[number]['key']
 export type PatientDraft = { [K in PatientFieldKey]: Exclude<PatientUpdatePayload[K], undefined> }
 export type PatientDraftErrors = Partial<Record<PatientFieldKey, string>>
 
@@ -38,7 +40,9 @@ function normalized(value: string | number | null | undefined): string | number 
 }
 
 export function createPatientDraft(patient: Patient): PatientDraft {
-  return Object.fromEntries(patientFields.map(({ key }) => [key, patient[key]])) as PatientDraft
+  return Object.fromEntries(
+    editableFields.map(({ key }) => [key, patient[key] ?? null]),
+  ) as PatientDraft
 }
 
 /** Compare only whitelisted fields, preserving explicit nulls and omitting unchanged data. */
@@ -47,14 +51,14 @@ export function buildPatientPatch(
   draft: PatientDraft,
 ): PatientUpdatePayload {
   return Object.fromEntries(
-    patientFields
+    editableFields
       .filter(({ key }) => normalized(draft[key]) !== normalized(baseline[key]))
       .map(({ key }) => [key, normalized(draft[key])]),
   ) as PatientUpdatePayload
 }
 
 export function validatePatientDraft(draft: PatientDraft, today: string): PatientDraftErrors {
-  const errors: PatientDraftErrors = {}
+  const errors: PatientDraftErrors = { ...patientSisErrors(draft) }
   for (const field of patientFields) {
     const value = normalized(draft[field.key])
     if ('required' in field && field.required && value === null) {

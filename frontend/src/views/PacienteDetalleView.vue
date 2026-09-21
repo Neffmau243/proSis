@@ -167,6 +167,11 @@
             <el-table-column prop="fecha_atencion" label="Fecha" width="170" />
             <el-table-column prop="modalidad_atencion_codigo" label="Modalidad" width="130" />
             <el-table-column prop="grupo_etario_codigo" label="Grupo etario" width="130" />
+            <el-table-column label="Grupo de atención" min-width="170">
+              <template #default="{ row }">
+                {{ careGroupLabel(row.grupo_atencion_codigo) }}
+              </template>
+            </el-table-column>
             <el-table-column label="Estado" width="110">
               <template #default="{ row }">
                 <el-tag :type="row.estado === 'ANULADO' ? 'danger' : 'success'">
@@ -229,6 +234,7 @@ import {
   type PatientRisk,
 } from '@/services/pacientes'
 import { atenciones, type Attention } from '@/services/atenciones'
+import { careGroupLabel } from '@/utils/careGroup'
 
 const route = useRoute()
 const router = useRouter()

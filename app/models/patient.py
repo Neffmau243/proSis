@@ -40,6 +40,15 @@ class Patient(Base):
     )
     historia_clinica: Mapped[str | None] = mapped_column(String(255), nullable=True)
     historia_familiar: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sis_diresa: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    sis_tipo: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    sis_numero: Mapped[str | None] = mapped_column(String(9), nullable=True)
+    sis_secuencia: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    etnia_codigo: Mapped[str | None] = mapped_column(
+        mysql.VARCHAR(2, charset="utf8mb4", collation="utf8mb4_unicode_ci"),
+        ForeignKey("etnias.codigo", name="fk_pacientes_etnia", ondelete="RESTRICT", onupdate="CASCADE"),
+        nullable=True,
+    )
     tipo_documento_codigo: Mapped[str] = mapped_column(
         String(10),
         ForeignKey(

@@ -230,6 +230,14 @@ function updateRiskStartDate(fechaInicio: string): void {
   --el-component-size: 26px;
 }
 
+/* Element Plus fija min-height: 32px en el wrapper del select y no respeta
+   --el-component-size, así que quedaba 6px más alto que los inputs vecinos. */
+.family-sections :deep(.el-select__wrapper) {
+  min-height: var(--el-component-size);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .family-section {
   min-width: 0;
   padding: 8px 10px 10px;
@@ -273,6 +281,9 @@ function updateRiskStartDate(fechaInicio: string): void {
 
 .family-section__fields :deep(.family-field .el-form-item__label) {
   height: auto;
+  /* Element Plus le pone 8px de margen inferior a la etiqueta en label-position
+     "top"; dentro de la grilla eso la subía 4px respecto al centro de la fila. */
+  margin: 0;
   padding: 0 8px 0 0;
   color: var(--el-text-color-secondary);
   font-size: 11px;

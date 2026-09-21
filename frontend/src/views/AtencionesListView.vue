@@ -78,6 +78,9 @@
         <el-table-column prop="paciente_id" label="Paciente" width="100" />
         <el-table-column prop="modalidad_atencion_codigo" label="Modalidad" width="130" />
         <el-table-column prop="grupo_etario_codigo" label="Grupo etario" width="130" />
+        <el-table-column label="Grupo de atención" min-width="170">
+          <template #default="{ row }">{{ careGroupLabel(row.grupo_atencion_codigo) }}</template>
+        </el-table-column>
         <el-table-column label="Edad" width="70">
           <template #default="{ row }">{{ row.edad_anios ?? '—' }}</template>
         </el-table-column>
@@ -123,6 +126,7 @@ import { usePagination } from '@/composables/usePagination'
 import { useAuthStore } from '@/stores/auth'
 import { catalogos, type EstablishmentCatalogItem } from '@/services/catalogos'
 import { atenciones, type Attention } from '@/services/atenciones'
+import { careGroupLabel } from '@/utils/careGroup'
 
 const router = useRouter()
 const auth = useAuthStore()

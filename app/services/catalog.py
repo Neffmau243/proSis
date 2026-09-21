@@ -56,6 +56,10 @@ class CatalogService:
     def sexes(self) -> list[CodeCatalogItem]:
         return [sex_to_catalog_item(item) for item in self._repository.list_sexes()]
 
+    def ethnicities(self) -> list[CodeCatalogItem]:
+        return [CodeCatalogItem(codigo=item.codigo, nombre=item.nombre, activo=item.activo)
+                for item in self._repository.list_ethnicities()]
+
     def insurances(self) -> list[IdCatalogItem]:
         return [insurance_to_catalog_item(item) for item in self._repository.list_insurances()]
 

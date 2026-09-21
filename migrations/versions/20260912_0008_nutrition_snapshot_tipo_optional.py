@@ -38,6 +38,11 @@ def downgrade() -> None:
     }
     tipo = columns.get("tipo")
     if tipo is not None and tipo["nullable"]:
+        # A diagnostic-only snapshot has no ``tipo``, which the previous schema
+        # cannot represent: MySQL refuses to restore NOT NULL while such rows
+        # exist (error 1138).  Removing them keeps the rollback usable on any
+        # database that actually used this revision.
+        op.execute("DELETE FROM evaluaciones_nutricionales WHERE tipo IS NULL")
         op.alter_column(
             "evaluaciones_nutricionales",
             "tipo",

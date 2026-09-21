@@ -198,7 +198,11 @@ no amplía su visibilidad aunque lo envíe el cliente.
 
 El formulario de nueva atención necesita `paciente_id`, `establecimiento_id`,
 `profesional_id`, `consultorio_id`, `modalidad_atencion_codigo` (`AMBULATORIA`
-o `EMERGENCIA`) y `fecha_atencion`. Puede añadir signos vitales, horas,
+o `EMERGENCIA`) y `fecha_atencion`. Puede declarar además
+`grupo_atencion_codigo` (`NINOS_ADOLESCENTES_ADULTOS_MAYORES` por defecto,
+`GESTANTES` o `PUERPERAS`); a diferencia de `grupo_etario_codigo`, este valor
+no se deduce del paciente y se persiste tal como se envía. Puede añadir signos
+vitales, horas,
 observaciones, prestaciones, diagnósticos y valoración nutricional. No enviar
 `grupo_etario_codigo`, edad, estado, `imc`, `pe`, `te` ni `pt`: el backend los
 calcula. `POST /atenciones/indicadores-nutricionales/vista-previa` permite

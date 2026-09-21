@@ -33,6 +33,7 @@ from app.mappers.patient import (
     risk_to_response,
 )
 from app.repositories.patient import PatientRepository
+from app.schemas.patient_sis import affiliation_problem
 from app.schemas.patient import (
     PatientCreate,
     PatientDeactivationResponse,
@@ -157,6 +158,7 @@ class PatientService:
                 ubigeo_code=command.ubigeo_residencia_codigo,
                 establishment_id=command.establecimiento_registro_id,
             )
+            self._validate_sis_and_ethnicity(command.model_dump())
             self._validate_patient_residence(
                 ubigeo_code=command.ubigeo_residencia_codigo,
                 locality=command.localidad,
@@ -180,22 +182,22 @@ class PatientService:
             self._repository.flush()
 
             for responsible_command in command.responsables:
-                responsible = self._repository.create_responsible(
+                self._repository.create_responsible(
                     responsible_create_to_entity_kwargs(
                         responsible_command,
                         patient_id=patient.id,
                     )
                 )
-                # Keep the already-loaded aggregate coherent for its mapper.
-                patient.responsables.append(responsible)
 
             for risk_command in command.riesgos:
-                risk = self._repository.create_risk(
+                self._repository.create_risk(
                     risk_create_to_entity_kwargs(risk_command, patient_id=patient.id)
                 )
-                patient.riesgos.append(risk)
 
             self._repository.flush()
+            # The children are read straight from persistence. Manually appending
+            # them to the collection duplicated every row in the response, because
+            # the flush had already loaded those instances into the relationship.
             response = patient_to_response(patient)
             self._write_audit(
                 actor_id=actor_id,
@@ -259,6 +261,9 @@ class PatientService:
                 )
 
             self._validate_changed_patient_catalogs(values)
+            sis_keys = ("sis_diresa", "sis_tipo", "sis_numero", "sis_secuencia", "etnia_codigo")
+            if any(key in values for key in sis_keys):
+                self._validate_sis_and_ethnicity({key: values.get(key, getattr(patient, key, None)) for key in sis_keys})
             effective_ubigeo_code = values.get(
                 "ubigeo_residencia_codigo", patient.ubigeo_residencia_codigo
             )
@@ -356,7 +361,8 @@ class PatientService:
             responsible = self._repository.create_responsible(
                 responsible_create_to_entity_kwargs(command, patient_id=patient.id)
             )
-            patient.responsables.append(responsible)
+            # Attaching the child by hand here would duplicate the row that the
+            # flush already places in the collection.
             self._repository.flush()
             response = responsible_to_response(responsible)
             self._write_audit(
@@ -690,6 +696,14 @@ class PatientService:
                 code="LOCALIDAD_NO_PUEDE_SER_CODIGO_UBIGEO",
                 message="La localidad debe ser un nombre, no el código de ubigeo.",
             )
+
+    def _validate_sis_and_ethnicity(self, values: dict[str, Any]) -> None:
+        problem = affiliation_problem(values)
+        if problem:
+            raise ValidationDomainError(code="AFILIACION_SIS_INCOMPLETA", message=problem)
+        ethnicity = values.get("etnia_codigo")
+        if ethnicity and not self._repository.get_active_ethnicity(ethnicity):
+            self._raise_unavailable_catalog("código de etnia", ethnicity)
 
     def _validate_changed_patient_catalogs(self, values: dict[str, Any]) -> None:
         if "sexo_codigo" in values and values["sexo_codigo"] is not None:

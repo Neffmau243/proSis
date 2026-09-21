@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -110,6 +111,11 @@ class Attention(Base):
         ),
         nullable=False,
     )
+    grupo_atencion_codigo: Mapped[str] = mapped_column(
+        String(40),
+        nullable=False,
+        server_default=text("'NINOS_ADOLESCENTES_ADULTOS_MAYORES'"),
+    )
     fecha_atencion: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     fecha_atendido: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     historia_clinica_snapshot: Mapped[str | None] = mapped_column(
@@ -127,6 +133,11 @@ class Attention(Base):
     perimetro_abdominal_cm: Mapped[Decimal | None] = mapped_column(
         mysql.DECIMAL(6, 2), nullable=True
     )
+    tipo_embarazo_codigo: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    peso_antes_embarazo_kg: Mapped[Decimal | None] = mapped_column(
+        mysql.DECIMAL(6, 2), nullable=True
+    )
+    fecha_probable_parto: Mapped[date | None] = mapped_column(Date, nullable=True)
     presion_sistolica: Mapped[int | None] = mapped_column(
         mysql.SMALLINT(unsigned=True), nullable=True
     )
@@ -145,6 +156,7 @@ class Attention(Base):
     hora_fin: Mapped[time | None] = mapped_column(Time, nullable=True)
     admision: Mapped[str | None] = mapped_column(String(100), nullable=True)
     observaciones: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fua_impresion: Mapped[dict | None] = mapped_column(mysql.JSON, nullable=True)
     estado: Mapped[str] = mapped_column(
         String(30), nullable=False, server_default=text("'ATENDIDO'")
     )
@@ -203,6 +215,17 @@ class Attention(Base):
         CheckConstraint(
             "estado IN ('ATENDIDO', 'ANULADO')",
             name="ck_atenciones_estado_valido",
+        ),
+        CheckConstraint(
+            "grupo_atencion_codigo IN ("
+            "'NINOS_ADOLESCENTES_ADULTOS_MAYORES', 'GESTANTES', 'PUERPERAS'"
+            ")",
+            name="ck_atenciones_grupo_atencion_valido",
+        ),
+        CheckConstraint(
+            "tipo_embarazo_codigo IS NULL "
+            "OR tipo_embarazo_codigo IN ('UNICO', 'MULTIPLE')",
+            name="ck_atenciones_tipo_embarazo_valido",
         ),
         UniqueConstraint("codigo_legacy", name="uq_atenciones_codigo_legacy"),
         UniqueConstraint(

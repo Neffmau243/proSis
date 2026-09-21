@@ -10,15 +10,7 @@
         </span>
       </div>
 
-      <!-- Registro de pacientes -->
-      <div v-if="can('PACIENTE_EDITAR')" class="side__actions">
-        <el-button class="side__action side__action--ghost" @click="nuevoPaciente">
-          <el-icon><UserFilled /></el-icon>
-          <span>Nuevo paciente</span>
-        </el-button>
-      </div>
-
-      <!-- Contexto: paciente activo -->
+      <!-- Paciente activo: contexto y acciones sobre la fila seleccionada -->
       <div v-if="can('PACIENTE_LEER')" class="side__patient" :class="{ 'is-empty': !seleccionado }">
         <template v-if="seleccionado">
           <span class="side__patient-label">Paciente seleccionado</span>
@@ -29,21 +21,62 @@
               · HC {{ seleccionado.historia_clinica }}
             </template>
           </span>
-          <div class="side__patient-actions">
-            <el-button
-              v-if="can('ATENCION_CREAR')"
-              size="small"
-              type="primary"
-              @click="iniciarAdmision"
-            >
-              <el-icon><FirstAidKit /></el-icon>
-              <span>Iniciar admisión</span>
-            </el-button>
-          </div>
         </template>
         <span v-else class="side__patient-hint">
-          Seleccione un paciente en la tabla para iniciar su admisión.
+          Seleccione un paciente en la tabla Base de datos.
         </span>
+
+        <div class="side__patient-actions">
+          <el-button class="side__patient-action" :disabled="!seleccionado" @click="verPaciente">
+            <el-icon><View /></el-icon>
+            <span>Ver paciente</span>
+          </el-button>
+          <el-button
+            v-if="puedeModificarDatos"
+            class="side__patient-action"
+            :disabled="!seleccionado"
+            @click="modificarDatos"
+          >
+            <el-icon><EditPen /></el-icon>
+            <span>Modificar datos</span>
+          </el-button>
+          <el-button
+            v-if="can('PACIENTE_DAR_BAJA')"
+            class="side__patient-action side__patient-action--danger"
+            :disabled="!puedeDarBaja"
+            @click="borrarPaciente"
+          >
+            <el-icon><Delete /></el-icon>
+            <span>Borrar paciente</span>
+          </el-button>
+        </div>
+      </div>
+
+      <!-- Acciones principales -->
+      <div class="side__actions">
+        <p class="side__section side__section--tight">Acciones</p>
+        <el-button
+          v-if="can('ATENCION_CREAR')"
+          class="side__action side__action--primary"
+          type="primary"
+          :disabled="!seleccionado"
+          @click="iniciarAdmision"
+        >
+          <el-icon><FirstAidKit /></el-icon>
+          <span>Admisión</span>
+        </el-button>
+        <el-button
+          v-if="can('PACIENTE_EDITAR')"
+          class="side__action side__action--ghost"
+          @click="nuevoPaciente"
+        >
+          <el-icon><Plus /></el-icon>
+          <span>Paciente nuevo</span>
+        </el-button>
+        <el-button class="side__action side__action--ghost" @click="irLaboratorio">
+          <el-icon><Files /></el-icon>
+          <span>Ref. Laboratorio</span>
+        </el-button>
       </div>
 
       <!-- Navegación -->
@@ -106,9 +139,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { usePacienteSeleccionado } from '@/composables/usePacienteSeleccionado'
+import { pacientes } from '@/services/pacientes'
 import { useAuthStore } from '@/stores/auth'
 
 interface NavItem {
@@ -122,7 +156,7 @@ interface NavItem {
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const { seleccionado } = usePacienteSeleccionado()
+const { seleccionado, seleccionar, notificarCambio } = usePacienteSeleccionado()
 
 const currentTitle = computed(() => route.meta.title ?? '')
 
@@ -159,8 +193,8 @@ const navSections = computed(() => {
       match: (path) => path === '/' || path.startsWith('/pacientes'),
     })
   }
-  main.push({ to: '/laboratorio', label: 'Ref. Laboratorio', icon: 'Files' })
-  sections.push({ title: 'Principal', items: main })
+  // Ref. Laboratorio pasó al bloque de acciones principales, sobre la navegación.
+  if (main.length) sections.push({ title: 'Principal', items: main })
 
   const clinic: NavItem[] = []
   if (can('ATENCION_LEER')) {
@@ -204,8 +238,58 @@ function isActive(item: NavItem): boolean {
   return item.match ? item.match(route.path) : route.path === item.to
 }
 
+/** Solo se ofrece la baja de un paciente activo y con el permiso explícito. */
+const puedeDarBaja = computed(() => Boolean(seleccionado.value?.estado) && can('PACIENTE_DAR_BAJA'))
+
+/**
+ * La corrección de datos del paciente vive en el contexto de admisión, por lo
+ * que además de editar el paciente hace falta el permiso clínico de esa ruta
+ * (ver el redirect de `pacientes/:id/editar` en el router).
+ */
+const puedeModificarDatos = computed(() => can('PACIENTE_EDITAR') && can('ATENCION_CREAR'))
+
 function nuevoPaciente(): void {
   router.push({ name: 'paciente-nuevo' })
+}
+
+function irLaboratorio(): void {
+  router.push({ name: 'laboratorio' })
+}
+
+function verPaciente(): void {
+  const patient = seleccionado.value
+  if (!patient) return
+  router.push({ name: 'paciente-detalle', params: { id: patient.id } })
+}
+
+function modificarDatos(): void {
+  const patient = seleccionado.value
+  if (!patient) return
+  // La corrección de datos del paciente vive en el contexto de admisión (ver router).
+  router.push({ name: 'admision', query: { patientId: String(patient.id) } })
+}
+
+async function borrarPaciente(): Promise<void> {
+  const patient = seleccionado.value
+  if (!patient) return
+  try {
+    await ElMessageBox.confirm(
+      `¿Dar de baja a ${nombreSeleccionado.value}? La baja es lógica: el historial se conserva.`,
+      'Borrar paciente',
+      { type: 'warning', confirmButtonText: 'Dar de baja', cancelButtonText: 'Cancelar' },
+    )
+  } catch {
+    return
+  }
+  try {
+    const result = await pacientes.deactivate(patient.id)
+    ElMessage.success(result.mensaje)
+    seleccionar(null)
+    // La tabla Base de datos vuelve a consultar al ver cambiar la versión.
+    notificarCambio()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'No se pudo dar de baja.')
+  }
 }
 
 function iniciarAdmision(): void {
@@ -307,6 +391,17 @@ function handleCommand(command: string): void {
   color: var(--el-color-primary);
 }
 
+/* Acción principal: más alta y con sombra propia para jerarquizarla. */
+.side__action--primary {
+  height: 46px;
+  font-size: 14px;
+  box-shadow: 0 8px 16px -10px var(--el-color-primary);
+}
+
+.side__action--primary.is-disabled {
+  box-shadow: none;
+}
+
 /* Tarjeta de paciente activo */
 .side__patient {
   display: flex;
@@ -352,14 +447,54 @@ function handleCommand(command: string): void {
 
 .side__patient-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+/* Acciones sobre la fila seleccionada: filas compactas y alineadas a la izquierda. */
+.side__patient-action {
+  justify-content: flex-start;
+  width: 100%;
+  height: 32px;
+  margin-left: 0 !important;
+  padding: 0 6px;
+  border-color: transparent;
+  background-color: transparent;
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.side__patient-action:hover:not(.is-disabled) {
+  background-color: var(--el-color-primary-light-8);
+  border-color: transparent;
+  color: var(--el-color-primary);
+}
+
+.side__patient-action--danger {
+  color: var(--el-color-danger);
+}
+
+.side__patient-action--danger:hover:not(.is-disabled) {
+  background-color: var(--el-color-danger-light-9);
+  border-color: transparent;
+  color: var(--el-color-danger);
+}
+
+.side__patient-action.is-disabled {
+  background-color: transparent;
+  color: var(--el-text-color-disabled);
 }
 
 /* Navegación */
 .side__nav {
   flex: 1;
+  /* Sin min-height el bloque de navegación no puede encogerse y desborda
+     cuando el contexto del paciente ocupa más alto. */
+  min-height: 0;
   overflow-y: auto;
   padding: 4px 12px 12px;
 }
@@ -375,6 +510,11 @@ function handleCommand(command: string): void {
 
 .side__section:first-child {
   margin-top: 6px;
+}
+
+/* Título de sección dentro de un bloque con padding propio. */
+.side__section.side__section--tight {
+  margin: 0 0 2px;
 }
 
 .side__link {

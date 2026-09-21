@@ -7,6 +7,8 @@ business operations are valid and the mapper performs all conversions.
 
 from __future__ import annotations
 
+from app.schemas.patient_sis import PatientSisFields
+
 from datetime import date, datetime
 from enum import Enum
 from typing import Annotated, Any
@@ -128,7 +130,7 @@ class PatientRiskUpdate(BaseModel):
         return value
 
 
-class PatientCreate(BaseModel):
+class PatientCreate(PatientSisFields):
     """Atomic registration payload for an adult or a minor patient."""
 
     codclie_legacy: Annotated[int, Field(gt=0)] | None = None
@@ -181,7 +183,7 @@ class PatientCreate(BaseModel):
         return value.upper() if value is not None else None
 
 
-class PatientUpdate(BaseModel):
+class PatientUpdate(PatientSisFields):
     """Safe partial update for the patient record.
 
     Child collections are deliberately excluded.  They have dedicated service
@@ -271,7 +273,7 @@ class PatientRiskResponse(BaseModel):
     grupo_riesgo_nombre: str | None = None
 
 
-class PatientResponse(BaseModel):
+class PatientResponse(PatientSisFields):
     """Public patient projection; ORM entities never cross the HTTP boundary."""
 
     model_config = ConfigDict(from_attributes=True)

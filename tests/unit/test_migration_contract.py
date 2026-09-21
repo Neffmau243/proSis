@@ -7,7 +7,7 @@ from app.models import Base
 def test_metadata_and_alembic_head_cover_the_bootstrap_schema() -> None:
     script = ScriptDirectory.from_config(Config("alembic.ini"))
 
-    assert len(Base.metadata.tables) == 39
+    assert len(Base.metadata.tables) == 40
     assert {
         "pacientes",
         "atenciones",
@@ -18,4 +18,4 @@ def test_metadata_and_alembic_head_cover_the_bootstrap_schema() -> None:
     } <= set(
         Base.metadata.tables
     )
-    assert script.get_current_head() == "20260916_0010_locality"
+    assert script.get_current_head() == "20260919_0015_patient_sis"

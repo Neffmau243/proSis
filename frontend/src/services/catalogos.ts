@@ -103,6 +103,7 @@ async function searchPage<T>(
 }
 
 export const catalogos = {
+  etnias: () => getList<CodeCatalogItem>('/catalogos/etnias'),
   tiposDocumento: () => getList<CodeCatalogItem>('/catalogos/tipos-documento'),
   sexos: () => getList<CodeCatalogItem>('/catalogos/sexos'),
   seguros: () => getList<IdCatalogItem>('/catalogos/seguros'),

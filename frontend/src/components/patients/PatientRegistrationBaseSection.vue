@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PatientSisFields from './PatientSisFields.vue'
 import type {
   CodeCatalogItem,
   EstablishmentCatalogItem,
@@ -55,26 +56,29 @@ function update(changes: PatientRegistrationPatch): void {
       </el-form-item>
 
       <div class="base-section__document-row">
-        <el-form-item class="base-field" label="N.° documento" prop="numero_documento">
-          <el-input
-            :model-value="form.numero_documento"
-            @update:model-value="update({ numero_documento: $event })"
-          />
-        </el-form-item>
+        <span class="base-section__document-label">Documento</span>
+        <div class="base-section__document-fields">
+          <el-form-item class="base-field" label="Tipo de documento" prop="tipo_documento_codigo">
+            <el-select
+              :model-value="form.tipo_documento_codigo"
+              @update:model-value="update({ tipo_documento_codigo: $event })"
+            >
+              <el-option
+                v-for="tipo in tiposDocumento"
+                :key="tipo.codigo"
+                :label="tipo.nombre"
+                :value="tipo.codigo"
+              />
+            </el-select>
+          </el-form-item>
 
-        <el-form-item class="base-field" label="Tipo de documento" prop="tipo_documento_codigo">
-          <el-select
-            :model-value="form.tipo_documento_codigo"
-            @update:model-value="update({ tipo_documento_codigo: $event })"
-          >
-            <el-option
-              v-for="tipo in tiposDocumento"
-              :key="tipo.codigo"
-              :label="tipo.nombre"
-              :value="tipo.codigo"
+          <el-form-item class="base-field" label="N.° documento" prop="numero_documento">
+            <el-input
+              :model-value="form.numero_documento"
+              @update:model-value="update({ numero_documento: $event })"
             />
-          </el-select>
-        </el-form-item>
+          </el-form-item>
+        </div>
       </div>
 
       <el-form-item class="base-field" label="Fecha de nacimiento" prop="fecha_nacimiento">
@@ -218,6 +222,7 @@ function update(changes: PatientRegistrationPatch): void {
         />
       </el-form-item>
     </div>
+    <PatientSisFields :value="form" @update="update" />
   </section>
 </template>
 
@@ -225,6 +230,14 @@ function update(changes: PatientRegistrationPatch): void {
 .base-section {
   min-width: 0;
   --el-component-size: 26px;
+}
+
+/* Element Plus fija min-height: 32px en el wrapper del select y no respeta
+   --el-component-size, así que quedaba 6px más alto que los inputs vecinos. */
+.base-section :deep(.el-select__wrapper) {
+  min-height: var(--el-component-size);
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .base-section__header {
@@ -244,12 +257,6 @@ function update(changes: PatientRegistrationPatch): void {
   gap: 5px;
 }
 
-.base-section__document-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(150px, 0.9fr);
-  gap: 8px;
-}
-
 .base-section__fields :deep(.base-field) {
   display: grid;
   grid-template-columns: minmax(122px, 0.42fr) minmax(0, 1fr);
@@ -260,6 +267,9 @@ function update(changes: PatientRegistrationPatch): void {
 
 .base-section__fields :deep(.base-field .el-form-item__label) {
   height: auto;
+  /* Element Plus le pone 8px de margen inferior a la etiqueta en label-position
+     "top"; dentro de la grilla eso la subía 4px respecto al centro de la fila. */
+  margin: 0;
   padding: 0 8px 0 0;
   color: var(--el-text-color-secondary);
   font-size: 11px;
@@ -282,10 +292,55 @@ function update(changes: PatientRegistrationPatch): void {
   font-size: 12px;
 }
 
+/* Fila de documento: reusa la misma columna de etiquetas que el resto del
+   formulario y reparte su contenido entre los dos campos. Cada campo lleva su
+   etiqueta encima, así los dos inputs quedan alineados con los demás. */
+.base-section__document-row {
+  display: grid;
+  grid-template-columns: minmax(122px, 0.42fr) minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+}
+
+.base-section__document-label {
+  padding: 0 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.base-section__document-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.base-section__document-fields :deep(.base-field) {
+  display: block;
+  margin: 0;
+}
+
+.base-section__document-fields :deep(.base-field .el-form-item__label) {
+  display: block;
+  height: auto;
+  margin: 0;
+  padding: 0 0 2px;
+  line-height: 1.2;
+}
+
 @media (max-width: 640px) {
   .base-section__document-row {
     grid-template-columns: minmax(0, 1fr);
-    gap: 5px;
+    gap: 2px;
+  }
+
+  .base-section__document-label {
+    padding-right: 0;
+  }
+
+  .base-section__document-fields {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .base-section__fields :deep(.base-field) {

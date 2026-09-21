@@ -433,7 +433,7 @@ Los rangos clínicos y las políticas de numeración son configurables o puertos
 ## Pruebas
 
 ```powershell
-pytest
+pytest   # incluye cobertura y umbral mínimo (pyproject.toml)
 python -m ruff check app tests migrations --select F
 ```
 
@@ -443,15 +443,34 @@ python -m ruff check app tests migrations --select F
 > Git Bash exporte `MSYS2_ENV_CONV_EXCL='API_V1_PREFIX'` antes de ejecutar
 > `pytest`.
 
-Las pruebas unitarias no requieren MySQL. El 17/09/2026 se ejecutaron 70 pruebas
-backend y 6 del editor frontend; la integración MySQL se omitió por no estar
-definido `TEST_DATABASE_URL`. La fixture de integración aplica y revierte
-migraciones en una base desechable cuyo nombre incluya `test`.
+La suite tiene tres bloques y una sola orden:
 
-En `frontend/`, ejecute `npm test`, `npm run lint:check` y `npm run build`.
-CI comprueba backend y frontend. El control Ruff de CI está limitado a reglas
-`F`; no equivale a comprobar toda la política de estilo. Resultados y límites
-en [la revisión de arquitectura](docs/REVISION_FLUJO_Y_ARQUITECTURA.md).
+| Bloque | Qué verifica | Necesita MySQL |
+| --- | --- | --- |
+| `tests/unit` | Reglas de dominio, esquemas, seguridad, guardas de los comandos operativos y el contrato de migraciones. | No |
+| `tests/integration` | Router, controladores, servicios, repositorios y SQL real: alta/edición de pacientes, búsqueda, catálogos, flujo clínico, documentos y las consolas `create_admin`/`bootstrap_database`/`seed_demo_data`/`reset_demo_database`. | Sí |
+| `frontend/tests` | Utilidades, servicios, composables, store, guardas y flujos montados con Vitest. | No |
+
+La integración se activa con `TEST_DATABASE_URL` apuntando a una base
+**desechable cuyo nombre incluya `test`**: la fixture aplica y revierte
+migraciones (`downgrade base` → `upgrade head`) antes y después de la sesión, y
+aborta si el nombre no cumple el guard. Sin esa variable, esas pruebas se
+omiten y la cobertura cae por debajo del umbral.
+
+```bash
+# MySQL local desechable, sin tocar la base de desarrollo
+export TEST_DATABASE_URL='mysql+pymysql://root:clave@127.0.0.1:3306/sistema_salud_ipress_test'
+pytest
+```
+
+La cobertura se exige en `[tool.coverage.report]` (`fail_under`) y se mide con
+ramas. Hoy la suite completa ronda el 92% en backend.
+
+En `frontend/`, ejecute `npm test` (o `npm run test:coverage`), `npm run
+lint:check` y `npm run build`. CI levanta **MySQL 8** como servicio, exporta
+`TEST_DATABASE_URL` y aplica los mismos umbrales en ambos lados. El control Ruff
+de CI está limitado a reglas `F`; no equivale a comprobar toda la política de
+estilo. Resultados y límites en [la revisión de arquitectura](docs/REVISION_FLUJO_Y_ARQUITECTURA.md).
 
 `tests/unit/test_migration_contract.py` es la red de seguridad del esquema:
 falla si el head de Alembic o el número de tablas del ORM dejan de coincidir con

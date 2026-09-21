@@ -24,6 +24,7 @@ _PATIENT_MUTABLE_FIELDS = frozenset(
     {
         "historia_clinica",
         "historia_familiar",
+        "sis_diresa", "sis_tipo", "sis_numero", "sis_secuencia", "etnia_codigo",
         "tipo_documento_codigo",
         "numero_documento",
         "fecha_inscripcion",
@@ -139,6 +140,7 @@ def patient_to_response(entity: "Patient") -> PatientResponse:
         codclie_legacy=entity.codclie_legacy,
         historia_clinica=entity.historia_clinica,
         historia_familiar=entity.historia_familiar,
+        **{key: getattr(entity, key, None) for key in ("sis_diresa", "sis_tipo", "sis_numero", "sis_secuencia", "etnia_codigo")},
         tipo_documento_codigo=entity.tipo_documento_codigo,
         numero_documento=entity.numero_documento,
         fecha_inscripcion=entity.fecha_inscripcion,

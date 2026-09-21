@@ -37,8 +37,33 @@ function parseCalendarDate(value: string | Date): CalendarDate | null {
   return { year, month, day }
 }
 
-function daysInPreviousMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month - 1, 0)).getUTCDate()
+/** Último día del mes indicado (el mes se expresa en base 1). */
+function lastDayOfMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate()
+}
+
+/**
+ * Suma meses a una fecha recortando el día al último disponible: quien nace el
+ * 31 de enero cumple mes el 28 de febrero, igual que lo hace un calendario.
+ */
+function addMonths(date: CalendarDate, count: number): CalendarDate {
+  const zeroBased = date.month - 1 + count
+  const year = date.year + Math.floor(zeroBased / 12)
+  const month = (((zeroBased % 12) + 12) % 12) + 1
+  return { year, month, day: Math.min(date.day, lastDayOfMonth(year, month)) }
+}
+
+function compareDates(left: CalendarDate, right: CalendarDate): number {
+  return (
+    Date.UTC(left.year, left.month - 1, left.day) -
+    Date.UTC(right.year, right.month - 1, right.day)
+  )
+}
+
+function daysBetween(from: CalendarDate, to: CalendarDate): number {
+  const start = Date.UTC(from.year, from.month - 1, from.day)
+  const end = Date.UTC(to.year, to.month - 1, to.day)
+  return Math.round((end - start) / 86_400_000)
 }
 
 /** Calculates elapsed calendar time without timezone-dependent day shifts. */
@@ -50,20 +75,22 @@ export function calculateCalendarAge(
   const reference = parseCalendarDate(referenceDate)
   if (!birth || !reference) return null
 
-  let years = reference.year - birth.year
-  let months = reference.month - birth.month
-  let days = reference.day - birth.day
-
-  if (days < 0) {
+  // Se avanza mes a mes desde el nacimiento y luego se cuentan los días
+  // restantes: así nunca aparecen días negativos cuando el día de referencia
+  // es anterior al del nacimiento.
+  let months = (reference.year - birth.year) * 12 + (reference.month - birth.month)
+  let anniversary = addMonths(birth, months)
+  if (compareDates(anniversary, reference) > 0) {
     months -= 1
-    days += daysInPreviousMonth(reference.year, reference.month)
+    anniversary = addMonths(birth, months)
   }
-  if (months < 0) {
-    years -= 1
-    months += 12
-  }
+  if (months < 0) return null
 
-  return years < 0 ? null : { years, months, days }
+  return {
+    years: Math.floor(months / 12),
+    months: months % 12,
+    days: daysBetween(anniversary, reference),
+  }
 }
 
 export function formatCalendarAge(

@@ -1,3 +1,5 @@
+import type { PatientSisData } from '@/utils/patientSis'
+
 export type ResponsibleRelationship = 'MADRE' | 'PADRE' | 'TUTOR'
 
 export interface ResponsibleRow {
@@ -16,7 +18,7 @@ export interface RiskRow {
   observacion: string
 }
 
-export interface PatientRegistrationDraft {
+export interface PatientRegistrationDraft extends PatientSisData {
   tipo_documento_codigo: string
   numero_documento: string
   historia_clinica: string

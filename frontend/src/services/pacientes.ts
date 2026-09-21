@@ -1,5 +1,6 @@
 import http from './http'
 import type { PageResponse } from '@/types/api'
+import type { PatientSisData } from '@/utils/patientSis'
 
 export interface PatientResponsible {
   id: number
@@ -21,7 +22,7 @@ export interface PatientRisk {
   grupo_riesgo_nombre: string | null
 }
 
-export interface Patient {
+export interface Patient extends Partial<PatientSisData> {
   id: number
   codclie_legacy: number | null
   historia_clinica: string | null
@@ -93,7 +94,7 @@ export interface RiskUpdatePayload {
   observacion?: string | null
 }
 
-export interface PatientCreatePayload {
+export interface PatientCreatePayload extends Partial<PatientSisData> {
   historia_clinica?: string | null
   historia_familiar?: string | null
   tipo_documento_codigo: string

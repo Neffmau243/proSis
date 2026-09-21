@@ -1,10 +1,26 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-ra"
+addopts = "-ra --cov=app --cov-report=term-missing:skip-covered"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
   "integration: requiere una base MySQL de pruebas configurada explícitamente",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+# La suite cubre la aplicación por capas: este umbral es el mínimo aceptado y
+# sube solo cuando la cobertura real se mantiene por encima.
+skip_covered = true
+fail_under = 90
+show_missing = true
+exclude_lines = [
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
 ]
 
 [tool.ruff]

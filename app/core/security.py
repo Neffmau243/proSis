@@ -113,7 +113,13 @@ def create_access_token(
 
     settings = get_settings()
     now = datetime.now(timezone.utc)
-    lifetime = expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
+    # ``timedelta(0)`` is falsy: an explicit zero must be rejected by the check
+    # below instead of silently falling back to the configured lifetime.
+    lifetime = (
+        expires_delta
+        if expires_delta is not None
+        else timedelta(minutes=settings.access_token_expire_minutes)
+    )
     if lifetime <= timedelta(0):
         raise ValueError("La duración del token debe ser positiva.")
 

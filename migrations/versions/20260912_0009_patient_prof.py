@@ -60,9 +60,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    if _INDEX in _index_names():
-        op.drop_index(_INDEX, table_name="pacientes")
+    # MySQL (1553) refuses to drop an index that still backs the foreign key it
+    # may have adopted as its own, so the constraint has to go first even
+    # though ``upgrade`` created them in the opposite order.
     if _FK in _foreign_key_names():
         op.drop_constraint(_FK, "pacientes", type_="foreignkey")
+    if _INDEX in _index_names():
+        op.drop_index(_INDEX, table_name="pacientes")
     if _COLUMN in _column_names():
         op.drop_column("pacientes", _COLUMN)

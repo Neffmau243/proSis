@@ -18,6 +18,19 @@ if TYPE_CHECKING:
     from .security import Professional, ProfessionalSpecialty
 
 
+class Ethnicity(Base):
+    __tablename__ = "etnias"
+
+    codigo: Mapped[str] = mapped_column(
+        mysql.VARCHAR(2, charset="utf8mb4", collation="utf8mb4_unicode_ci"), primary_key=True
+    )
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    fuente: Mapped[str] = mapped_column(String(100), nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("TRUE"))
+
+    __table_args__ = (MYSQL_TABLE_OPTIONS,)
+
+
 class DocumentType(Base):
     __tablename__ = "tipos_documento"
 

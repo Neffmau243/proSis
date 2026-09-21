@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SIS de solo lectura · datos sintéticos</title>
+  </head>
+  <body style="margin: 16px">
+    <div id="app"></div>
+    <script type="module">
+      import { createApp, h } from 'vue'
+      import 'element-plus/dist/index.css'
+      import '../src/assets/main.css'
+      import Summary from '../src/components/admission/AdmissionPatientSisSummary.vue'
+      // Isolated visual fixture: no authentication, API calls or real records.
+      createApp({
+        render: () =>
+          h(
+            'main',
+            { style: 'display:flex;gap:32px;flex-wrap:wrap' },
+            [440, 280].map((width) =>
+              h('section', { style: `width:${width}px;max-width:100%` }, [
+                h('h2', `Prueba sintética · ${width}px`),
+                h(Summary, { patient: {}, ethnicities: [] }),
+                h(Summary, {
+                  patient: {
+                    sis_diresa: '001',
+                    sis_tipo: 'E1',
+                    sis_numero: '000000001',
+                    sis_secuencia: '01',
+                    etnia_codigo: '59',
+                  },
+                  ethnicities: [
+                    {
+                      codigo: '59',
+                      nombre: 'Etiqueta extensa de prueba recibida desde el backend',
+                      activo: true,
+                    },
+                  ],
+                }),
+                h(Summary, {
+                  patient: { sis_tipo: '2', sis_numero: '00000001', etnia_codigo: '58' },
+                  ethnicities: [],
+                }),
+              ]),
+            ),
+          ),
+      }).mount('#app')
+    </script>
+  </body>
+</html>

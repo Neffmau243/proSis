@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Casillas SIS · prueba sintética sin API</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp, h, reactive, shallowRef } from 'vue'
+      import ElementPlus from 'element-plus'
+      import 'element-plus/dist/index.css'
+      import '../src/assets/main.css'
+      import SisCode from '../src/components/patients/PatientSisCodeFields.vue'
+      import { emptyPatientSis, patientSisErrors } from '../src/utils/patientSis.ts'
+      // Development-only fixture. Saves stay in memory; no API, auth or real patient data.
+      createApp({
+        setup() {
+          const draft = reactive(emptyPatientSis())
+          const errors = shallowRef({})
+          const saved = shallowRef('')
+          const disabled = shallowRef(false)
+          const save = () => {
+            errors.value = patientSisErrors(draft)
+            if (!Object.keys(errors.value).length) saved.value = JSON.stringify(draft)
+          }
+          return () =>
+            h('main', { style: 'margin:16px;max-width:320px;color:var(--el-text-color-primary)' }, [
+              h('h1', { style: 'font-size:18px' }, 'Datos del paciente · prueba'),
+              h('p', 'Fixture sintético, sin guardar en la base.'),
+              h('label', { for: 'test-insurance' }, 'Seguro'),
+              h(
+                'select',
+                { id: 'test-insurance', style: 'width:100%;padding:8px;margin-top:8px' },
+                [h('option', 'SIS')],
+              ),
+              h(SisCode, {
+                value: draft,
+                errors: errors.value,
+                disabled: disabled.value,
+                onUpdate: (value) => Object.assign(draft, value),
+              }),
+              h('div', { style: 'display:flex;gap:8px;margin-top:16px' }, [
+                h('button', { onClick: save }, 'Guardar prueba'),
+                h(
+                  'button',
+                  { onClick: () => (disabled.value = !disabled.value) },
+                  'Alternar solo lectura',
+                ),
+              ]),
+              h(
+                'output',
+                { style: 'display:block;overflow-wrap:anywhere;margin-top:16px' },
+                saved.value,
+              ),
+            ])
+        },
+      })
+        .use(ElementPlus)
+        .mount('#app')
+    </script>
+  </body>
+</html>

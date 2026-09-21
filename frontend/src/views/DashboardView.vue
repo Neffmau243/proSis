@@ -61,22 +61,7 @@
             </el-tag>
           </template>
         </el-table-column>
-
-        <el-table-column label="Acciones" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click.stop="ver(row)">Ver</el-button>
-            <el-button
-              v-if="can('PACIENTE_DAR_BAJA') && row.estado"
-              link
-              type="danger"
-              @click.stop="confirmDeactivate(row)"
-            >
-              Borrar
-            </el-button>
-          </template>
-        </el-table-column>
       </el-table>
-
     </el-card>
 
     <DniSearchMatch :patient-name="dniPatientName" />
@@ -133,27 +118,23 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 
 import { usePacienteSeleccionado } from '@/composables/usePacienteSeleccionado'
 import DniSearchMatch from '@/components/patient/DniSearchMatch.vue'
 import { useAuthStore } from '@/stores/auth'
 import { catalogos, type CodeCatalogItem } from '@/services/catalogos'
 import { pacientes, type Patient, type PatientSearchParams } from '@/services/pacientes'
-
-type SearchMode = 'dni' | 'hc_exacta' | 'hc_similar' | 'h_familiar' | 'nombres'
-
-interface SearchModeOption {
-  value: SearchMode
-  label: string
-  placeholder: string
-  /** Modalidad del sistema antiguo que el backend todavía no filtra. */
-  pending?: string
-}
+import {
+  PATIENT_SEARCH_MODES,
+  buildPatientSearchParams,
+  pendingSearchModeNotice,
+  type SearchMode,
+} from '@/utils/patientSearch'
 
 const router = useRouter()
 const auth = useAuthStore()
-const { seleccionado, dataVersion, seleccionar, notificarCambio } = usePacienteSeleccionado()
+const { seleccionado, dataVersion, seleccionar } = usePacienteSeleccionado()
 
 // Sin paginación visible, se solicita el máximo permitido y la tabla conserva su alto.
 const listingLimit = 100
@@ -165,26 +146,7 @@ const loadingMore = ref(false)
 let queryVersion = 0
 
 // El DNI es el dato que más se usa: es la modalidad por defecto.
-const modes: SearchModeOption[] = [
-  { value: 'dni', label: 'DNI', placeholder: 'Escriba el número de DNI…' },
-  {
-    value: 'hc_exacta',
-    label: 'H. Clínica exacta',
-    placeholder: 'N° de historia clínica completo',
-  },
-  {
-    value: 'hc_similar',
-    label: 'H. Clínica similar',
-    placeholder: 'Parte del N° de historia clínica',
-  },
-  { value: 'nombres', label: 'Apellidos y nombres', placeholder: 'Apellidos o nombres' },
-  {
-    value: 'h_familiar',
-    label: 'H. Familiar',
-    placeholder: 'Código de historia familiar',
-    pending: 'Pendiente: el backend aún no filtra por historia familiar.',
-  },
-]
+const modes = PATIENT_SEARCH_MODES
 
 const mode = ref<SearchMode>('dni')
 const term = ref('')
@@ -235,33 +197,19 @@ function sexLabel(codigo: string | null): string {
 
 /** Traduce la modalidad elegida a los filtros que acepta el backend. */
 function buildParams(offset = 0): PatientSearchParams | null {
-  const value = term.value.trim()
-  const base = {
-    incluir_inactivos: incluirBajas.value,
+  const params = buildPatientSearchParams(mode.value, term.value, {
+    incluirInactivos: incluirBajas.value,
     limit: listingLimit,
     offset,
+  })
+
+  // Modalidad sin filtro en la API: se avisa y se deja la tabla vacía.
+  if (!params) {
+    const notice = pendingSearchModeNotice(mode.value)
+    if (notice) ElMessage.info(notice)
   }
 
-  if (mode.value === 'h_familiar') {
-    ElMessage.info('La búsqueda por H. Familiar se habilitará cuando el backend la soporte.')
-    return null
-  }
-
-  // Sin dato: se lista toda la base, como al abrir la tabla en el sistema antiguo.
-  if (!value) return { ...base }
-
-  switch (mode.value) {
-    case 'hc_exacta':
-      return { ...base, historia_clinica: value }
-    // El backend solo ofrece coincidencia parcial con `q` (DNI, historia
-    // clínica y nombres); se usa para DNI, "dato similar" y apellidos. Con
-    // menos de 2 caracteres no filtra y se sigue mostrando toda la base.
-    case 'dni':
-    case 'hc_similar':
-    case 'nombres':
-      if (value.length < 2) return { ...base }
-      return { ...base, q: value }
-  }
+  return params
 }
 
 async function search(requestVersion = ++queryVersion): Promise<void> {
@@ -350,32 +298,6 @@ watch([term, mode, incluirBajas], () => {
 
 function onRowClick(row: Patient): void {
   seleccionar(row)
-}
-
-function ver(row: Patient): void {
-  seleccionar(row)
-  router.push({ name: 'paciente-detalle', params: { id: row.id } })
-}
-
-async function confirmDeactivate(patient: Patient): Promise<void> {
-  try {
-    await ElMessageBox.confirm(
-      `¿Dar de baja a ${fullName(patient)}? La baja es lógica: el historial se conserva.`,
-      'Borrar paciente',
-      { type: 'warning', confirmButtonText: 'Dar de baja', cancelButtonText: 'Cancelar' },
-    )
-  } catch {
-    return
-  }
-  try {
-    const result = await pacientes.deactivate(patient.id)
-    ElMessage.success(result.mensaje)
-    seleccionar(null)
-    notificarCambio()
-    search()
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'No se pudo dar de baja.')
-  }
 }
 
 // La barra lateral puede dar de baja al paciente seleccionado: la tabla recarga.

@@ -25,7 +25,8 @@
           <AdmissionPatientSummary
             :patient="admissionPatient"
             :can-edit="auth.hasPermission('PACIENTE_EDITAR')"
-            :blocked="saving"
+            :blocked="saving || attentionCreated"
+            :tipos-documento="tiposDocumento"
             @saved="applyUpdatedPatient"
             @dirty-change="patientContextDirty = $event"
             @busy-change="patientContextSaving = $event"
@@ -38,6 +39,7 @@
               ref="formRef"
               :model="form"
               :rules="rules"
+              :disabled="saving || attentionCreated"
               :label-width="isAdmission ? 'auto' : '200px'"
               :label-position="isAdmission ? 'top' : 'right'"
               class="encounter-form"
@@ -347,6 +349,34 @@
                   <div class="measurement-group">
                     <h4 class="measurement-group__title">Antropometría</h4>
                     <el-row :gutter="16">
+                      <el-col v-if="isPregnant" :span="24">
+                        <el-form-item class="measurement-field" label="Tipo de embarazo">
+                          <el-select
+                            v-model="form.tipo_embarazo_codigo"
+                            clearable
+                            placeholder="Seleccione"
+                            style="width: 100%"
+                          >
+                            <el-option
+                              v-for="type in PREGNANCY_TYPES"
+                              :key="type.value"
+                              :label="type.label"
+                              :value="type.value"
+                            />
+                          </el-select>
+                        </el-form-item>
+                      </el-col>
+                      <el-col v-if="isPregnant" :span="24">
+                        <el-form-item class="measurement-field" label="Peso antes del embarazo (kg)">
+                          <el-input-number
+                            v-model="form.peso_antes_embarazo_kg"
+                            :min="0"
+                            :precision="2"
+                            :controls="false"
+                            style="width: 100%"
+                          />
+                        </el-form-item>
+                      </el-col>
                       <el-col :span="24">
                         <el-form-item class="measurement-field" label="Peso actual (kg)">
                           <el-input-number
@@ -369,7 +399,17 @@
                           />
                         </el-form-item>
                       </el-col>
-                      <el-col :span="24">
+                      <el-col v-if="isPregnant" :span="24">
+                        <el-form-item class="measurement-field" label="Fecha probable de parto">
+                          <el-date-picker
+                            v-model="form.fecha_probable_parto"
+                            type="date"
+                            value-format="YYYY-MM-DD"
+                            style="width: 100%"
+                          />
+                        </el-form-item>
+                      </el-col>
+                      <el-col v-else :span="24">
                         <el-form-item class="measurement-field" label="Perímetro abdominal (cm)">
                           <el-input-number
                             v-model="form.perimetro_abdominal_cm"
@@ -435,8 +475,21 @@
                   </h3>
                 </div>
                 <div class="nutrition-age" aria-live="polite">
-                  <span class="nutrition-age__label">Edad actual del paciente</span>
-                  <strong class="nutrition-age__value">{{ nutritionalAge }}</strong>
+                  <div class="nutrition-age__row">
+                    <span class="nutrition-age__label">Edad actual del paciente</span>
+                    <strong class="nutrition-age__value">{{ nutritionalAge }}</strong>
+                  </div>
+                  <div v-if="isAdmission" class="nutrition-age__extra">
+                    <dl>
+                      <div>
+                        <dt>Grupo etario</dt>
+                        <dd>{{ grupoEtarioLabel }}</dd>
+                      </div>
+                    </dl>
+                    <p class="nutrition-age__hint">
+                      Se calculan con la fecha de nacimiento guardada.
+                    </p>
+                  </div>
                 </div>
                 <el-row :gutter="16" class="nutrition-fields">
                   <el-col :span="24">
@@ -468,23 +521,40 @@
                   </el-col>
                 </el-row>
 
-                <AdmissionFinalActions
-                  :saving="saving"
-                  :disabled="patientContextDirty || patientContextSaving"
-                  :disabled-reason="
-                    patientContextSaving
-                      ? 'Termine de guardar los datos del paciente.'
-                      : patientContextDirty
-                        ? 'Guarde o descarte los cambios del paciente antes de guardar la atención.'
-                        : undefined
-                  "
-                  :primary-label="isAdmission ? 'Guardar atención' : 'Registrar atención'"
-                  @submit="submit"
-                  @exit="cancel"
-                  @pending="notifyUnavailableAction"
-                />
+                <!-- Relaciones del paciente: se muestran aquí para aprovechar
+                     este espacio sin alargar el panel lateral. -->
+                <div
+                  v-if="isAdmission && admissionPatient"
+                  class="admission-patient-extras"
+                >
+                  <AdmissionPatientRelations
+                    :patient="admissionPatient"
+                    :disabled="patientRelationsDisabled"
+                    :can-edit="auth.hasPermission('PACIENTE_EDITAR')"
+                    :tipos-documento="tiposDocumento"
+                    :grupos-riesgo="gruposRiesgo"
+                    @saved="applyUpdatedPatient"
+                    @busy-change="patientContextSaving = $event"
+                  />
+                </div>
+
               </section>
             </el-form>
+            <AdmissionFinalActions
+              :saving="saving"
+              :saved="attentionCreated"
+              :print-ready="!!fuaSnapshot"
+              :disabled="patientContextDirty || patientContextSaving"
+              :disabled-reason="patientContextSaving
+                ? 'Termine de guardar los datos del paciente.'
+                : patientContextDirty
+                  ? 'Guarde o descarte los cambios del paciente antes de guardar la atención.'
+                  : attentionCreated
+                    ? 'Atención guardada correctamente. Los datos se conservan en modo lectura; ya puede imprimir S.I.S.'
+                    : 'Guarde la atención para habilitar Imprimir S.I.S.'"
+              :primary-label="attentionCreated ? 'Atención guardada' : isAdmission ? 'Guardar atención' : 'Registrar atención'"
+              @submit="submit" @exit="cancel" @pending="notifyUnavailableAction" @print="fuaDialog = true"
+            />
           </el-card>
         </div>
 
@@ -498,6 +568,7 @@
         </div>
       </div>
     </template>
+    <FuaPrintDialog v-if="fuaSnapshot" v-model="fuaDialog" :snapshot="fuaSnapshot" />
   </div>
 </template>
 
@@ -508,12 +579,18 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 
 import AdmissionHistory from '@/components/admission/AdmissionHistory.vue'
 import AdmissionFinalActions from '@/components/admission/AdmissionFinalActions.vue'
+import FuaPrintDialog from '@/components/admission/FuaPrintDialog.vue'
+import { useSavedAdmission } from '@/composables/useSavedAdmission'
+import AdmissionPatientRelations from '@/components/admission/AdmissionPatientRelations.vue'
 import AdmissionPatientSummary from '@/components/admission/AdmissionPatientSummary.vue'
 import {
   catalogos,
+  type AgeGroupCatalogItem,
+  type CodeCatalogItem,
   type EstablishmentCatalogItem,
   type OfficeCatalogItem,
   type ProfessionalCatalogItem,
+  type RiskGroupCatalogItem,
   type SpecialtyCatalogItem,
 } from '@/services/catalogos'
 import { pacientes, type Patient } from '@/services/pacientes'
@@ -523,9 +600,12 @@ import {
   atenciones,
   type Attention,
   type AttentionCreatePayload,
+  type CareGroupCode,
   type NutritionalSnapshotPayload,
+  type PregnancyTypeCode,
 } from '@/services/atenciones'
-import { formatCalendarAge } from '@/utils/calendarAge'
+import { calculateCalendarAge, formatCalendarAge } from '@/utils/calendarAge'
+import { PREGNANCY_TYPES } from '@/utils/pregnancy'
 
 const props = withDefaults(
   defineProps<{
@@ -545,7 +625,6 @@ const preselectedPatientId = patientIdFromQuery(route.query.patientId ?? route.q
 
 const formRef = ref<FormInstance>()
 const saving = ref(false)
-const attentionCreated = shallowRef(false)
 const errorMessage = ref<string | null>(null)
 const initialLoading = ref(false)
 const expandedContextDetails = shallowRef<string[]>([])
@@ -563,6 +642,9 @@ const consultoriosLoading = ref(false)
 const profesionales = ref<ProfessionalCatalogItem[]>([])
 const profesionalesLoading = ref(false)
 const especialidades = ref<SpecialtyCatalogItem[]>([])
+const gruposEtarios = ref<AgeGroupCatalogItem[]>([])
+const tiposDocumento = ref<CodeCatalogItem[]>([])
+const gruposRiesgo = ref<RiskGroupCatalogItem[]>([])
 const historial = ref<Attention[]>([])
 const historialLoading = ref(false)
 const historialError = shallowRef<string | null>(null)
@@ -577,6 +659,9 @@ const form = reactive({
   modalidad_atencion_codigo: 'AMBULATORIA' as 'AMBULATORIA' | 'EMERGENCIA',
   fecha_atencion: '',
   fecha_atendido: null as string | null,
+  tipo_embarazo_codigo: null as PregnancyTypeCode | null,
+  peso_antes_embarazo_kg: null as number | null,
+  fecha_probable_parto: null as string | null,
   peso_kg: null as number | null,
   talla_cm: null as number | null,
   perimetro_abdominal_cm: null as number | null,
@@ -594,9 +679,12 @@ const form = reactive({
 })
 
 type AttentionMode = 'AMBULATORIA' | 'EMERGENCIA'
-type CareGroup = 'NINOS_ADOLESCENTES_ADULTOS_MAYORES' | 'GESTANTES' | 'PUERPERAS'
-/** Temporary UI-only selection; no clinical persistence is attached yet. */
-const selectedCareGroup = ref<CareGroup>('NINOS_ADOLESCENTES_ADULTOS_MAYORES')
+const { fuaDialog, fuaSnapshot, attentionCreated, remember } = useSavedAdmission(() => form.paciente_id)
+/** Población clínica declarada; se persiste en la atención. */
+const selectedCareGroup = ref<CareGroupCode>('NINOS_ADOLESCENTES_ADULTOS_MAYORES')
+
+/** Los campos obstétricos solo aplican al grupo Gestantes. */
+const isPregnant = computed(() => selectedCareGroup.value === 'GESTANTES')
 
 const rules: FormRules = {
   paciente_id: [{ required: true, message: 'Seleccione el paciente.', trigger: 'change' }],
@@ -614,6 +702,16 @@ const rules: FormRules = {
 /** El paciente de la admisión nunca debe quedar fuera del formulario. */
 const showForm = computed(() => !isAdmission.value || admissionPatient.value !== null)
 
+/** Las relaciones se deshabilitan mientras el paciente o la atención se guardan. */
+const patientRelationsDisabled = computed(
+  () =>
+    !auth.hasPermission('PACIENTE_EDITAR') ||
+    !admissionPatient.value?.estado ||
+    saving.value ||
+    attentionCreated.value ||
+    patientContextSaving.value,
+)
+
 /** El historial necesita un paciente conocido (admisión o selección manual). */
 const historialPatientId = computed(() =>
   isAdmission.value ? (admissionPatient.value?.id ?? null) : form.paciente_id,
@@ -630,6 +728,24 @@ const nutritionalAge = computed(() => {
   if (!birthDate) return '—'
 
   return formatCalendarAge(birthDate, form.fecha_atencion || new Date()) ?? '—'
+})
+
+/** Grupo etario vigente según los meses cumplidos y el catálogo configurado. */
+const grupoEtarioLabel = computed(() => {
+  const birthDate = nutritionalPatient.value?.fecha_nacimiento
+  if (!birthDate) return '—'
+  const age = calculateCalendarAge(birthDate, new Date())
+  if (!age) return '—'
+  const months = age.years * 12 + age.months
+  return (
+    gruposEtarios.value.find(
+      (group) =>
+        group.activo &&
+        group.edad_minima_meses !== null &&
+        months >= group.edad_minima_meses &&
+        (group.edad_maxima_meses === null || months <= group.edad_maxima_meses),
+    )?.nombre ?? '—'
+  )
 })
 
 /** ¿El profesional registró algún dato de la valoración nutricional? */
@@ -700,11 +816,21 @@ function selectAttentionMode(mode: AttentionMode): void {
   form.modalidad_atencion_codigo = mode
 }
 
-function selectCareGroup(group: CareGroup): void {
+function selectCareGroup(group: CareGroupCode): void {
   selectedCareGroup.value = group
+  if (group === 'GESTANTES') {
+    // El perímetro abdominal deja su lugar a la fecha probable de parto.
+    form.perimetro_abdominal_cm = null
+    return
+  }
+  // Datos exclusivos del embarazo: no deben viajar si cambia el grupo.
+  form.tipo_embarazo_codigo = null
+  form.peso_antes_embarazo_kg = null
+  form.fecha_probable_parto = null
 }
 
 function notifyUnavailableAction(action: string): void {
+  console.log(`[Admisión] Acción pendiente activada: ${action}`)
   ElMessage.info(`${action} estará disponible próximamente.`)
 }
 
@@ -848,8 +974,12 @@ async function submit(): Promise<void> {
       profesional_id: form.profesional_id!,
       especialidad_codigo: form.especialidad_codigo,
       modalidad_atencion_codigo: form.modalidad_atencion_codigo,
+      grupo_atencion_codigo: selectedCareGroup.value,
       fecha_atencion: form.fecha_atencion,
       fecha_atendido: form.fecha_atendido,
+      tipo_embarazo_codigo: form.tipo_embarazo_codigo,
+      peso_antes_embarazo_kg: form.peso_antes_embarazo_kg,
+      fecha_probable_parto: form.fecha_probable_parto,
       peso_kg: form.peso_kg,
       talla_cm: form.talla_cm,
       perimetro_abdominal_cm: form.perimetro_abdominal_cm,
@@ -862,8 +992,9 @@ async function submit(): Promise<void> {
       valoracion_nutricional: valoracion,
     }
     const created = await atenciones.create(payload)
-    attentionCreated.value = true
-    await router.push({ name: 'atencion-detalle', params: { id: created.id } })
+    remember(created)
+    ElMessage.success('Atención guardada correctamente.')
+    void loadHistorial()
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : 'No se pudo registrar la atención.'
@@ -873,11 +1004,7 @@ async function submit(): Promise<void> {
 }
 
 function cancel(): void {
-  if (isAdmission.value && admissionPatient.value) {
-    router.push({ name: 'paciente-detalle', params: { id: admissionPatient.value.id } })
-    return
-  }
-  router.back()
+  void router.push({ name: 'inicio' })
 }
 
 function canLeavePatientEditor(): boolean {
@@ -912,15 +1039,29 @@ onMounted(async () => {
       return
     }
 
-    const [especialidadesResult, estResult, profesionalesResult, patient] = await Promise.all([
+    const [
+      especialidadesResult,
+      estResult,
+      profesionalesResult,
+      gruposEtariosResult,
+      tiposDocumentoResult,
+      gruposRiesgoResult,
+      patient,
+    ] = await Promise.all([
       catalogos.especialidades(),
       catalogos.establecimientos(undefined, 25, 0),
       catalogos.profesionales(undefined, 50, 0),
+      catalogos.gruposEtarios(),
+      catalogos.tiposDocumento(),
+      catalogos.gruposRiesgo(),
       preselectedPatientId === null ? Promise.resolve(null) : pacientes.get(preselectedPatientId),
     ])
     especialidades.value = especialidadesResult
     establecimientos.value = estResult.items
     profesionales.value = profesionalesResult.items
+    gruposEtarios.value = gruposEtariosResult
+    tiposDocumento.value = tiposDocumentoResult
+    gruposRiesgo.value = gruposRiesgoResult
 
     if (patient) {
       pacientesOptions.value = [patient]
@@ -1087,15 +1228,57 @@ onMounted(async () => {
 
 .nutrition-age {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--admission-space);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
   margin-bottom: 10px;
   padding: 8px 10px;
   color: var(--el-color-primary-dark-2);
   background-color: var(--el-color-primary-light-9);
   border-top: 1px solid var(--el-color-primary-light-7);
   border-bottom: 1px solid var(--el-color-primary-light-7);
+}
+
+.nutrition-age__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admission-space);
+}
+
+.nutrition-age__extra {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--el-color-primary-light-7);
+}
+
+.nutrition-age__extra dl {
+  margin: 0;
+}
+
+.nutrition-age__extra dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.nutrition-age__extra dt {
+  color: inherit;
+  font-weight: 650;
+}
+
+.nutrition-age__extra dd {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-weight: 600;
+}
+
+.nutrition-age__hint {
+  margin: 2px 0 0;
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .nutrition-age__label {
@@ -1118,6 +1301,10 @@ onMounted(async () => {
 .nutrition-fields {
   display: grid;
   gap: 2px;
+}
+
+.admission-patient-extras {
+  margin-top: var(--admission-space-wide);
 }
 
 .vital-signs,
@@ -1299,10 +1486,10 @@ onMounted(async () => {
 }
 
 @media (max-width: 680px) {
-  .nutrition-age {
-    align-items: flex-start;
+  .nutrition-age__row {
     flex-direction: column;
-    gap: 4px;
+    align-items: flex-start;
+    gap: 2px;
   }
 
   .nutrition-age__value {

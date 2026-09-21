@@ -3,12 +3,15 @@ defineProps<{
   saving: boolean
   primaryLabel: string
   disabled?: boolean
+  saved?: boolean
+  printReady?: boolean
   disabledReason?: string
 }>()
 
 const emit = defineEmits<{
   submit: []
   exit: []
+  print: []
   pending: [action: string]
 }>()
 </script>
@@ -23,7 +26,7 @@ const emit = defineEmits<{
         class="admission-final-actions__button"
         type="primary"
         :loading="saving"
-        :disabled="disabled"
+        :disabled="disabled || saved"
         @click="emit('submit')"
       >
         <el-icon><DocumentChecked /></el-icon>
@@ -31,7 +34,8 @@ const emit = defineEmits<{
       </el-button>
       <el-button
         class="admission-final-actions__button"
-        @click="emit('pending', 'Imprimir S.I.S.')"
+        :disabled="saving || disabled || !printReady"
+        @click="emit('print')"
       >
         <el-icon><Printer /></el-icon>
         <span>Imprimir S.I.S.</span>

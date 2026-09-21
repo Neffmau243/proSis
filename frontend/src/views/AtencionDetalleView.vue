@@ -3,6 +3,8 @@
     <div class="page-header">
       <h2>Atención #{{ attention?.id ?? attentionId }}</h2>
       <div>
+        <el-button v-if="attention?.estado === 'ATENDIDO' && attention.fua_impresion"
+          @click="printDialog = true">Imprimir S.I.S.</el-button>
         <el-button
           v-if="attention?.estado === 'ATENDIDO' && can('ATENCION_ANULAR')"
           type="danger"
@@ -15,7 +17,7 @@
           v-if="attention?.estado === 'ATENDIDO' && can('FUA_EMITIR')"
           @click="openDialog('fua')"
         >
-          Emitir FUA
+          Registrar FUA interno
         </el-button>
         <el-button
           v-if="attention?.estado === 'ATENDIDO' && can('CERTIFICADO_EMITIR')"
@@ -50,6 +52,7 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="Grupo etario">{{ attention?.grupo_etario_codigo }}</el-descriptions-item>
+        <el-descriptions-item label="Grupo de atención">{{ careGroupLabel(attention?.grupo_atencion_codigo) }}</el-descriptions-item>
         <el-descriptions-item label="Fecha de atención">{{ attention?.fecha_atencion }}</el-descriptions-item>
         <el-descriptions-item label="Fecha efectiva">{{ attention?.fecha_atendido || '—' }}</el-descriptions-item>
         <el-descriptions-item label="Modalidad">{{ attention?.modalidad_atencion_codigo }}</el-descriptions-item>
@@ -62,6 +65,9 @@
         <el-descriptions-item label="Peso">{{ attention?.peso_kg ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="Talla">{{ attention?.talla_cm ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="Perímetro abdominal">{{ attention?.perimetro_abdominal_cm ?? '—' }}</el-descriptions-item>
+        <el-descriptions-item label="Tipo de embarazo">{{ pregnancyTypeLabel(attention?.tipo_embarazo_codigo) }}</el-descriptions-item>
+        <el-descriptions-item label="Peso antes del embarazo">{{ attention?.peso_antes_embarazo_kg ?? '—' }}</el-descriptions-item>
+        <el-descriptions-item label="Fecha probable de parto">{{ attention?.fecha_probable_parto ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="P. sistólica">{{ attention?.presion_sistolica ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="P. diastólica">{{ attention?.presion_diastolica ?? '—' }}</el-descriptions-item>
         <el-descriptions-item label="Temperatura">{{ attention?.temperatura_c ?? '—' }}</el-descriptions-item>
@@ -89,6 +95,11 @@
       </el-table>
     </el-card>
 
+    <FuaPrintDialog v-if="attention?.fua_impresion && attention.estado === 'ATENDIDO'"
+      v-model="printDialog" :snapshot="attention.fua_impresion" />
+    <el-alert v-if="attention && !attention.fua_impresion" type="info" :closable="false"
+      title="Esta atención anterior no tiene una copia de datos FUA guardada. No se reconstruye con datos actuales del paciente." />
+
     <!-- Anulación -->
     <el-dialog v-model="cancelDialog" title="Anular atención" width="480px" destroy-on-close>
       <el-alert
@@ -110,7 +121,8 @@
     </el-dialog>
 
     <!-- FUA -->
-    <el-dialog v-model="fuaDialog" title="Emitir FUA" width="480px" destroy-on-close>
+    <el-dialog v-model="fuaDialog" title="Registrar FUA interno" width="480px" destroy-on-close>
+      <el-alert type="info" :closable="false" title="Este registro genera un número interno; no asigna numeración oficial SIS ni imprime la hoja preimpresa." />
       <el-form :model="fuaForm" label-position="top">
         <el-form-item label="Código de ciudad (opcional)">
           <el-input v-model="fuaForm.codigo_ciudad" />
@@ -220,6 +232,9 @@ import {
 } from '@/services/catalogos'
 import { pacientes } from '@/services/pacientes'
 import { atenciones, type Attention, type FuaResponse, type CertificateResponse, type ReferralResponse } from '@/services/atenciones'
+import { careGroupLabel } from '@/utils/careGroup'
+import { pregnancyTypeLabel } from '@/utils/pregnancy'
+import FuaPrintDialog from '@/components/admission/FuaPrintDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -227,6 +242,7 @@ const auth = useAuthStore()
 const attentionId = Number(route.params.id)
 
 const attention = ref<Attention | null>(null)
+const printDialog = ref(false)
 const patientName = ref('—')
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
@@ -407,6 +423,7 @@ onMounted(async () => {
   loading.value = true
   try {
     attention.value = await atenciones.get(attentionId)
+    printDialog.value = route.query.imprimirFua === '1' && !!attention.value.fua_impresion
     if (attention.value) {
       try {
         const patient = await pacientes.get(attention.value.paciente_id)

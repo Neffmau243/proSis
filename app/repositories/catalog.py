@@ -13,6 +13,7 @@ from app.models.catalog import (
     AttentionMode,
     Cie10,
     DocumentType,
+    Ethnicity,
     Insurance,
     Profession,
     ServiceOffering,
@@ -46,6 +47,9 @@ class CatalogRepository:
 
     def list_sexes(self) -> list[Sex]:
         return self._list_active(Sex, Sex.codigo)
+
+    def list_ethnicities(self) -> list[Ethnicity]:
+        return self._list_active(Ethnicity, Ethnicity.nombre)
 
     def list_insurances(self) -> list[Insurance]:
         return self._list_active(Insurance, Insurance.nombre, Insurance.id)

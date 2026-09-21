@@ -161,7 +161,9 @@ adaptación móvil o una validación de escalabilidad.
 | Comando | Efecto |
 | --- | --- |
 | `npm run dev` | Desarrollo con recarga. |
-| `npm test` | Pruebas Node del borrador y del guardado. |
+| `npm test` | Suite completa (Vitest) una vez. |
+| `npm run test:watch` | Suite en modo interactivo. |
+| `npm run test:coverage` | Suite con cobertura y umbrales. |
 | `npm run lint:check` | Oxlint + ESLint sin modificar archivos. |
 | `npm run lint` | Oxlint + ESLint con correcciones. |
 | `npm run type-check` | Comprobación TypeScript/Vue. |
@@ -169,8 +171,28 @@ adaptación móvil o una validación de escalabilidad.
 | `npm run preview` | Sirve la compilación local. |
 | `npm run format` | Formatea `src/` con Prettier. |
 
-Las pruebas del editor cubren diferencias, borrado de opcionales, validación,
-ausencia de peticiones mientras se escribe, un solo PATCH por guardado,
-reintento tras fallo, descarte y conservación del borrador al actualizar relaciones.
-Son pruebas con persistencia simulada; no escriben en la base del usuario.
-CI ejecuta lint, pruebas y build del frontend, además del job de backend.
+## Pruebas
+
+Vitest con `happy-dom` y `@vue/test-utils`; no necesitan backend ni base de
+datos. La configuración está en `vitest.config.ts` y los archivos en `tests/`:
+
+| Archivo | Qué fija |
+| --- | --- |
+| `tests/patientEditor.test.ts` | Diferencias, borrado de opcionales, validación, un solo PATCH por guardado, reintento tras fallo y descarte. |
+| `tests/patientSearch.test.ts` | Cada modalidad de búsqueda usa un único criterio y respeta los mínimos de la API. |
+| `tests/services.test.ts`, `tests/http.test.ts` | Rutas, parámetros, payloads, Bearer, sobre de error y redirección por 401. |
+| `tests/storeAuth.test.ts` | Sesión persistida, vencimiento, permisos y cierre de sesión. |
+| `tests/composables.test.ts` | Paginación, búsqueda remota con descarte de respuestas antiguas, vista previa nutricional. |
+| `tests/router.test.ts` | Guardas de navegación por sesión y permisos. |
+| `tests/views/*.test.ts`, `tests/layouts/*.test.ts`, `tests/components/*.test.ts` | Flujos montados: login, búsqueda del padrón y acciones sobre el paciente seleccionado. |
+| `tests/*.test.ts` (utilidades) | Edad por calendario, FUA impreso, SIS, contraseña y borrador del FUA. |
+
+La cobertura se mide sobre `src/**` y se exige por capa en `vitest.config.ts`
+(utilidades, servicios, composables, store, guardas y layout). Bajar de ese
+umbral falla la ejecución. CI ejecuta lint, `test:coverage` y build del
+frontend, además del job de backend con MySQL 8.
+
+`vitest.config.ts` fija dos ajustes deliberados: `async-validator` se resuelve
+al build ESM -el que usa el navegador- para que la validación de Element Plus
+deje de resolver en silencio, y Element Plus se procesa con el resolvedor de
+Vite. Sin ellos, `el-form.validate()` informaría éxito con campos vacíos.

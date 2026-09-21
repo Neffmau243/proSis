@@ -1,5 +1,12 @@
 import http from './http'
 import type { PageResponse } from '@/types/api'
+import type { FuaPrintInput, FuaPrintSnapshot } from '@/types/fua'
+
+/** Población clínica declarada durante la admisión. */
+export type CareGroupCode = 'NINOS_ADOLESCENTES_ADULTOS_MAYORES' | 'GESTANTES' | 'PUERPERAS'
+
+/** Pluralidad de la gestación, registrada solo para el grupo Gestantes. */
+export type PregnancyTypeCode = 'UNICO' | 'MULTIPLE'
 
 export interface AttentionServiceItem {
   numero_orden: number
@@ -15,6 +22,7 @@ export interface AttentionDiagnosisItem {
 }
 
 export interface Attention {
+  fua_impresion: FuaPrintSnapshot | null
   id: number
   paciente_id: number
   establecimiento_id: number
@@ -24,6 +32,7 @@ export interface Attention {
   consultorio_nombre: string | null
   modalidad_atencion_codigo: string
   grupo_etario_codigo: string
+  grupo_atencion_codigo: CareGroupCode
   fecha_atencion: string
   fecha_atendido: string | null
   historia_clinica_snapshot: string | null
@@ -32,6 +41,9 @@ export interface Attention {
   peso_kg: string | null
   talla_cm: string | null
   perimetro_abdominal_cm: string | null
+  tipo_embarazo_codigo: string | null
+  peso_antes_embarazo_kg: string | null
+  fecha_probable_parto: string | null
   presion_sistolica: number | null
   presion_diastolica: number | null
   temperatura_c: string | null
@@ -70,17 +82,22 @@ export interface NutritionalSnapshotPayload {
 }
 
 export interface AttentionCreatePayload {
+  fua_datos?: FuaPrintInput | null
   paciente_id: number
   establecimiento_id: number
   profesional_id: number
   especialidad_codigo?: string | null
   consultorio_id: number
   modalidad_atencion_codigo: 'AMBULATORIA' | 'EMERGENCIA'
+  grupo_atencion_codigo?: CareGroupCode
   fecha_atencion: string
   fecha_atendido?: string | null
   peso_kg?: number | null
   talla_cm?: number | null
   perimetro_abdominal_cm?: number | null
+  tipo_embarazo_codigo?: PregnancyTypeCode | null
+  peso_antes_embarazo_kg?: number | null
+  fecha_probable_parto?: string | null
   presion_sistolica?: number | null
   presion_diastolica?: number | null
   temperatura_c?: number | null

@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.catalog import DocumentType, Insurance, Sex
+from app.models.catalog import DocumentType, Ethnicity, Insurance, Sex
 from app.models.clinical import Attention
 from app.models.organization import Establishment, Office, OfficeProfessional, Ubigeo
 from app.models.patient import Patient, PatientResponsible, PatientRisk, RiskGroup
@@ -73,6 +73,9 @@ class PatientRepository:
             DocumentType.activo.is_(True),
         )
         return self._session.execute(statement).scalar_one_or_none()
+
+    def get_active_ethnicity(self, code: str) -> Ethnicity | None:
+        return self._session.scalar(select(Ethnicity).where(Ethnicity.codigo == code, Ethnicity.activo.is_(True)))
 
     def get_active_sex(self, code: str) -> Sex | None:
         statement = select(Sex).where(Sex.codigo == code, Sex.activo.is_(True))

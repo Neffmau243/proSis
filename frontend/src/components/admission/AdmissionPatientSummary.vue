@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { computed, toRef, watch } from 'vue'
+import AdmissionPatientSisSummary from './AdmissionPatientSisSummary.vue'
+import PatientSisCodeFields from '@/components/patients/PatientSisCodeFields.vue'
 import { ElMessage } from 'element-plus'
-import AdmissionPatientRelations from './AdmissionPatientRelations.vue'
 import { useAdmissionPatientDetails } from '@/composables/useAdmissionPatientDetails'
 import { useAdmissionPatientEditor } from '@/composables/useAdmissionPatientEditor'
 import { patientFields, type PatientFieldKey } from '@/utils/patientDraft'
 import { pacientes, type Patient } from '@/services/pacientes'
+import type { CodeCatalogItem } from '@/services/catalogos'
 
-const props = defineProps<{ patient: Patient; canEdit: boolean; blocked?: boolean }>()
+const props = defineProps<{
+  patient: Patient
+  canEdit: boolean
+  blocked?: boolean
+  /** Catálogo cargado por la vista, que también lo usa para el diálogo de responsables. */
+  tiposDocumento: CodeCatalogItem[]
+}>()
 const emit = defineEmits<{
   saved: [patient: Patient]
   dirtyChange: [dirty: boolean]
@@ -23,25 +31,15 @@ const { draft, saving, dirty, error, fieldErrors, save, reset } = useAdmissionPa
     ElMessage.success('Datos del paciente actualizados.')
   },
 })
-const {
-  tiposDocumento,
-  sexos,
-  seguros,
-  gruposRiesgo,
-  catalogError,
-  loadCatalogs,
-  establishments,
-  districts,
-  ageLabel,
-  grupoEtarioLabel,
-} = useAdmissionPatientDetails(toRef(props, 'patient'))
+const { sexos, seguros, etnias, catalogError, loadCatalogs, establishments, districts } =
+  useAdmissionPatientDetails(toRef(props, 'patient'))
 const disabled = computed(
   () => !props.canEdit || !props.patient.estado || saving.value || props.blocked,
 )
 const options = computed<
   Partial<Record<PatientFieldKey, { label: string; value: string | number }[]>>
 >(() => ({
-  tipo_documento_codigo: tiposDocumento.value.map((item) => ({
+  tipo_documento_codigo: props.tiposDocumento.map((item) => ({
     label: item.nombre,
     value: item.codigo,
   })),
@@ -102,78 +100,87 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
         label-width="110px"
         @submit.prevent="save"
       >
-        <el-form-item
-          v-for="field in patientFields"
-          :key="field.key"
-          :label="field.label"
-          :error="fieldErrors[field.key]"
-          :required="'required' in field && field.required"
-        >
-          <el-input
-            v-if="field.kind === 'text'"
-            v-model="draft[field.key]"
-            :maxlength="'max' in field ? field.max : undefined"
-            :disabled="disabled"
-            :aria-label="field.label"
-            :inputmode="field.key === 'telefono_principal' ? 'tel' : 'text'"
-          />
-          <el-input
-            v-else-if="field.kind === 'date'"
-            v-model="draft[field.key]"
-            type="date"
-            :disabled="disabled"
-            :aria-label="field.label"
-          />
-          <el-select
-            v-else
-            v-model="draft[field.key]"
-            filterable
-            :clearable="!('required' in field && field.required)"
-            :disabled="disabled"
-            :aria-label="field.label"
-            placeholder="Seleccione"
-            :remote="
-              field.key === 'ubigeo_residencia_codigo' ||
-              field.key === 'establecimiento_registro_id'
-            "
-            :remote-method="
-              field.key === 'ubigeo_residencia_codigo' ? searchDistricts : searchEstablishments
-            "
-            :loading="
-              field.key === 'ubigeo_residencia_codigo'
-                ? districts.loading.value
-                : field.key === 'establecimiento_registro_id' && establishments.loading.value
-            "
+        <template v-for="field in patientFields" :key="field.key">
+          <el-form-item
+            :class="{ 'patient-context__insurance': field.key === 'seguro_id' }"
+            :label="field.label"
+            :error="fieldErrors[field.key]"
+            :required="'required' in field && field.required"
           >
-            <el-option
-              v-for="option in fieldOptions(field.key)"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
+            <el-input
+              v-if="field.kind === 'text'"
+              v-model="draft[field.key]"
+              :maxlength="'max' in field ? field.max : undefined"
+              :disabled="disabled"
+              :aria-label="field.label"
+              :inputmode="field.key === 'telefono_principal' ? 'tel' : 'text'"
             />
-          </el-select>
-          <p
-            v-if="field.key === 'ubigeo_residencia_codigo' && districts.error.value"
-            class="patient-context__field-error"
-            role="alert"
-          >
-            {{ districts.error.value }}
-            <el-button
-              link
-              type="primary"
-              @click="districts.load(draft.ubigeo_residencia_codigo || undefined)"
-              >Reintentar</el-button
+            <el-input
+              v-else-if="field.kind === 'date'"
+              v-model="draft[field.key]"
+              type="date"
+              :disabled="disabled"
+              :aria-label="field.label"
+            />
+            <el-select
+              v-else
+              v-model="draft[field.key]"
+              filterable
+              :clearable="!('required' in field && field.required)"
+              :disabled="disabled"
+              :aria-label="field.label"
+              placeholder="Seleccione"
+              :remote="
+                field.key === 'ubigeo_residencia_codigo' ||
+                field.key === 'establecimiento_registro_id'
+              "
+              :remote-method="
+                field.key === 'ubigeo_residencia_codigo' ? searchDistricts : searchEstablishments
+              "
+              :loading="
+                field.key === 'ubigeo_residencia_codigo'
+                  ? districts.loading.value
+                  : field.key === 'establecimiento_registro_id' && establishments.loading.value
+              "
             >
-          </p>
-          <p
-            v-if="field.key === 'establecimiento_registro_id' && establishments.error.value"
-            class="patient-context__field-error"
-            role="alert"
-          >
-            {{ establishments.error.value }}
-            <el-button link type="primary" @click="establishments.load()">Reintentar</el-button>
-          </p>
-        </el-form-item>
+              <el-option
+                v-for="option in fieldOptions(field.key)"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+            <p
+              v-if="field.key === 'ubigeo_residencia_codigo' && districts.error.value"
+              class="patient-context__field-error"
+              role="alert"
+            >
+              {{ districts.error.value }}
+              <el-button
+                link
+                type="primary"
+                @click="districts.load(draft.ubigeo_residencia_codigo || undefined)"
+                >Reintentar</el-button
+              >
+            </p>
+            <p
+              v-if="field.key === 'establecimiento_registro_id' && establishments.error.value"
+              class="patient-context__field-error"
+              role="alert"
+            >
+              {{ establishments.error.value }}
+              <el-button link type="primary" @click="establishments.load()">Reintentar</el-button>
+            </p>
+          </el-form-item>
+          <PatientSisCodeFields
+            v-if="field.key === 'seguro_id'"
+            class="patient-context__insurance"
+            :value="draft"
+            :disabled="disabled"
+            :errors="fieldErrors"
+            @update="Object.assign(draft, $event)"
+          />
+        </template>
         <div v-if="canEdit" class="patient-context__actions">
           <el-alert v-if="error" :title="error" type="error" :closable="false" />
           <p class="patient-context__hint" role="status">
@@ -189,25 +196,10 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
           <el-button v-if="dirty" :disabled="disabled" @click="reset">Descartar cambios</el-button>
         </div>
       </el-form>
-      <dl class="patient-context__derived">
-        <div>
-          <dt>Edad actual</dt>
-          <dd>{{ ageLabel }}</dd>
-        </div>
-        <div>
-          <dt>Grupo etario</dt>
-          <dd>{{ grupoEtarioLabel }}</dd>
-        </div>
-      </dl>
-      <p class="patient-context__hint">Se calculan con la fecha de nacimiento guardada.</p>
-      <AdmissionPatientRelations
+      <AdmissionPatientSisSummary
         :patient="patient"
-        :disabled="disabled"
-        :can-edit="canEdit"
-        :tipos-documento="tiposDocumento"
-        :grupos-riesgo="gruposRiesgo"
-        @saved="emit('saved', $event)"
-        @busy-change="emit('busyChange', $event)"
+        :ethnicities="etnias"
+        :show-affiliation="false"
       />
     </div>
   </section>
@@ -272,6 +264,9 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
   padding-top: 4px;
   grid-column: 1 / -1;
 }
+.patient-context__insurance {
+  grid-column: 1 / -1;
+}
 .patient-context__actions :deep(.el-button) {
   margin: 0;
 }
@@ -285,22 +280,6 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
   color: var(--el-color-danger);
   font-size: 12px;
   margin: 4px 0 0;
-}
-.patient-context__derived {
-  margin: 16px 0 0;
-  border-top: 1px solid var(--el-border-color-lighter);
-  padding-top: 12px;
-}
-.patient-context__derived > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-  margin-bottom: 6px;
-}
-.patient-context__derived dd {
-  margin: 0;
-  font-weight: 600;
 }
 @media (min-width: 561px) and (max-width: 900px) {
   .patient-context__form {

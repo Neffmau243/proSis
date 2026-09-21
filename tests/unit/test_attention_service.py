@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from types import SimpleNamespace
 
 import pytest
 
 from app.exceptions import AuthorizationError
-from app.schemas.attention import AttentionCreate
+from app.schemas.attention import AttentionCreate, CareGroupCode, PregnancyTypeCode
 from app.services.attention import AttentionService
 
 
@@ -77,6 +77,93 @@ def test_non_admin_professional_cannot_operate_for_another_professional() -> Non
         )
 
     assert exc_info.value.code == "PROFESIONAL_DISTINTO_AL_USUARIO"
+
+
+def test_care_group_defaults_to_general_population() -> None:
+    """Clients that never declared a population stay on the general group."""
+
+    command = AttentionCreate(
+        paciente_id=1,
+        establecimiento_id=1,
+        profesional_id=1,
+        consultorio_id=1,
+        modalidad_atencion_codigo="AMBULATORIA",
+        fecha_atencion=datetime(2026, 9, 9, 9, 0),
+    )
+
+    assert command.grupo_atencion_codigo is CareGroupCode.GENERAL
+
+
+def test_care_group_rejects_unknown_populations() -> None:
+    with pytest.raises(ValueError):
+        AttentionCreate(
+            paciente_id=1,
+            establecimiento_id=1,
+            profesional_id=1,
+            consultorio_id=1,
+            modalidad_atencion_codigo="AMBULATORIA",
+            grupo_atencion_codigo="GESTANTE",  # typo: the code is plural
+            fecha_atencion=datetime(2026, 9, 9, 9, 0),
+        )
+
+
+def test_pregnancy_values_are_optional_and_validated() -> None:
+    """Only the two gestation pluralities are accepted, and neither is required."""
+
+    base = {
+        "paciente_id": 1,
+        "establecimiento_id": 1,
+        "profesional_id": 1,
+        "consultorio_id": 1,
+        "modalidad_atencion_codigo": "AMBULATORIA",
+        "grupo_atencion_codigo": "GESTANTES",
+        "fecha_atencion": datetime(2026, 9, 9, 9, 0),
+    }
+
+    empty = AttentionCreate(**base)  # type: ignore[arg-type]
+    assert empty.peso_antes_embarazo_kg is None
+    assert empty.tipo_embarazo_codigo is None
+    assert empty.fecha_probable_parto is None
+
+    filled = AttentionCreate(
+        **base,  # type: ignore[arg-type]
+        tipo_embarazo_codigo="MULTIPLE",
+        peso_antes_embarazo_kg="58.40",
+        fecha_probable_parto="2027-03-15",
+    )
+    assert filled.tipo_embarazo_codigo is PregnancyTypeCode.MULTIPLE
+    assert filled.fecha_probable_parto == date(2027, 3, 15)
+
+    with pytest.raises(ValueError):
+        AttentionCreate(**base, tipo_embarazo_codigo="TRIPLE")  # type: ignore[arg-type]
+
+
+def test_snapshot_records_the_declared_care_group() -> None:
+    """The audit trail must show the population the encounter was filed under."""
+
+    entity = SimpleNamespace(
+        id=1,
+        paciente_id=10,
+        establecimiento_id=2,
+        profesional_id=3,
+        consultorio_id=4,
+        modalidad_atencion_codigo="AMBULATORIA",
+        grupo_etario_codigo="ADULTO",
+        grupo_atencion_codigo="PUERPERAS",
+        fecha_atencion=datetime(2026, 9, 10, 9, 30),
+        historia_clinica_snapshot="HC-001",
+        imc=None,
+        pe=None,
+        te=None,
+        pt=None,
+        referencia_nutricional=None,
+        estado="ATENDIDO",
+        observaciones=None,
+    )
+
+    snapshot = AttentionService._snapshot(entity)  # type: ignore[arg-type]
+
+    assert snapshot["grupo_atencion_codigo"] == "PUERPERAS"
 
 
 def test_admin_cannot_operate_clinical_encounters() -> None:

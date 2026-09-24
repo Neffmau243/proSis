@@ -59,7 +59,9 @@ def _temporary_settings(url: str, *, environment: str = "development") -> Settin
 
 
 def _test_database_url() -> str:
-    url = os.environ["TEST_DATABASE_URL"]
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        pytest.skip("Defina TEST_DATABASE_URL para ejecutar integración MySQL.")
     assert "test" in make_url(url).database.lower()
     return url
 

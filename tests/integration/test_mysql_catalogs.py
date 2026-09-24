@@ -70,7 +70,9 @@ def test_simple_catalogs_return_seeded_reference_values(
 
     insurances = clinic_scene.admin_client.get(f"{api_prefix}/catalogos/seguros")
     assert insurances.status_code == 200
-    assert {"id", "codigo", "nombre", "activo"} == set(insurances.json()[0])
+    assert {"id", "codigo", "nombre", "activo", "codigo_sis", "regimen"} == set(
+        insurances.json()[0]
+    )
 
     professions = clinic_scene.admin_client.get(f"{api_prefix}/catalogos/profesiones")
     assert professions.status_code == 200
@@ -113,6 +115,7 @@ def test_paginated_catalogs_accept_a_search_term(
         "/catalogos/prestaciones": f"Prestación {token}",
         "/catalogos/cie10": f"Diagnóstico {token}",
         "/catalogos/ubigeos": f"Distrito {token}",
+        "/catalogos/localidades": "CERCADO",
         "/catalogos/profesionales": clinic_scene.suffix,
         "/catalogos/establecimientos": clinic_scene.suffix,
         "/catalogos/consultorios": clinic_scene.suffix,

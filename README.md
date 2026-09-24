@@ -21,6 +21,8 @@ uvicorn app.main:app --reload
 
 # terminal 2 — frontend
 cd frontend && npm install && npm run dev
+
+Lucía Valentina Prueba Integral, ID 20
 ```
 
 Abrir <http://localhost:5173> e ingresar con una cuenta demo. La API queda en
@@ -109,7 +111,7 @@ app/
 ├── models/              # mapeo SQLAlchemy completo del esquema MySQL
 ├── repositories/        # acceso a datos, sin reglas de negocio
 ├── schemas/             # contratos Pydantic de entrada/salida
-├── scripts/             # bootstrap, admin inicial, semillas y reinicio local
+├── scripts/             # bootstrap, admin inicial, semillas, reinicio y reparación local
 ├── services/            # casos de uso y transacciones
 └── main.py
 migrations/
@@ -244,6 +246,20 @@ en una base con información real.
 
 Para una corrida completa sobre la MySQL ya configurada use solamente
 [`postman/IPRESS_API_flujo_feliz.postman_collection.json`](postman/IPRESS_API_flujo_feliz.postman_collection.json).
+
+### Reparación de datos de residencia
+
+Cuando una base antigua quedó con pacientes sin distrito, sin localidad o sin
+seguro, y con el catálogo ``ubigeos`` nombrado por distritos vecinos, este
+comando repara el catálogo y completa las fichas. Fabricar domicilios es una
+decisión de desarrollo, por eso **no** es una migración: se niega a correr con
+`ENVIRONMENT` distinto de `development` e informa cada cambio. Sin `--apply`
+solo simula, y es idempotente: una segunda ejecución no cambia nada.
+
+```bash
+python -m app.scripts.repair_patient_data           # simulación
+python -m app.scripts.repair_patient_data --apply   # aplica
+```
 Cubre 54 de las 56 operaciones publicadas (faltan el selector de usuarios y la
 vista previa nutricional), genera y captura los IDs/tokens propios y
 fuerza sus variables de colección para que un Environment de Postman activo no

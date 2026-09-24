@@ -1,5 +1,10 @@
 import { computed, onScopeDispose, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
-import { catalogos, type CodeCatalogItem, type IdCatalogItem } from '@/services/catalogos'
+import {
+  catalogos,
+  type CodeCatalogItem,
+  type IdCatalogItem,
+  type LocalidadCatalogItem,
+} from '@/services/catalogos'
 import type { Patient } from '@/services/pacientes'
 import { useRemoteCatalog } from '@/composables/useRemoteCatalog'
 
@@ -10,6 +15,9 @@ export function useAdmissionPatientDetails(patient: MaybeRefOrGetter<Patient>) {
   const seguros = shallowRef<IdCatalogItem[]>([])
   const etnias = shallowRef<CodeCatalogItem[]>([])
   const catalogError = shallowRef<string | null>(null)
+  const localities = shallowRef<LocalidadCatalogItem[]>([])
+  const localitiesLoading = shallowRef(false)
+  const localitiesError = shallowRef<string | null>(null)
   let version = 0
   const establishments = useRemoteCatalog({
     fetch: (query) => catalogos.establecimientos(query, 50, 0),
@@ -39,6 +47,24 @@ export function useAdmissionPatientDetails(patient: MaybeRefOrGetter<Patient>) {
         'No se cargaron todos los catálogos. Puede reintentar y conservar sus cambios.'
     }
   }
+  async function loadLocalities(ubigeo: string | null): Promise<void> {
+    if (!ubigeo) {
+      localities.value = []
+      localitiesError.value = null
+      return
+    }
+    localitiesLoading.value = true
+    localitiesError.value = null
+    try {
+      localities.value = (await catalogos.localidades(ubigeo, undefined, 100, 0)).items
+    } catch {
+      localities.value = []
+      localitiesError.value = 'No se cargaron las localidades del distrito.'
+    } finally {
+      localitiesLoading.value = false
+    }
+  }
+
   void loadCatalogs()
   void establishments.load()
   watch(
@@ -60,5 +86,9 @@ export function useAdmissionPatientDetails(patient: MaybeRefOrGetter<Patient>) {
     loadCatalogs,
     establishments,
     districts,
+    localities,
+    localitiesLoading,
+    localitiesError,
+    loadLocalities,
   }
 }

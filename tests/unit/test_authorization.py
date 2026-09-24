@@ -20,6 +20,8 @@ def test_professional_can_perform_own_clinical_work_but_not_administration() -> 
         {
             Permissions.PATIENT_READ,
             Permissions.PATIENT_WRITE,
+            # Registra admisiones, así que puede revertir una equivocada.
+            Permissions.PATIENT_DEACTIVATE,
             Permissions.ATTENTION_CREATE,
             Permissions.ATTENTION_READ,
             Permissions.ATTENTION_CANCEL,
@@ -37,7 +39,7 @@ def test_legacy_role_codes_have_no_permissions_or_assignment_path() -> None:
     assert ASSIGNABLE_ROLE_CODES == frozenset({"ADMIN", "PROFESIONAL"})
 
 
-def test_professional_cannot_deactivate_a_patient() -> None:
+def test_professional_may_deactivate_a_patient_but_still_cannot_administer() -> None:
     principal = AuthenticatedPrincipal(
         user_id=7,
         username="profesional.demo",
@@ -45,8 +47,13 @@ def test_professional_cannot_deactivate_a_patient() -> None:
         permissions=RolePermissionPolicy().resolve(["PROFESIONAL"]),
     )
 
+    # Dar de baja es parte de admitir: el profesional que registró al paciente
+    # puede revertir la admisión.
+    require_permissions(Permissions.PATIENT_DEACTIVATE)(principal)
+
+    # El resto de la superficie administrativa sigue fuera de su alcance.
     with pytest.raises(AuthorizationError):
-        require_permissions(Permissions.PATIENT_DEACTIVATE)(principal)
+        require_permissions(Permissions.USER_MANAGE)(principal)
 
 
 def test_user_service_rejects_retired_roles_before_querying_the_catalog() -> None:

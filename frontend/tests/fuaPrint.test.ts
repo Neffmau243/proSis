@@ -214,3 +214,20 @@ test('preprinted RENIPRESS stays blank even with an enabled saved field; v2 uses
       .codigo_renipress,
   ).toBe('98765432')
 })
+
+test('la impresión separa la DIRESA del tipo y el número de afiliación', () => {
+  const v = fuaValues({ ...snapshot, sis_diresa: '040', sis_tipo: '2', sis_numero: '72769512' })
+  // Casilla propia de DIRESA/DISA: solo los tres dígitos del establecimiento de salud.
+  expect(v.sis_diresa).toBe('040')
+  // Casilla de tipo/número: nunca concatena la DIRESA delante.
+  expect(v.sis_numero_completo).toBe('2-72769512')
+  expect(v.sis_numero_completo).not.toContain('040')
+  const fields = defaultFuaLayout().fields
+  const diresa = fields.find((field) => field.id === 'sis_diresa')!
+  const numero = fields.find((field) => field.id === 'sis_numero_completo')!
+  expect([diresa.label, numero.label]).toEqual(['SIS · DIRESA', 'SIS · Tipo / número / RN'])
+  expect(diresa.x).not.toBe(numero.x)
+  const html = fuaPrintHtml(defaultFuaLayout(), v)
+  expect(html).toMatch(/2-72769512/)
+  expect(html).not.toMatch(/040-2-72769512/)
+})

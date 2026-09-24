@@ -20,7 +20,7 @@ from app.models.catalog import (
     Sex,
     Specialty,
 )
-from app.models.organization import Establishment, Office, Ubigeo
+from app.models.organization import Establishment, Localidad, Office, Ubigeo
 from app.models.patient import RiskGroup
 from app.models.security import Professional
 
@@ -177,6 +177,29 @@ class CatalogRepository:
             Ubigeo.codigo,
         )
         count_statement = select(func.count()).select_from(Ubigeo).where(*conditions)
+        return self._page(statement, count_statement, limit=limit, offset=offset)
+
+    def page_localities(
+        self,
+        *,
+        ubigeo_codigo: str | None,
+        query: str | None,
+        limit: int,
+        offset: int,
+    ) -> CatalogPage[Localidad]:
+        conditions: list[Any] = [Localidad.activo.is_(True)]
+        if ubigeo_codigo:
+            conditions.append(Localidad.ubigeo_codigo == ubigeo_codigo)
+        if query:
+            pattern = self._contains_pattern(query)
+            conditions.append(
+                or_(
+                    Localidad.nombre.ilike(pattern, escape="\\"),
+                    Localidad.codigo_sis.ilike(pattern, escape="\\"),
+                )
+            )
+        statement = select(Localidad).where(*conditions).order_by(Localidad.nombre, Localidad.id)
+        count_statement = select(func.count()).select_from(Localidad).where(*conditions)
         return self._page(statement, count_statement, limit=limit, offset=offset)
 
     def _list_active(self, model: type[EntityT], *order_by: Any) -> list[EntityT]:

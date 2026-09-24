@@ -34,6 +34,7 @@ export interface PatientRegistrationDraft extends PatientSisData {
   establecimiento_registro_id: number | null
   ubigeo_residencia_codigo: string | null
   localidad: string
+  localidad_id: number | null
   direccion: string
   telefono_principal: string
   condicion: string

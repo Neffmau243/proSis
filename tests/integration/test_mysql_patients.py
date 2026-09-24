@@ -424,16 +424,16 @@ def test_editing_requires_a_real_change_and_valid_residence(
     assert _error(missing)["code"] == "PACIENTE_NO_ENCONTRADO"
 
 
-def test_deactivation_is_administrative_and_logical(
+def test_deactivation_is_logical_for_the_professional_who_admits(
     clinic_scene, create_patient, db_session: Session, api_prefix
 ) -> None:
     patient = create_patient(clinic_scene.professional_client)
 
-    forbidden = clinic_scene.professional_client.delete(f"{api_prefix}/patients/{patient['id']}")
-    assert forbidden.status_code == 403
-    assert _error(forbidden)["code"] == "AUTHORIZATION_DENIED"
-
-    deactivated = clinic_scene.admin_client.delete(f"{api_prefix}/patients/{patient['id']}")
+    # El profesional que admite al paciente puede revertir una admisión
+    # equivocada; la baja sigue siendo lógica y auditada.
+    deactivated = clinic_scene.professional_client.delete(
+        f"{api_prefix}/patients/{patient['id']}"
+    )
     assert deactivated.status_code == 200, deactivated.text
     assert deactivated.json()["estado"] is False
     assert "baja" in deactivated.json()["mensaje"].lower()
@@ -452,9 +452,14 @@ def test_deactivation_is_administrative_and_logical(
         == ["INSERT", "DEACTIVATE"]
     )
 
-    assert clinic_scene.admin_client.get(f"{api_prefix}/patients/{patient['id']}").status_code == 404
+    assert (
+        clinic_scene.professional_client.get(f"{api_prefix}/patients/{patient['id']}").status_code
+        == 404
+    )
 
-    already_inactive = clinic_scene.admin_client.delete(f"{api_prefix}/patients/{patient['id']}")
+    already_inactive = clinic_scene.professional_client.delete(
+        f"{api_prefix}/patients/{patient['id']}"
+    )
     assert already_inactive.status_code == 404
 
 

@@ -33,6 +33,7 @@ from app.models.documents import Certificate, Fua, Referral
 from app.models.organization import (
     Disa,
     Establishment,
+    Localidad,
     MicroNetwork,
     Network,
     Office,
@@ -65,19 +66,19 @@ DEMO_PROFESSIONAL_PASSWORD = "18594027"
 DEMO_REGISTRATION_DATE = date(2024, 1, 15)
 DEMO_RISK_START = date(2024, 3, 1)
 
+#: Distritos que albergan a la cohorte ficticia, con el nombre oficial (INEI)
+#: que usa el catálogo ``ubigeos``.  El nombre no se inventa: si la dirección
+#: dice Cayma, el código tiene que ser 040103 y no el del distrito vecino.
 DEMO_DISTRICTS: tuple[tuple[str, str], ...] = (
-    ("040102", "Cayma"),
-    ("040104", "Cerro Colorado"),
+    ("040101", "AREQUIPA"),
+    ("040102", "ALTO SELVA ALEGRE"),
+    ("040103", "CAYMA"),
+    ("040104", "CERRO COLORADO"),
 )
 
 # La residencia se registra con tres niveles distintos. El código de ubigeo
 # identifica el distrito; la localidad es el sector dentro de ese distrito; la
 # dirección es el domicilio puntual. Nunca se persiste el código como localidad.
-DEMO_LOCALITY_BY_DISTRICT: dict[str, str] = {
-    "040101": "Alto Selva Alegre",
-    "040102": "Cayma",
-    "040104": "Cerro Colorado",
-}
 
 DEMO_RISK_GROUPS: tuple[tuple[str, str], ...] = (
     ("RIESGO_CARDIO", "Riesgo cardiovascular"),
@@ -100,6 +101,8 @@ class DemoPatient:
     address: str
     phone: str
     district_code: str
+    #: Sector dentro del distrito; debe existir en el catálogo ``localidades``.
+    locality: str
     #: Código de ``seguros``.
     insurance_code: str
     #: True cuando la sede de registro es IPRESS Demo Destino (fuera del
@@ -141,7 +144,8 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         sex_code="M",
         address="Calle Los Álamos 128, Cayma",
         phone="954112233",
-        district_code="040102",
+        district_code="040103",
+        locality="PUEBLO TRADICIONAL CAYMA",
         insurance_code="SIS",
         responsible=("MADRE", "Rosa Mamani Quispe", "954112234"),
     ),
@@ -156,6 +160,7 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         address="Av. Ejército 455, Arequipa",
         phone="954223344",
         district_code="040101",
+        locality="CERCADO",
         insurance_code="SIS",
         responsible=("MADRE", "Elena Huamán Ccahuana", "954223345"),
     ),
@@ -170,6 +175,7 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         address="Pasaje Los Sauces 15, Cerro Colorado",
         phone="954334455",
         district_code="040104",
+        locality="CERRO COLORADO",
         insurance_code="SIS",
         responsible=("MADRE", "Karina Chávez Delgado", "954334456"),
     ),
@@ -183,7 +189,8 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         sex_code="F",
         address="Urb. Villa Hermosa Mz. B, Cayma",
         phone="954445566",
-        district_code="040102",
+        district_code="040103",
+        locality="RESIDENCIA DE CAYMA",
         insurance_code="ESSALUD",
         at_destination=True,
         responsible=("PADRE", "Hugo Sánchez Rojas", "954445567"),
@@ -199,6 +206,7 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         address="Calle Perú 210, Arequipa",
         phone="954556677",
         district_code="040101",
+        locality="COOP. UNIVERSITARIA",
         insurance_code="SIS",
         responsible=("MADRE", "Silvia Torres Valencia", "954556678"),
         risk_code="RIESGO_METABOLICO",
@@ -214,6 +222,7 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         address="Av. Los Estados 88, Cerro Colorado",
         phone="954667788",
         district_code="040104",
+        locality="CERRO VIEJO",
         insurance_code="SIS",
         responsible=("MADRE", "Norma Ríos Salas", "954667789"),
     ),
@@ -228,6 +237,7 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         address="Calle Mercaderes 320, Arequipa",
         phone="954778899",
         district_code="040101",
+        locality="CERCADO",
         insurance_code="PARTICULAR",
         registered_by_clinician=True,
     ),
@@ -242,6 +252,7 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         address="Av. Goyeneche 512, Arequipa",
         phone="954889900",
         district_code="040101",
+        locality="LA NEGRITA",
         insurance_code="ESSALUD",
         registered_by_clinician=True,
         risk_code="RIESGO_CARDIO",
@@ -257,6 +268,7 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         address="Calle San Camilo 147, Arequipa",
         phone="955001122",
         district_code="040101",
+        locality="COOP. UNIVERSITARIA",
         insurance_code="SIS",
     ),
     DemoPatient(
@@ -269,7 +281,8 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         sex_code="F",
         address="Asoc. Los Portales Mz. C, Cayma",
         phone="955002233",
-        district_code="040102",
+        district_code="040103",
+        locality="URBANIZACION LEON XIII",
         insurance_code="SIN_SEGURO",
         at_destination=True,
     ),
@@ -284,6 +297,7 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         address="Calle Rivero 205, Arequipa",
         phone="955003344",
         district_code="040101",
+        locality="LA NEGRITA",
         insurance_code="ESSALUD",
         risk_code="RIESGO_CARDIO",
     ),
@@ -298,6 +312,7 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         address="Urb. Los Cipreses 74, Cerro Colorado",
         phone="955004455",
         district_code="040104",
+        locality="PACHACUTEC",
         insurance_code="SIN_SEGURO",
         at_destination=True,
     ),
@@ -311,7 +326,8 @@ DEMO_PATIENTS: tuple[DemoPatient, ...] = (
         sex_code="F",
         address="Calle Cahuide 504",
         phone="955005566",
-        district_code="040101",
+        district_code="040102",
+        locality='ALTO SELVA ALEGRE "A"',
         insurance_code="SIS",
     ),
 )
@@ -376,6 +392,112 @@ DEMO_ENCOUNTERS: tuple[DemoEncounter, ...] = (
 )
 
 
+#: Trece registros reales del origen (``Data_base.mdb``) elegidos por tener
+#: identidad, residencia y localidad dentro del distrito sembrado. Los cinco
+#: primeros traen la afiliación SIS completa; los siguientes cubren un tipo de
+#: seguro cada uno (afiliación temporal, semi-subsidiado, NRUS, EsSalud y
+#: sanidad) y tres sin seguro, para ejercitar cada rama de la admisión.
+#: Son datos reales del origen: no deben salir de desarrollo.
+#: ``establecimiento`` es el RENAES; ``diresa``/``tipo``/``numero`` son la
+#: afiliación SIS y quedan vacíos cuando el seguro no es del SIS.
+SOURCE_DEMO_PATIENTS: tuple[dict[str, Any], ...] = (
+    {
+        "documento": "77023409", "historia": "22",
+        "paterno": "ESCALANTE", "materno": "CCURO", "nombre": "ALEJANDRO", "otros": "SERAPIO",
+        "sexo": "M", "nacimiento": date(2000, 8, 26), "direccion": "ARTESANOS MISTI F5",
+        "localidad": "ARTESANOS EL MISTI", "establecimiento": "1291",
+        "seguro": "SIS_GRATUITO", "diresa": "040", "tipo": "2", "numero": "77023409",
+    },
+    {
+        "documento": "02016585", "historia": "02016585",
+        "paterno": "MASIAS", "materno": "MAMANI", "nombre": "MARCELINA", "otros": None,
+        "sexo": "F", "nacimiento": date(1966, 4, 26), "direccion": "LA ESTRELLA E 7",
+        "localidad": "LA ESTRELLA", "establecimiento": "1304",
+        "seguro": "SIS_PARA_TODOS", "diresa": "040", "tipo": "2", "numero": "02016585",
+    },
+    {
+        "documento": "45715716", "historia": "45715716",
+        "paterno": "SALAS", "materno": "SERRANO", "nombre": "JONATHAN", "otros": "FERNNADO",
+        "sexo": "M", "nacimiento": date(1989, 5, 18), "direccion": "V. UNION X-2 LEONES MISTI",
+        "localidad": "LEONES DEL MISTI", "establecimiento": "1301",
+        "seguro": "SIS_PARA_TODOS", "diresa": "040", "tipo": "2", "numero": "45715716",
+    },
+    {
+        "documento": "40727174", "historia": "85",
+        "paterno": "SALINAS", "materno": "PULCHA", "nombre": "EVELIN", "otros": None,
+        "sexo": "F", "nacimiento": date(1980, 9, 27), "direccion": "AV. ROOSVELTH 707 GRAFICO",
+        "localidad": "GRAFICOS", "establecimiento": "1291",
+        "seguro": "SIS_GRATUITO", "diresa": "040", "tipo": "2", "numero": "40727174",
+    },
+    {
+        "documento": "29470940", "historia": "94",
+        "paterno": "SILVA", "materno": "SOTO", "nombre": "ROCIO", "otros": "ANTONIETA",
+        "sexo": "F", "nacimiento": date(1969, 6, 21), "direccion": "LOS CLAVELES B2 APURIMAC",
+        "localidad": "APURIMAC", "establecimiento": "1302",
+        "seguro": "SIS_GRATUITO", "diresa": "040", "tipo": "2", "numero": "29470940",
+    },
+    # --- Un ejemplo por tipo de seguro (identidad y residencia del origen) ---
+    {
+        "documento": "75239016", "historia": "69915",
+        "paterno": "SANCHEZ", "materno": "PILA", "nombre": "LUIS", "otros": "ANGEL",
+        "sexo": "M", "nacimiento": date(2005, 6, 29), "direccion": "CRUCE CHILINA D-5",
+        "localidad": "BALCONES DE CHILINA", "establecimiento": "1302",
+        "seguro": "SIS_AFILIACION_TEMPORAL", "diresa": "040", "tipo": "E", "numero": "24233929",
+    },
+    {
+        "documento": "48383475", "historia": "57275",
+        "paterno": "PRIETO", "materno": "VILLENA", "nombre": "ISABEL", "otros": None,
+        "sexo": "F", "nacimiento": date(1994, 8, 6), "direccion": "LA ESTRELLA D8",
+        "localidad": "LA ESTRELLA", "establecimiento": "1291",
+        "seguro": "SIS_SEMI_SUBSIDIADO", "diresa": "040", "tipo": "6", "numero": "10760571",
+    },
+    {
+        "documento": "47689237", "historia": "7783",
+        "paterno": "RAMIREZ", "materno": "TORRES", "nombre": "SHESSIRA", "otros": "SHIRLEY",
+        "sexo": "F", "nacimiento": date(1993, 1, 9), "direccion": "SAN LUIS E3-4",
+        "localidad": "LEONES DEL MISTI", "establecimiento": "1303",
+        "seguro": "SIS_NRUS", "diresa": "040", "tipo": "R", "numero": "00700955",
+    },
+    {
+        "documento": "45769780", "historia": "9150",
+        "paterno": "PHOCCO", "materno": "SALAZAR", "nombre": "CARLOS", "otros": "EMRIQUE",
+        "sexo": "M", "nacimiento": date(1989, 6, 9), "direccion": "CALLE CAJAMARCA N°326",
+        "localidad": "APURIMAC", "establecimiento": "1291",
+        "seguro": "ESSALUD", "diresa": None, "tipo": None, "numero": None,
+    },
+    {
+        "documento": "29253988", "historia": "84315",
+        "paterno": "VALLE", "materno": "ARREDONDO", "nombre": "LUCY",
+        "otros": "ALEJANDRINA CONSUELO",
+        "sexo": "F", "nacimiento": date(1956, 4, 18), "direccion": "FRANCISCO BOLOGNESI 111",
+        "localidad": "LEONES DEL MISTI", "establecimiento": "1291",
+        "seguro": "SANIDAD", "diresa": None, "tipo": None, "numero": None,
+    },
+    # --- Tres sin seguro, para ver el formulario sin afiliación ---
+    {
+        "documento": "73099640", "historia": "42",
+        "paterno": "MAMANI", "materno": "TORRES", "nombre": "LUCIA", "otros": None,
+        "sexo": "F", "nacimiento": date(2002, 6, 7), "direccion": "COOP VILLA EL SOL M 8",
+        "localidad": "VILLA EL SOL", "establecimiento": "1291",
+        "seguro": "SIN_SEGURO", "diresa": None, "tipo": None, "numero": None,
+    },
+    {
+        "documento": "29702163", "historia": "88",
+        "paterno": "USCAMAYTA", "materno": "LUQUE", "nombre": "MARIA", "otros": None,
+        "sexo": "F", "nacimiento": date(1952, 3, 25), "direccion": "CALLE MISTI 125 APURIMAC",
+        "localidad": "APURIMAC", "establecimiento": "1291",
+        "seguro": "SIN_SEGURO", "diresa": None, "tipo": None, "numero": None,
+    },
+    {
+        "documento": "76362674", "historia": "273",
+        "paterno": "PALOMINO", "materno": "OCON", "nombre": "MARICARME", "otros": "ELIZABETH",
+        "sexo": "F", "nacimiento": date(1999, 5, 24), "direccion": "JAVIER HERAUD J 10",
+        "localidad": "LEONES DEL MISTI", "establecimiento": "1291",
+        "seguro": "SIN_SEGURO", "diresa": None, "tipo": None, "numero": None,
+    },
+)
+
+
 def _get_or_create(
     session: Session,
     model: type[Entity],
@@ -391,6 +513,23 @@ def _get_or_create(
     session.add(entity)
     session.flush()
     return entity
+
+
+def _catalog_locality(session: Session, ubigeo_codigo: str, nombre: str) -> Localidad:
+    """Returns the catalog locality of a district, failing loudly when absent."""
+
+    locality = session.scalar(
+        select(Localidad).where(
+            Localidad.ubigeo_codigo == ubigeo_codigo,
+            Localidad.nombre_norm == nombre.casefold(),
+        )
+    )
+    if locality is None:
+        raise RuntimeError(
+            f"Falta la localidad {nombre!r} del distrito {ubigeo_codigo}; "
+            "ejecute las migraciones antes de la semilla."
+        )
+    return locality
 
 
 def _ensure_demo_professional_user(session: Session, professional: Professional) -> User:
@@ -444,7 +583,7 @@ def _seed_demo_patients(
 
     patients: dict[str, Patient] = {}
     for demo in DEMO_PATIENTS:
-        locality = DEMO_LOCALITY_BY_DISTRICT[demo.district_code]
+        locality = _catalog_locality(session, districts[demo.district_code], demo.locality)
         patient = session.scalar(
             select(Patient).where(
                 Patient.tipo_documento_codigo == "DNI",
@@ -464,7 +603,8 @@ def _seed_demo_patients(
                 primer_nombre=demo.first_name,
                 sexo_codigo=demo.sex_code,
                 ubigeo_residencia_codigo=districts[demo.district_code],
-                localidad=locality,
+                localidad=locality.nombre,
+                localidad_id=locality.id,
                 direccion=demo.address,
                 telefono_principal=demo.phone,
                 seguro_id=insurances[demo.insurance_code].id,
@@ -473,10 +613,11 @@ def _seed_demo_patients(
             )
             session.add(patient)
             session.flush()
-        elif patient.localidad in {None, patient.ubigeo_residencia_codigo}:
-            # Repara datos de semilla antiguos que guardaban el código de
-            # ubigeo en vez del nombre de la localidad.
-            patient.localidad = locality
+        elif patient.localidad_id != locality.id:
+            # Repara semillas antiguas que dejaban la localidad sin enlazar o
+            # guardaban el nombre del distrito o su código de ubigeo.
+            patient.localidad = locality.nombre
+            patient.localidad_id = locality.id
         patients[demo.document_number] = patient
 
         if demo.responsible is not None:
@@ -502,6 +643,75 @@ def _seed_demo_patients(
                 },
                 {"observacion": "Antecedente ficticio cargado por seed_demo_data."},
             )
+    return patients
+
+
+def _seed_source_examples(
+    session: Session,
+    *,
+    ubigeo_codigo: str,
+    professional: Professional,
+) -> dict[str, Patient]:
+    """Create the real source patients used as admission-form examples."""
+
+    patients: dict[str, Patient] = {}
+    ubigeo = session.get(Ubigeo, ubigeo_codigo)
+    if ubigeo is None:
+        raise RuntimeError(
+            f"Falta el ubigeo {ubigeo_codigo}; ejecute las migraciones antes de la semilla."
+        )
+    for demo in SOURCE_DEMO_PATIENTS:
+        existing = session.scalar(
+            select(Patient).where(
+                Patient.tipo_documento_codigo == "DNI",
+                Patient.numero_documento == demo["documento"],
+            )
+        )
+        if existing is not None:
+            patients[demo["documento"]] = existing
+            continue
+        localidad = session.scalar(
+            select(Localidad).where(
+                Localidad.ubigeo_codigo == ubigeo_codigo,
+                Localidad.nombre_norm == str(demo["localidad"]).casefold(),
+            )
+        )
+        establishment = session.scalar(
+            select(Establishment).where(
+                Establishment.codigo_renaes == demo["establecimiento"]
+            )
+        )
+        insurance = session.scalar(select(Insurance).where(Insurance.codigo == demo["seguro"]))
+        if localidad is None or establishment is None or insurance is None:
+            raise RuntimeError(
+                f"Faltan catálogos para el paciente de ejemplo {demo['documento']}; "
+                "ejecute las migraciones antes de la semilla."
+            )
+        patient = Patient(
+            tipo_documento_codigo="DNI",
+            numero_documento=demo["documento"],
+            historia_clinica=demo["historia"],
+            fecha_nacimiento=demo["nacimiento"],
+            fecha_inscripcion=DEMO_REGISTRATION_DATE,
+            apellido_paterno=demo["paterno"],
+            apellido_materno=demo["materno"],
+            primer_nombre=demo["nombre"],
+            otros_nombres=demo["otros"],
+            sexo_codigo=demo["sexo"],
+            ubigeo_residencia_codigo=ubigeo.codigo,
+            localidad=localidad.nombre,
+            localidad_id=localidad.id,
+            direccion=demo["direccion"],
+            seguro_id=insurance.id,
+            establecimiento_registro_id=establishment.id,
+            profesional_registro_id=professional.id,
+            sis_diresa=demo.get("diresa"),
+            sis_tipo=demo.get("tipo"),
+            sis_numero=demo.get("numero"),
+        )
+        session.add(patient)
+        session.flush()
+        patients[demo["documento"]] = patient
     return patients
 
 
@@ -753,13 +963,18 @@ def seed_demo_data() -> dict[str, int]:
             {"id_red": network.id, "codigo": "DEMO_MICRO"},
             {"nombre": "Microred Demostración"},
         )
+        # El catálogo de ubigeos lo siembran las migraciones con los 29
+        # distritos de la provincia; la semilla solo comprueba que existan.
         ubigeo = _get_or_create(
             session,
             Ubigeo,
             {"codigo": "040101"},
-            {"departamento": "Arequipa", "provincia": "Arequipa", "distrito": "Arequipa", "localidad": "Demo"},
+            {
+                "departamento": "Arequipa",
+                "provincia": "Arequipa",
+                "distrito": "AREQUIPA",
+            },
         )
-        ubigeo.localidad = DEMO_LOCALITY_BY_DISTRICT["040101"]
         districts = {"040101": ubigeo.codigo}
         for code, name in DEMO_DISTRICTS:
             district = _get_or_create(
@@ -770,10 +985,8 @@ def seed_demo_data() -> dict[str, int]:
                     "departamento": "Arequipa",
                     "provincia": "Arequipa",
                     "distrito": name,
-                    "localidad": "Demo",
                 },
             )
-            district.localidad = DEMO_LOCALITY_BY_DISTRICT[code]
             districts[code] = district.codigo
 
         origin = _get_or_create(
@@ -840,6 +1053,12 @@ def seed_demo_data() -> dict[str, int]:
         )
         demo_professional_user = _ensure_demo_professional_user(session, professional)
 
+        # Los dos pacientes originales viven en Alto Selva Alegre, el mismo
+        # sector que les da la localidad del catálogo SIS.
+        demo_localidad = _catalog_locality(
+            session, districts["040102"], 'ALTO SELVA ALEGRE "A"'
+        )
+
         adult = _get_or_create(
             session,
             Patient,
@@ -851,8 +1070,9 @@ def seed_demo_data() -> dict[str, int]:
                 "apellido_materno": "Demo",
                 "primer_nombre": "Ana",
                 "sexo_codigo": "F",
-                "ubigeo_residencia_codigo": ubigeo.codigo,
-                "localidad": DEMO_LOCALITY_BY_DISTRICT["040101"],
+                "ubigeo_residencia_codigo": districts["040102"],
+                "localidad": demo_localidad.nombre,
+                "localidad_id": demo_localidad.id,
                 "direccion": "Calle Cahuide 504",
                 "establecimiento_registro_id": origin.id,
                 "telefono_principal": "999888777",
@@ -869,20 +1089,23 @@ def seed_demo_data() -> dict[str, int]:
                 "apellido_materno": "Demo",
                 "primer_nombre": "Luis",
                 "sexo_codigo": "M",
-                "ubigeo_residencia_codigo": ubigeo.codigo,
-                "localidad": DEMO_LOCALITY_BY_DISTRICT["040101"],
+                "ubigeo_residencia_codigo": districts["040102"],
+                "localidad": demo_localidad.nombre,
+                "localidad_id": demo_localidad.id,
                 "direccion": "Pasaje Los Pinos 120",
                 "establecimiento_registro_id": origin.id,
             },
         )
-        if adult.localidad is None:
-            adult.localidad = DEMO_LOCALITY_BY_DISTRICT["040101"]
-        if adult.direccion is None:
-            adult.direccion = "Calle Cahuide 504"
-        if minor.localidad is None:
-            minor.localidad = DEMO_LOCALITY_BY_DISTRICT["040101"]
-        if minor.direccion is None:
-            minor.direccion = "Pasaje Los Pinos 120"
+        for demo_patient, address in (
+            (adult, "Calle Cahuide 504"),
+            (minor, "Pasaje Los Pinos 120"),
+        ):
+            if demo_patient.localidad_id != demo_localidad.id:
+                demo_patient.ubigeo_residencia_codigo = districts["040102"]
+                demo_patient.localidad = demo_localidad.nombre
+                demo_patient.localidad_id = demo_localidad.id
+            if demo_patient.direccion is None:
+                demo_patient.direccion = address
         _get_or_create(
             session,
             PatientResponsible,
@@ -897,6 +1120,11 @@ def seed_demo_data() -> dict[str, int]:
             districts=districts,
             insurances=insurances,
             risk_groups=risk_groups,
+            professional=professional,
+        )
+        source_examples = _seed_source_examples(
+            session,
+            ubigeo_codigo="040102",
             professional=professional,
         )
         session.commit()
@@ -922,6 +1150,7 @@ def seed_demo_data() -> dict[str, int]:
             "adult_patient_id": adult.id,
             "minor_patient_id": minor.id,
             "demo_patient_count": len(cohort),
+            "source_example_patient_count": len(source_examples),
             **identifiers,
         }
     except Exception:

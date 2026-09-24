@@ -74,6 +74,14 @@ export interface UbigeoCatalogItem {
   localidad: string | null
 }
 
+export interface LocalidadCatalogItem {
+  id: number
+  ubigeo_codigo: string
+  codigo_sis: string
+  nombre: string
+  activo: boolean
+}
+
 async function getList<T>(path: string): Promise<T[]> {
   const { data } = await http.get<T[]>(path)
   return data
@@ -129,4 +137,11 @@ export const catalogos = {
     searchPage<ProfessionalCatalogItem>('/catalogos/profesionales', { q, limit, offset }),
   ubigeos: (q: string | undefined, limit = 25, offset = 0) =>
     searchPage<UbigeoCatalogItem>('/catalogos/ubigeos', { q, limit, offset }),
+  localidades: (ubigeoCodigo: string | undefined, q: string | undefined, limit = 50, offset = 0) =>
+    searchPage<LocalidadCatalogItem>('/catalogos/localidades', {
+      ubigeo_codigo: ubigeoCodigo,
+      q,
+      limit,
+      offset,
+    }),
 }

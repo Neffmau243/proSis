@@ -20,7 +20,16 @@ from .catalog import (
 )
 from .clinical import Attention, AttentionDiagnosis, AttentionService
 from .documents import Certificate, CertificateService, DocumentSequence, Fua, Referral
-from .organization import Disa, Establishment, MicroNetwork, Network, Office, OfficeProfessional, Ubigeo
+from .organization import (
+    Disa,
+    Establishment,
+    Localidad,
+    MicroNetwork,
+    Network,
+    Office,
+    OfficeProfessional,
+    Ubigeo,
+)
 from .patient import (
     Patient,
     PatientExternalCode,
@@ -31,8 +40,12 @@ from .patient import (
 )
 from .security import LoginRateLimit, Professional, ProfessionalSpecialty, Role, User, UserRole
 from .surveillance import NutritionalEvaluation, SurveillanceSien
+from .legacy import LegacyAttention, LegacyImport, LegacyRecord
 
 __all__ = [
+    "LegacyAttention",
+    "LegacyImport",
+    "LegacyRecord",
     "AgeGroup",
     "Attention",
     "AttentionDiagnosis",
@@ -50,6 +63,7 @@ __all__ = [
     "Ethnicity",
     "Fua",
     "Insurance",
+    "Localidad",
     "LoginRateLimit",
     "MicroNetwork",
     "Network",

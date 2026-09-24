@@ -66,10 +66,16 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     # security/configuration surface.  Object-level scope is enforced by the
     # clinical services from the persisted professional and office assignment;
     # this mapping only answers whether the role may attempt the action.
+    #
+    # The professional is also the one who admits patients, so it may reverse a
+    # mistaken admission: PATIENT_DEACTIVATE is granted here even though the
+    # action is administrative elsewhere (the deactivation stays logical and
+    # writes an audit entry like any other change).
     "PROFESIONAL": frozenset(
         {
             Permissions.PATIENT_READ,
             Permissions.PATIENT_WRITE,
+            Permissions.PATIENT_DEACTIVATE,
             Permissions.ATTENTION_CREATE,
             Permissions.ATTENTION_READ,
             Permissions.ATTENTION_CANCEL,

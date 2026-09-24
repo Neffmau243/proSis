@@ -46,9 +46,12 @@ test('validation handles required values, real dates and residence hierarchy', (
     validatePatientDraft({ ...draft, numero_documento: ' ' }, '2026-09-17').numero_documento,
   ).toBeTruthy()
   expect(
-    validatePatientDraft({ ...draft, ubigeo_residencia_codigo: null }, '2026-09-17').localidad,
+    validatePatientDraft(
+      { ...draft, ubigeo_residencia_codigo: null, localidad_id: 5 },
+      '2026-09-17',
+    ).localidad_id,
   ).toBeTruthy()
-  expect(validatePatientDraft({ ...draft, localidad: '040101' }, '2026-09-17').localidad)
+  expect(validatePatientDraft({ ...draft, localidad: '040101' }, '2026-09-17').localidad_id)
     .toBeTruthy()
 })
 

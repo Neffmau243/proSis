@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -14,6 +14,7 @@ import {
   type CodeCatalogItem,
   type EstablishmentCatalogItem,
   type IdCatalogItem,
+  type LocalidadCatalogItem,
   type RiskGroupCatalogItem,
   type UbigeoCatalogItem,
 } from '@/services/catalogos'
@@ -39,6 +40,8 @@ const establecimientos = ref<EstablishmentCatalogItem[]>([])
 const establecimientosLoading = ref(false)
 const ubigeos = ref<UbigeoCatalogItem[]>([])
 const ubigeosLoading = ref(false)
+const localidades = ref<LocalidadCatalogItem[]>([])
+const localidadesLoading = ref(false)
 
 const form = reactive<PatientRegistrationDraft>({
   ...emptyPatientSis(),
@@ -57,6 +60,7 @@ const form = reactive<PatientRegistrationDraft>({
   establecimiento_registro_id: null,
   ubigeo_residencia_codigo: null,
   localidad: '',
+  localidad_id: null,
   direccion: '',
   telefono_principal: '',
   condicion: '',
@@ -101,6 +105,29 @@ async function searchUbigeos(query: string): Promise<void> {
   }
 }
 
+// La localidad pertenece al distrito: al cambiarlo se limpia la selección y se
+// recarga el catálogo SIS.
+async function loadLocalidades(ubigeoCodigo: string | null): Promise<void> {
+  localidades.value = []
+  form.localidad_id = null
+  form.localidad = ''
+  if (!ubigeoCodigo) return
+  localidadesLoading.value = true
+  try {
+    const page = await catalogos.localidades(ubigeoCodigo, undefined, 100, 0)
+    localidades.value = page.items
+  } finally {
+    localidadesLoading.value = false
+  }
+}
+
+watch(
+  () => form.ubigeo_residencia_codigo,
+  (code) => {
+    void loadLocalidades(code)
+  },
+)
+
 async function submit(): Promise<void> {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
@@ -127,6 +154,7 @@ async function submit(): Promise<void> {
       sexo_codigo: form.sexo_codigo,
       ubigeo_residencia_codigo: form.ubigeo_residencia_codigo,
       localidad: form.localidad || null,
+      localidad_id: form.localidad_id,
       direccion: form.direccion || null,
       establecimiento_registro_id: form.establecimiento_registro_id,
       seguro_id: form.seguro_id,
@@ -211,6 +239,8 @@ onMounted(async () => {
             :establecimientos-loading="establecimientosLoading"
             :ubigeos="ubigeos"
             :ubigeos-loading="ubigeosLoading"
+            :localidades="localidades"
+            :localidades-loading="localidadesLoading"
             @update="updatePatientForm"
             @search-establecimientos="searchEstablecimientos"
             @search-ubigeos="searchUbigeos"

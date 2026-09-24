@@ -15,6 +15,8 @@ from app.schemas.catalog import (
     CodeCatalogItem,
     EstablishmentCatalogItem,
     IdCatalogItem,
+    InsuranceCatalogItem,
+    LocalidadCatalogItem,
     OfficeCatalogItem,
     ProfessionalCatalogItem,
     RiskGroupCatalogItem,
@@ -50,8 +52,8 @@ def list_ethnicities(_: CatalogReader, db: DatabaseSession) -> list[CodeCatalogI
     return CatalogService(db).ethnicities()
 
 
-@router.get("/seguros", response_model=list[IdCatalogItem])
-def list_insurances(_: CatalogReader, db: DatabaseSession) -> list[IdCatalogItem]:
+@router.get("/seguros", response_model=list[InsuranceCatalogItem])
+def list_insurances(_: CatalogReader, db: DatabaseSession) -> list[InsuranceCatalogItem]:
     return CatalogService(db).insurances()
 
 
@@ -139,6 +141,23 @@ def list_professionals(
     offset: PageOffset = 0,
 ) -> PageResponse[ProfessionalCatalogItem]:
     return CatalogService(db).professionals(query=q, limit=limit, offset=offset)
+
+
+@router.get("/localidades", response_model=PageResponse[LocalidadCatalogItem])
+def list_localities(
+    _: CatalogReader,
+    db: DatabaseSession,
+    ubigeo_codigo: Annotated[str | None, Query(min_length=6, max_length=6)] = None,
+    q: SearchText = None,
+    limit: PageLimit = 25,
+    offset: PageOffset = 0,
+) -> PageResponse[LocalidadCatalogItem]:
+    return CatalogService(db).localities(
+        ubigeo_codigo=ubigeo_codigo,
+        query=q,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/ubigeos", response_model=PageResponse[UbigeoCatalogItem])

@@ -25,7 +25,7 @@ from .base import Base, MYSQL_TABLE_OPTIONS
 if TYPE_CHECKING:
     from .catalog import DocumentType, Insurance, Sex
     from .clinical import Attention
-    from .organization import Establishment, Ubigeo
+    from .organization import Establishment, Localidad, Ubigeo
     from .surveillance import NutritionalEvaluation, SurveillanceSien
 
 
@@ -87,6 +87,16 @@ class Patient(Base):
         nullable=True,
     )
     localidad: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    localidad_id: Mapped[int | None] = mapped_column(
+        mysql.BIGINT(unsigned=True),
+        ForeignKey(
+            "localidades.id",
+            name="fk_pacientes_localidad",
+            ondelete="RESTRICT",
+            onupdate="CASCADE",
+        ),
+        nullable=True,
+    )
     direccion: Mapped[str | None] = mapped_column(String(300), nullable=True)
     establecimiento_registro_id: Mapped[int | None] = mapped_column(
         mysql.BIGINT(unsigned=True),
@@ -137,6 +147,9 @@ class Patient(Base):
     sex: Mapped["Sex | None"] = relationship(back_populates="pacientes")
     insurance: Mapped["Insurance | None"] = relationship(back_populates="pacientes")
     ubigeo_residencia: Mapped["Ubigeo | None"] = relationship(
+        back_populates="pacientes"
+    )
+    localidad_catalogo: Mapped["Localidad | None"] = relationship(
         back_populates="pacientes"
     )
     establecimiento_registro: Mapped["Establishment | None"] = relationship(

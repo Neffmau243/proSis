@@ -19,6 +19,7 @@ export function aPatient(overrides: Partial<Patient> = {}): Patient {
     ubigeo_residencia_codigo: '040101',
     distrito_residencia: 'Arequipa',
     localidad: 'Centro',
+    localidad_id: null,
     direccion: 'Calle 1',
     establecimiento_registro_id: 1,
     seguro_id: 2,

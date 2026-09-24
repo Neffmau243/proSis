@@ -147,6 +147,7 @@ class PatientCreate(PatientSisFields):
     sexo_codigo: Annotated[str, Field(min_length=1, max_length=1)] | None = None
     ubigeo_residencia_codigo: Annotated[str, Field(min_length=6, max_length=6)] | None = None
     localidad: Annotated[str, Field(max_length=150)] | None = None
+    localidad_id: Annotated[int, Field(gt=0)] | None = None
     direccion: Annotated[str, Field(max_length=300)] | None = None
     establecimiento_registro_id: Annotated[int, Field(gt=0)] | None = None
     seguro_id: Annotated[int, Field(gt=0)] | None = None
@@ -206,6 +207,7 @@ class PatientUpdate(PatientSisFields):
     sexo_codigo: Annotated[str, Field(min_length=1, max_length=1)] | None = None
     ubigeo_residencia_codigo: Annotated[str, Field(min_length=6, max_length=6)] | None = None
     localidad: Annotated[str, Field(max_length=150)] | None = None
+    localidad_id: Annotated[int, Field(gt=0)] | None = None
     direccion: Annotated[str, Field(max_length=300)] | None = None
     establecimiento_registro_id: Annotated[int, Field(gt=0)] | None = None
     seguro_id: Annotated[int, Field(gt=0)] | None = None
@@ -294,6 +296,7 @@ class PatientResponse(PatientSisFields):
     ubigeo_residencia_codigo: str | None
     distrito_residencia: str | None = None
     localidad: str | None
+    localidad_id: int | None = None
     direccion: str | None
     establecimiento_registro_id: int | None
     seguro_id: int | None

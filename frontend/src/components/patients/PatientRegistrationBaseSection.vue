@@ -4,6 +4,7 @@ import type {
   CodeCatalogItem,
   EstablishmentCatalogItem,
   IdCatalogItem,
+  LocalidadCatalogItem,
   UbigeoCatalogItem,
 } from '@/services/catalogos'
 
@@ -12,7 +13,7 @@ import type {
   PatientRegistrationPatch,
 } from './patientRegistration.types'
 
-defineProps<{
+const props = defineProps<{
   form: PatientRegistrationDraft
   tiposDocumento: CodeCatalogItem[]
   sexos: CodeCatalogItem[]
@@ -21,6 +22,8 @@ defineProps<{
   establecimientosLoading: boolean
   ubigeos: UbigeoCatalogItem[]
   ubigeosLoading: boolean
+  localidades: LocalidadCatalogItem[]
+  localidadesLoading: boolean
 }>()
 
 const emit = defineEmits<{
@@ -31,6 +34,13 @@ const emit = defineEmits<{
 
 function update(changes: PatientRegistrationPatch): void {
   emit('update', changes)
+}
+
+// La localidad se elige del catálogo SIS del distrito; se guarda su código y,
+// para conservar el nombre legible, también el texto de la localidad.
+function updateLocality(localidadId: number | null): void {
+  const chosen = props.localidades.find((item) => item.id === localidadId)
+  emit('update', { localidad_id: localidadId, localidad: chosen ? chosen.nombre : '' })
 }
 </script>
 
@@ -155,11 +165,22 @@ function update(changes: PatientRegistrationPatch): void {
       </el-form-item>
 
       <el-form-item class="base-field" label="Localidad">
-        <el-input
-          :model-value="form.localidad"
-          placeholder="Ej. Alto Selva Alegre"
-          @update:model-value="update({ localidad: $event })"
-        />
+        <el-select
+          clearable
+          filterable
+          :model-value="form.localidad_id"
+          :disabled="!form.ubigeo_residencia_codigo"
+          :loading="localidadesLoading"
+          :placeholder="form.ubigeo_residencia_codigo ? 'Seleccione' : 'Elija el distrito primero'"
+          @update:model-value="updateLocality"
+        >
+          <el-option
+            v-for="localidad in localidades"
+            :key="localidad.id"
+            :label="localidad.nombre"
+            :value="localidad.id"
+          />
+        </el-select>
       </el-form-item>
 
       <el-form-item class="base-field" label="Dirección">

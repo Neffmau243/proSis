@@ -163,6 +163,10 @@ class PatientService:
                 ubigeo_code=command.ubigeo_residencia_codigo,
                 locality=command.localidad,
             )
+            self._validate_patient_locality(
+                localidad_id=command.localidad_id,
+                ubigeo_code=command.ubigeo_residencia_codigo,
+            )
             self._ensure_document_is_available(
                 command.tipo_documento_codigo,
                 command.numero_documento,
@@ -272,6 +276,11 @@ class PatientService:
                 ubigeo_code=effective_ubigeo_code,
                 locality=effective_locality,
             )
+            if "localidad_id" in values or "ubigeo_residencia_codigo" in values:
+                self._validate_patient_locality(
+                    localidad_id=values.get("localidad_id", patient.localidad_id),
+                    ubigeo_code=effective_ubigeo_code,
+                )
             if "establecimiento_registro_id" in values:
                 # Trasladar la inscripción no debe dejar al autor del traslado
                 # sin acceso al paciente que acaba de mover de sede.
@@ -696,6 +705,24 @@ class PatientService:
                 code="LOCALIDAD_NO_PUEDE_SER_CODIGO_UBIGEO",
                 message="La localidad debe ser un nombre, no el código de ubigeo.",
             )
+
+    def _validate_patient_locality(
+        self,
+        *,
+        localidad_id: int | None,
+        ubigeo_code: str | None,
+    ) -> None:
+        """A SIS locality belongs to exactly one district, so scope it by UBIGEO."""
+
+        if localidad_id is None:
+            return
+        if ubigeo_code is None:
+            raise ValidationDomainError(
+                code="LOCALIDAD_SIN_DISTRITO",
+                message="Seleccione un distrito antes de registrar la localidad.",
+            )
+        if self._repository.get_active_localidad(localidad_id, ubigeo_code) is None:
+            self._raise_unavailable_catalog("localidad", localidad_id)
 
     def _validate_sis_and_ethnicity(self, values: dict[str, Any]) -> None:
         problem = affiliation_problem(values)

@@ -13,7 +13,7 @@ from app.models.catalog import (
     Sex,
     Specialty,
 )
-from app.models.organization import Establishment, Office, Ubigeo
+from app.models.organization import Establishment, Localidad, Office, Ubigeo
 from app.models.patient import RiskGroup
 from app.models.security import Professional
 from app.schemas.catalog import (
@@ -22,6 +22,8 @@ from app.schemas.catalog import (
     CodeCatalogItem,
     EstablishmentCatalogItem,
     IdCatalogItem,
+    InsuranceCatalogItem,
+    LocalidadCatalogItem,
     OfficeCatalogItem,
     ProfessionalCatalogItem,
     RiskGroupCatalogItem,
@@ -39,8 +41,15 @@ def sex_to_catalog_item(entity: Sex) -> CodeCatalogItem:
     return CodeCatalogItem(codigo=entity.codigo, nombre=entity.nombre, activo=entity.activo)
 
 
-def insurance_to_catalog_item(entity: Insurance) -> IdCatalogItem:
-    return IdCatalogItem(id=entity.id, codigo=entity.codigo, nombre=entity.nombre, activo=entity.activo)
+def insurance_to_catalog_item(entity: Insurance) -> InsuranceCatalogItem:
+    return InsuranceCatalogItem(
+        id=entity.id,
+        codigo=entity.codigo,
+        nombre=entity.nombre,
+        activo=entity.activo,
+        codigo_sis=entity.codigo_sis,
+        regimen=entity.regimen,
+    )
 
 
 def profession_to_catalog_item(entity: Profession) -> IdCatalogItem:
@@ -130,10 +139,24 @@ def professional_to_catalog_item(entity: Professional) -> ProfessionalCatalogIte
 
 
 def ubigeo_to_catalog_item(entity: Ubigeo) -> UbigeoCatalogItem:
+    # The SIS trama splits the six-digit UBIGEO into province (4) + district (2).
+    codigo = entity.codigo or ""
     return UbigeoCatalogItem(
         codigo=entity.codigo,
         departamento=entity.departamento,
         provincia=entity.provincia,
         distrito=entity.distrito,
         localidad=entity.localidad,
+        sis_provincia=codigo[:4] or None,
+        sis_distrito=codigo[4:6] or None,
+    )
+
+
+def localidad_to_catalog_item(entity: Localidad) -> LocalidadCatalogItem:
+    return LocalidadCatalogItem(
+        id=entity.id,
+        ubigeo_codigo=entity.ubigeo_codigo,
+        codigo_sis=entity.codigo_sis,
+        nombre=entity.nombre,
+        activo=entity.activo,
     )

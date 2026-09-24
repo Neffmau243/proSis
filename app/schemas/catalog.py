@@ -22,6 +22,23 @@ class SpecialtyCatalogItem(CodeCatalogItem):
     grupo: str | None = None
 
 
+class InsuranceCatalogItem(IdCatalogItem):
+    """Insurance plan plus the SIS territory codes it maps to."""
+
+    codigo_sis: str | None = None
+    regimen: str | None = None
+
+
+class LocalidadCatalogItem(BaseModel):
+    """A district sector with its SIS locality code."""
+
+    id: int = Field(gt=0)
+    ubigeo_codigo: str
+    codigo_sis: str
+    nombre: str
+    activo: bool
+
+
 class ServiceCatalogItem(BaseModel):
     codigo: str
     descripcion: str
@@ -76,3 +93,6 @@ class UbigeoCatalogItem(BaseModel):
     provincia: str
     distrito: str
     localidad: str | None = None
+    #: Códigos derivados del UBIGEO de seis dígitos para la trama SIS.
+    sis_provincia: str | None = None
+    sis_distrito: str | None = None

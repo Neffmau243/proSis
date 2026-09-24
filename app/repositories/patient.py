@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.catalog import DocumentType, Ethnicity, Insurance, Sex
 from app.models.clinical import Attention
-from app.models.organization import Establishment, Office, OfficeProfessional, Ubigeo
+from app.models.organization import Establishment, Localidad, Office, OfficeProfessional, Ubigeo
 from app.models.patient import Patient, PatientResponsible, PatientRisk, RiskGroup
 from app.models.security import Professional, User
 
@@ -92,6 +92,17 @@ class PatientRepository:
         """Ubigeo has no active flag in the supplied schema."""
 
         statement = select(Ubigeo).where(Ubigeo.codigo == code)
+        return self._session.execute(statement).scalar_one_or_none()
+
+    def get_active_localidad(self, localidad_id: int, ubigeo_code: str | None) -> Localidad | None:
+        """Locality scoped to its district, so it cannot cross UBIGEOs."""
+
+        statement = select(Localidad).where(
+            Localidad.id == localidad_id,
+            Localidad.activo.is_(True),
+        )
+        if ubigeo_code is not None:
+            statement = statement.where(Localidad.ubigeo_codigo == ubigeo_code)
         return self._session.execute(statement).scalar_one_or_none()
 
     def get_active_establishment(self, establishment_id: int) -> Establishment | None:

@@ -14,7 +14,9 @@ export const patientFields = [
   { key: 'otros_nombres', label: 'Otros nombres', kind: 'text', max: 150 },
   { key: 'sexo_codigo', label: 'Sexo', kind: 'select' },
   { key: 'ubigeo_residencia_codigo', label: 'Distrito', kind: 'select' },
-  { key: 'localidad', label: 'Localidad', kind: 'text', max: 150 },
+  // La localidad se elige del catálogo SIS del distrito; su nombre se copia al
+  // campo de texto ``localidad`` para conservarlo y solo se define su código.
+  { key: 'localidad_id', label: 'Localidad', kind: 'select' },
   { key: 'direccion', label: 'Dirección', kind: 'text', max: 300 },
   { key: 'establecimiento_registro_id', label: 'Establecimiento', kind: 'select' },
   { key: 'seguro_id', label: 'Seguro', kind: 'select' },
@@ -30,7 +32,9 @@ export const patientFields = [
 }>
 
 export type PatientField = (typeof patientFields)[number]
-const editableFields = [...patientFields, ...patientSisContractFields] as const
+// ``localidad`` no se edita directamente: lo alimenta el catálogo SIS.
+const localityNameField = { key: 'localidad', label: 'Localidad', kind: 'text', max: 150 } as const
+const editableFields = [...patientFields, localityNameField, ...patientSisContractFields] as const
 export type PatientFieldKey = (typeof editableFields)[number]['key']
 export type PatientDraft = { [K in PatientFieldKey]: Exclude<PatientUpdatePayload[K], undefined> }
 export type PatientDraftErrors = Partial<Record<PatientFieldKey, string>>
@@ -83,13 +87,13 @@ export function validatePatientDraft(draft: PatientDraft, today: string): Patien
   if (draft.fecha_inscripcion && draft.fecha_nacimiento > draft.fecha_inscripcion) {
     errors.fecha_nacimiento = 'Debe ser anterior o igual a la inscripción.'
   }
-  if (normalized(draft.localidad) && !draft.ubigeo_residencia_codigo) {
-    errors.localidad = 'Seleccione primero el distrito.'
+  if (draft.localidad_id && !draft.ubigeo_residencia_codigo) {
+    errors.localidad_id = 'Seleccione primero el distrito.'
   } else if (
     normalized(draft.localidad) &&
     normalized(draft.localidad) === draft.ubigeo_residencia_codigo
   ) {
-    errors.localidad = 'Escriba el nombre de la localidad, no su código.'
+    errors.localidad_id = 'La localidad debe ser un nombre, no el código de ubigeo.'
   }
   return errors
 }

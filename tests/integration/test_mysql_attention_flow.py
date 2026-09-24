@@ -11,9 +11,10 @@ from datetime import date, datetime, time, timedelta
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.catalog import Cie10, ServiceOffering, Specialty
+from app.models.catalog import Cie10, Insurance, ServiceOffering, Specialty
 from app.models.clinical import Attention
 from app.models.organization import Office
 from app.models.patient import Patient
@@ -23,6 +24,31 @@ pytestmark = pytest.mark.integration
 
 def _moment(days_ago: int = 1) -> str:
     return datetime.combine(date.today() - timedelta(days=days_ago), time(9, 30)).isoformat()
+
+
+#: One real row as produced by the legacy ETL for a "S.I.S. SIS Para Todos"
+#: affiliate.  Access stores the affiliation in three separate columns, so the
+#: paper FUA keeps the DIRESA in its own box instead of gluing it to the number.
+#: ``historia_clinica`` repeats the document and ``historia_familiar`` carries a
+#: code instead of free text: both are legacy shapes the API must accept, not fix.
+LEGACY_SIS_ROW: dict[str, object] = {
+    "codclie_legacy": 27773,
+    "historia_clinica": "72769512",
+    "historia_familiar": "-28159",
+    "tipo_documento_codigo": "DNI",
+    "numero_documento": "72769512",
+    "apellido_paterno": "PACCO",
+    "apellido_materno": "MOSCOSO",
+    "primer_nombre": "NEPTALY",
+    "sexo_codigo": "M",
+    "fecha_nacimiento": "2003-10-29",
+    "fecha_inscripcion": "2016-01-01",
+    "direccion": "AMERICA 100-A",
+    "localidad": "ALTO SELVA ALEGRE",
+    "sis_diresa": "040",
+    "sis_tipo": "2",
+    "sis_numero": "72769512",
+}
 
 
 @pytest.fixture
@@ -229,7 +255,11 @@ def test_encounter_validates_dates_and_vital_signs(
     future = clinic_scene.professional_client.post(
         f"{api_prefix}/atenciones",
         json=_payload(
-            clinic_scene, patient, fecha_atencion=_moment(days_ago=-1), hora_inicio=None, hora_fin=None
+            clinic_scene,
+            patient,
+            fecha_atencion=_moment(days_ago=-1),
+            hora_inicio=None,
+            hora_fin=None,
         ),
     )
     assert future.status_code == 422
@@ -464,3 +494,83 @@ def test_encounters_are_private_to_the_treating_professional(
     admin_read = clinic_scene.admin_client.get(f"{api_prefix}/atenciones/{attention['id']}")
     assert admin_read.status_code == 403
     assert admin_read.json()["error"]["details"]["required_permissions"] == ["ATENCION_LEER"]
+
+
+def test_legacy_sis_patient_stamps_the_affiliation_on_the_fua_snapshot(
+    clinic_scene, db_session: Session, api_prefix
+) -> None:
+    """A real ETL patient registers and keeps its SIS affiliation on the paper FUA.
+
+    The affiliation is stored as three independent boxes.  The paper layout must
+    never glue the DIRESA to the affiliate number, and the client cannot override
+    what the patient's own record owns.
+    """
+
+    insurance = db_session.scalar(
+        select(Insurance).where(Insurance.codigo == "SIS_PARA_TODOS")
+    )
+    assert insurance is not None, "La migración 0017 debe sembrar los planes SIS."
+
+    registered = clinic_scene.professional_client.post(
+        f"{api_prefix}/patients",
+        json={
+            **LEGACY_SIS_ROW,
+            "ubigeo_residencia_codigo": clinic_scene.ubigeo_codigo,
+            "establecimiento_registro_id": clinic_scene.establecimiento_id,
+            "seguro_id": insurance.id,
+        },
+    )
+    assert registered.status_code == 201, registered.text
+    patient = registered.json()
+
+    # The source key and the typed affiliation survive registration unchanged.
+    assert patient["codclie_legacy"] == 27773
+    assert patient["tipo_documento_codigo"] == "DNI"
+    assert patient["numero_documento"] == "72769512"
+    assert patient["seguro_id"] == insurance.id
+    assert (patient["sis_diresa"], patient["sis_tipo"], patient["sis_numero"]) == (
+        "040",
+        "2",
+        "72769512",
+    )
+
+    created = clinic_scene.professional_client.post(
+        f"{api_prefix}/atenciones",
+        json=_payload(
+            clinic_scene,
+            patient,
+            # The client offers a different affiliation; the patient's record owns the truth.
+            fua_datos={"sis_diresa": "999", "sis_tipo": "9", "sis_numero": "99999999"},
+        ),
+    )
+    assert created.status_code == 201, created.text
+    attention = created.json()
+
+    snapshot = attention["fua_impresion"]
+    assert snapshot is not None
+    assert snapshot["version"] == 2
+    # Three separate boxes: DIRESA is never merged with the affiliate number.
+    assert snapshot["sis_diresa"] == "040"
+    assert snapshot["sis_tipo"] == "2"
+    assert snapshot["sis_numero"] == "72769512"
+    assert "sis_numero_completo" not in snapshot
+    assert "040" not in snapshot["sis_numero"]
+    # Document identity travels with the encounter so the paper TDI stays printable.
+    assert snapshot["tipo_documento"] == "DNI"
+    assert snapshot["tdi"] == "2"
+    assert snapshot["numero_documento"] == "72769512"
+    assert snapshot["historia_clinica"] == "72769512"
+    assert snapshot["apellido_paterno"] == "PACCO"
+    assert snapshot["apellido_materno"] == "MOSCOSO"
+    assert snapshot["primer_nombre"] == "NEPTALY"
+    assert snapshot["sexo_codigo"] == "M"
+
+    # The snapshot is persisted server-side, not just echoed in the response.
+    stored = db_session.get(Attention, attention["id"])
+    assert stored is not None
+    persisted = stored.fua_impresion
+    assert persisted is not None
+    assert persisted["sis_diresa"] == "040"
+    assert persisted["sis_tipo"] == "2"
+    assert persisted["sis_numero"] == "72769512"
+    assert persisted["historia_clinica"] == "72769512"

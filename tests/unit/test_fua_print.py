@@ -105,3 +105,20 @@ def test_patient_site_and_modality_override_old_client_supplements():
     assert result["etnia_codigo"] == "2"
     p.sis_numero = "11111111"
     assert result["sis_numero"] == "000000001"
+
+
+def test_sis_affiliation_keeps_diresa_separate_from_tipo_and_numero():
+    a, p, s, professional = fixtures()
+    # Valores reales del origen: DISA Arequipa 040, régimen subsidiado 2, número de 8 dígitos.
+    p.sis_diresa, p.sis_tipo, p.sis_numero = "040", "2", "72769512"
+    result = build_fua_snapshot(a, p, s, professional, None)
+    # La ficha guarda las tres casillas por separado: el número nunca absorbe la DIRESA.
+    assert result["sis_diresa"] == "040"
+    assert result["sis_tipo"] == "2"
+    assert result["sis_numero"] == "72769512"
+    assert "sis_numero_completo" not in result
+    assert not result["sis_numero"].startswith(result["sis_diresa"])
+    assert FuaPrintSnapshot.model_validate(result).sis_diresa == "040"
+    # El número con ceros iniciales se conserva como texto, no se interpreta como entero.
+    p.sis_numero = "00067954"
+    assert build_fua_snapshot(a, p, s, professional, None)["sis_numero"] == "00067954"

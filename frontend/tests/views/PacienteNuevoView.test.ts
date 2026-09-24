@@ -124,6 +124,7 @@ test('el alta envía solo los campos del contrato y navega a la ficha creada', a
     sexo_codigo: null,
     ubigeo_residencia_codigo: null,
     localidad: null,
+    localidad_id: null,
     direccion: null,
     establecimiento_registro_id: null,
     seguro_id: null,

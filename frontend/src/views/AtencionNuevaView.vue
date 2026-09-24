@@ -25,11 +25,13 @@
           <AdmissionPatientSummary
             :patient="admissionPatient"
             :can-edit="auth.hasPermission('PACIENTE_EDITAR')"
+            :can-delete="auth.hasPermission('PACIENTE_DAR_BAJA')"
             :blocked="saving || attentionCreated"
             :tipos-documento="tiposDocumento"
             @saved="applyUpdatedPatient"
             @dirty-change="patientContextDirty = $event"
             @busy-change="patientContextSaving = $event"
+            @removed="onPatientRemoved"
           />
         </aside>
 
@@ -799,6 +801,20 @@ function applyUpdatedPatient(updated: Patient): void {
   ) {
     form.establecimiento_id = updated.establecimiento_registro_id
   }
+}
+
+/**
+ * El paciente se dio de baja desde el panel de admisión: se limpia la
+ * selección compartida y se vuelve al listado para no admitir a un inactivo.
+ */
+function onPatientRemoved(removed: Patient): void {
+  if (seleccionado.value?.id === removed.id) seleccionar(null)
+  pacientesOptions.value = []
+  notificarCambio()
+  // El paciente ya no existe: no hay ediciones que conservar y la guarda de
+  // salida no debe bloquear la vuelta al listado.
+  patientContextDirty.value = false
+  void router.push({ name: 'inicio' })
 }
 
 /** Convierte el bloque en el payload del backend; `null` si no se registró nada. */

@@ -128,6 +128,7 @@ const patient: Patient = {
   ubigeo_residencia_codigo: '040101',
   distrito_residencia: 'Arequipa',
   localidad: null,
+  localidad_id: null,
   direccion: null,
   establecimiento_registro_id: null,
   seguro_id: null,

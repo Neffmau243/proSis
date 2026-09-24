@@ -14,6 +14,7 @@ from app.mappers.catalog import (
     document_type_to_catalog_item,
     establishment_to_catalog_item,
     insurance_to_catalog_item,
+    localidad_to_catalog_item,
     office_to_catalog_item,
     profession_to_catalog_item,
     professional_to_catalog_item,
@@ -30,6 +31,8 @@ from app.schemas.catalog import (
     CodeCatalogItem,
     EstablishmentCatalogItem,
     IdCatalogItem,
+    InsuranceCatalogItem,
+    LocalidadCatalogItem,
     OfficeCatalogItem,
     ProfessionalCatalogItem,
     RiskGroupCatalogItem,
@@ -60,7 +63,7 @@ class CatalogService:
         return [CodeCatalogItem(codigo=item.codigo, nombre=item.nombre, activo=item.activo)
                 for item in self._repository.list_ethnicities()]
 
-    def insurances(self) -> list[IdCatalogItem]:
+    def insurances(self) -> list[InsuranceCatalogItem]:
         return [insurance_to_catalog_item(item) for item in self._repository.list_insurances()]
 
     def professions(self) -> list[IdCatalogItem]:
@@ -123,6 +126,22 @@ class CatalogService:
             query=self._normalized_query(query), limit=limit, offset=offset
         )
         return self._page(page, professional_to_catalog_item, limit=limit, offset=offset)
+
+    def localities(
+        self,
+        *,
+        ubigeo_codigo: str | None,
+        query: str | None,
+        limit: int,
+        offset: int,
+    ) -> PageResponse[LocalidadCatalogItem]:
+        page = self._repository.page_localities(
+            ubigeo_codigo=ubigeo_codigo,
+            query=self._normalized_query(query),
+            limit=limit,
+            offset=offset,
+        )
+        return self._page(page, localidad_to_catalog_item, limit=limit, offset=offset)
 
     def ubigeos(
         self, *, query: str | None, limit: int, offset: int

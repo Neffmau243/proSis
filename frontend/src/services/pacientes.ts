@@ -39,6 +39,7 @@ export interface Patient extends Partial<PatientSisData> {
   ubigeo_residencia_codigo: string | null
   distrito_residencia: string | null
   localidad: string | null
+  localidad_id: number | null
   direccion: string | null
   establecimiento_registro_id: number | null
   seguro_id: number | null
@@ -108,6 +109,7 @@ export interface PatientCreatePayload extends Partial<PatientSisData> {
   sexo_codigo?: string | null
   ubigeo_residencia_codigo?: string | null
   localidad?: string | null
+  localidad_id?: number | null
   direccion?: string | null
   establecimiento_registro_id?: number | null
   seguro_id?: number | null

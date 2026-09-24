@@ -1,0 +1,2 @@
+# Only needed to compare the old reader with native ACE extraction.
+access-parser==0.0.6

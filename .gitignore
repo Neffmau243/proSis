@@ -9,3 +9,15 @@ __pycache__/
 .coverage
 coverage.xml
 htmlcov/
+
+# Patient data and local ETL work products. Only code and synthetic fixtures belong in Git.
+etlSis/dump/
+etlSis/work/
+etlSis/private/
+etlSis/*_out.txt
+etlSis/*_corrupt.txt
+etlSis/probe_sis.txt
+etlSis/report_limpieza.txt
+etlSis/esquema_pos_mysql.md
+etlSis/esquema_completo.txt
+etlSis/*.log

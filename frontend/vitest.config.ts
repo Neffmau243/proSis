@@ -23,6 +23,10 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     setupFiles: ['tests/setup.ts'],
     restoreMocks: true,
+    // Montar un formulario de Element Plus tarda segundos cuando la suite corre
+    // en paralelo y la máquina está ocupada; los 5s por defecto volvían
+    // inestables casos que pasan sueltos en un par de segundos.
+    testTimeout: 20_000,
     // Element Plus debe pasar por el resolvedor de Vite (y no por el de Node)
     // para recibir el build ESM de sus dependencias, igual que en el navegador.
     server: { deps: { inline: ['element-plus'] } },

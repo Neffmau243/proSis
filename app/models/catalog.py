@@ -72,6 +72,10 @@ class Insurance(Base):
     )
     codigo: Mapped[str] = mapped_column(String(30), nullable=False)
     nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    #: Código del catálogo SIS de origen (``EESS_SIS``); NULL si no aplica.
+    codigo_sis: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    #: SIS / ESSALUD / SANIDAD / PARTICULAR / NINGUNO / OTRO.
+    regimen: Mapped[str | None] = mapped_column(String(20), nullable=True)
     activo: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("TRUE")
     )

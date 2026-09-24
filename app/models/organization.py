@@ -121,12 +121,57 @@ class Ubigeo(Base):
     establecimientos: Mapped[list["Establishment"]] = relationship(
         back_populates="ubigeo"
     )
+    localidades: Mapped[list["Localidad"]] = relationship(back_populates="ubigeo")
     pacientes: Mapped[list["Patient"]] = relationship(
         back_populates="ubigeo_residencia"
     )
 
     __table_args__ = (
         Index("idx_ubigeos_distrito", "distrito"),
+        MYSQL_TABLE_OPTIONS,
+    )
+
+
+class Localidad(Base):
+    """A district sector with its SIS locality code (source ``Z_*`` catalogs).
+
+    The district stays identified by its six-digit UBIGEO; the SIS code is only
+    unique within that district, so the pair is the natural key.
+    """
+
+    __tablename__ = "localidades"
+
+    id: Mapped[int] = mapped_column(
+        mysql.BIGINT(unsigned=True), primary_key=True, autoincrement=True
+    )
+    ubigeo_codigo: Mapped[str] = mapped_column(
+        CHAR(6),
+        ForeignKey(
+            "ubigeos.codigo",
+            name="fk_localidades_ubigeo",
+            ondelete="RESTRICT",
+            onupdate="CASCADE",
+        ),
+        nullable=False,
+    )
+    codigo_sis: Mapped[str] = mapped_column(String(10), nullable=False)
+    nombre: Mapped[str] = mapped_column(String(150), nullable=False)
+    nombre_norm: Mapped[str] = mapped_column(String(150), nullable=False)
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("TRUE")
+    )
+
+    ubigeo: Mapped["Ubigeo"] = relationship(back_populates="localidades")
+    pacientes: Mapped[list["Patient"]] = relationship(back_populates="localidad_catalogo")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "ubigeo_codigo", "codigo_sis", name="uq_localidades_ubigeo_codigo"
+        ),
+        UniqueConstraint(
+            "ubigeo_codigo", "nombre_norm", name="uq_localidades_ubigeo_nombre"
+        ),
+        Index("ix_localidades_nombre_norm", "nombre_norm"),
         MYSQL_TABLE_OPTIONS,
     )
 

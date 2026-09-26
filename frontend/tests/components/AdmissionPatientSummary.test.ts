@@ -100,3 +100,35 @@ test('cancelar la confirmación no da de baja a nadie', { timeout: 30_000 }, asy
   expect(deactivate).not.toHaveBeenCalled()
   expect(wrapper.emitted('removed')).toBeUndefined()
 })
+
+// La admisión edita la ficha vigente, no el registro: la secuencia/etnia SIS, la
+// fecha de inscripción y la condición se completan al dar de alta al paciente.
+test(
+  'el panel de admisión no edita secuencia, etnia, inscripción ni condición',
+  { timeout: 30_000 },
+  async () => {
+    const wrapper = await mountPanel(false)
+
+    expect(wrapper.find('.patient-context__sis-extra').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('SIS · Secuencia / RN')
+    expect(wrapper.text()).not.toContain('Etnia declarada')
+    expect(wrapper.text()).not.toContain('Fecha inscripción')
+    expect(wrapper.text()).not.toContain('Condición')
+  },
+)
+
+// El panel reúne grupo de riesgo, nombre de madre y grupo etario, en ese orden.
+test(
+  'el panel muestra grupo de riesgo, nombre de madre y grupo etáreo',
+  { timeout: 30_000 },
+  async () => {
+    const wrapper = await mountPanel(false)
+    const text = wrapper.text()
+
+    expect(text).toContain('Grupo de riesgo')
+    expect(text).toContain('Nombre de madre')
+    expect(text).toContain('Grupo etáreo')
+    expect(text.indexOf('Grupo de riesgo')).toBeLessThan(text.indexOf('Nombre de madre'))
+    expect(text.indexOf('Nombre de madre')).toBeLessThan(text.indexOf('Grupo etáreo'))
+  },
+)

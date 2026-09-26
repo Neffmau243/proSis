@@ -27,11 +27,25 @@ function newResponsible(parentesco: ResponsibleRelationship, esPrincipal = false
   return {
     parentesco,
     nombre_completo: '',
-    tipo_documento_codigo: 'DNI',
+    // El tipo acompaña al número, nunca al revés: el backend rechaza un tipo
+    // de documento enviado sin su número.
+    tipo_documento_codigo: null,
     numero_documento: null,
     telefono: null,
     es_principal: esPrincipal,
   }
+}
+
+/**
+ * El formulario solo captura el DNI: el tipo se deduce de la presencia del
+ * número para mantener el par tipo/número completo o vacío.
+ */
+function documentFields(field: ParentField, value: string): Partial<ResponsibleRow> {
+  if (field === 'numero_documento') {
+    const numero_documento = value || null
+    return { numero_documento, tipo_documento_codigo: numero_documento ? 'DNI' : null }
+  }
+  return { nombre_completo: value }
 }
 
 function responsibleIndex(parentesco: ParentRelationship): number {
@@ -78,18 +92,13 @@ function updateParentField(
     if (!value) return
     responsables.value = [
       ...responsables.value,
-      {
-        ...newResponsible(parentesco),
-        [field]: value,
-      },
+      { ...newResponsible(parentesco), ...documentFields(field, value) },
     ]
     return
   }
 
   responsables.value = responsables.value.map((responsable, rowIndex) =>
-    rowIndex === index
-      ? { ...responsable, [field]: field === 'numero_documento' ? value || null : value }
-      : responsable,
+    rowIndex === index ? { ...responsable, ...documentFields(field, value) } : responsable,
   )
 }
 

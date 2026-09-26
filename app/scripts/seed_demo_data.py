@@ -16,6 +16,7 @@ API uses.
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
@@ -27,19 +28,10 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.security import hash_password
-from app.models.catalog import AgeGroup, Cie10, Insurance, Profession, ServiceOffering, Specialty
+from app.models.catalog import AgeGroup, Cie10, Insurance, ServiceOffering
 from app.models.clinical import Attention
 from app.models.documents import Certificate, Fua, Referral
-from app.models.organization import (
-    Disa,
-    Establishment,
-    Localidad,
-    MicroNetwork,
-    Network,
-    Office,
-    OfficeProfessional,
-    Ubigeo,
-)
+from app.models.organization import Establishment, Localidad, Office, Ubigeo
 from app.models.patient import Patient, PatientResponsible, PatientRisk, RiskGroup
 from app.models.security import Professional, ProfessionalSpecialty, Role, User, UserRole
 from app.schemas.attention import (
@@ -84,6 +76,14 @@ DEMO_RISK_GROUPS: tuple[tuple[str, str], ...] = (
     ("RIESGO_CARDIO", "Riesgo cardiovascular"),
     ("RIESGO_METABOLICO", "Riesgo metabólico"),
 )
+
+#: Sedes reales que usa la semilla: la central y una alterna para la regla de
+#: ámbito. Las siembra ``20260924_0019_eess_catalog``; la semilla solo las usa.
+DEMO_SITE_RENAES = "1291"
+DEMO_DESTINATION_RENAES = "1302"
+
+#: Especialidad del consultorio de medicina (``cat_especialidad`` de origen).
+DEMO_MEDICINE_SPECIALTY = "Especialidades:003"
 
 
 @dataclass(frozen=True, slots=True)
@@ -532,6 +532,19 @@ def _catalog_locality(session: Session, ubigeo_codigo: str, nombre: str) -> Loca
     return locality
 
 
+def _real_establishment(session: Session, renaes: str) -> Establishment:
+    """Returns a migration-seeded site, failing loudly when absent."""
+
+    establishment = session.scalar(
+        select(Establishment).where(Establishment.codigo_renaes == renaes)
+    )
+    if establishment is None:
+        raise RuntimeError(
+            f"Falta la sede {renaes}; ejecute las migraciones antes de la semilla."
+        )
+    return establishment
+
+
 def _ensure_demo_professional_user(session: Session, professional: Professional) -> User:
     """Create the fixed local clinician account without changing existing credentials."""
 
@@ -822,7 +835,7 @@ def _seed_demo_encounters(
                     paciente_id=patient.id,
                     establecimiento_id=origin.id,
                     profesional_id=professional.id,
-                    especialidad_codigo="MED_GEN",
+                    especialidad_codigo=office.especialidad_codigo,
                     consultorio_id=office.id,
                     modalidad_atencion_codigo=AttentionModeCode.AMBULATORY,
                     fecha_atencion=taken_on,
@@ -903,16 +916,6 @@ def seed_demo_data() -> dict[str, int]:
                 group.edad_minima_meses = minimum
                 group.edad_maxima_meses = maximum
 
-        medicine = _get_or_create(session, Profession, {"nombre": "Medicina"})
-        administration = _get_or_create(
-            session, Profession, {"nombre": "Administración sanitaria"}
-        )
-        specialty = _get_or_create(
-            session,
-            Specialty,
-            {"codigo": "MED_GEN"},
-            {"nombre": "Medicina general", "grupo": "Clínica"},
-        )
         _get_or_create(
             session,
             ServiceOffering,
@@ -948,108 +951,49 @@ def seed_demo_data() -> dict[str, int]:
             for insurance in session.scalars(select(Insurance)).all()
         }
 
-        disa = _get_or_create(
-            session, Disa, {"codigo": "DEMO_DISA"}, {"nombre": "DIRESA Demostración"}
-        )
-        network = _get_or_create(
-            session,
-            Network,
-            {"id_disa": disa.id, "codigo": "DEMO_RED"},
-            {"nombre": "Red Demostración"},
-        )
-        micro_network = _get_or_create(
-            session,
-            MicroNetwork,
-            {"id_red": network.id, "codigo": "DEMO_MICRO"},
-            {"nombre": "Microred Demostración"},
-        )
-        # El catálogo de ubigeos lo siembran las migraciones con los 29
-        # distritos de la provincia; la semilla solo comprueba que existan.
-        ubigeo = _get_or_create(
-            session,
-            Ubigeo,
-            {"codigo": "040101"},
-            {
-                "departamento": "Arequipa",
-                "provincia": "Arequipa",
-                "distrito": "AREQUIPA",
-            },
-        )
-        districts = {"040101": ubigeo.codigo}
-        for code, name in DEMO_DISTRICTS:
-            district = _get_or_create(
-                session,
-                Ubigeo,
-                {"codigo": code},
-                {
-                    "departamento": "Arequipa",
-                    "provincia": "Arequipa",
-                    "distrito": name,
-                },
-            )
+        # Los catálogos territoriales, las sedes y los consultorios los siembran
+        # las migraciones con datos reales; la semilla los resuelve y nunca crea
+        # filas ``DEMO_*``. La cuenta clínica se vincula a un profesional real.
+        districts: dict[str, str] = {}
+        for code, _name in DEMO_DISTRICTS:
+            district = session.get(Ubigeo, code)
+            if district is None:
+                raise RuntimeError(
+                    f"Falta el ubigeo {code}; ejecute las migraciones antes de la semilla."
+                )
             districts[code] = district.codigo
 
-        origin = _get_or_create(
-            session,
-            Establishment,
-            {"codigo_renaes": "DEMO-0001"},
-            {
-                "id_microred": micro_network.id,
-                "nombre": "IPRESS Demo Central",
-                "abreviatura": "IPRESS DEMO",
-                "ubigeo_codigo": ubigeo.codigo,
-                "area_urbana": "URBANA",
-            },
+        origin = _real_establishment(session, DEMO_SITE_RENAES)
+        destination = _real_establishment(session, DEMO_DESTINATION_RENAES)
+        office = session.scalar(
+            select(Office)
+            .where(
+                Office.establecimiento_id == origin.id,
+                Office.especialidad_codigo == DEMO_MEDICINE_SPECIALTY,
+            )
+            .order_by(Office.id)
         )
-        destination = _get_or_create(
-            session,
-            Establishment,
-            {"codigo_renaes": "DEMO-0002"},
-            {
-                "id_microred": micro_network.id,
-                "nombre": "IPRESS Demo Destino",
-                "abreviatura": "IPRESS DESTINO",
-                "ubigeo_codigo": ubigeo.codigo,
-                "area_urbana": "URBANA",
-            },
+        if office is None:
+            raise RuntimeError(
+                "Falta el consultorio de medicina; ejecute las migraciones antes de la semilla."
+            )
+        professional = session.scalar(
+            select(Professional)
+            .join(ProfessionalSpecialty)
+            .where(ProfessionalSpecialty.especialidad_codigo == DEMO_MEDICINE_SPECIALTY)
+            .order_by(Professional.id)
         )
-        office = _get_or_create(
-            session,
-            Office,
-            {"establecimiento_id": origin.id, "codigo": "MED-GEN"},
-            {"nombre": "Consultorio de medicina general", "especialidad_codigo": specialty.codigo},
-        )
-        professional = _get_or_create(
-            session,
-            Professional,
-            {"numero_documento": "70000001"},
-            {"nombre_completo": "Dra. Andrea Prueba", "profesion_id": medicine.id, "colegiatura": "CMP-DEMO-001"},
-        )
-        registration_professional = _get_or_create(
-            session,
-            Professional,
-            {"numero_documento": "70000002"},
-            {
-                "nombre_completo": "Rosa Registro Demo",
-                "profesion_id": administration.id,
-                "colegiatura": "ADM-DEMO-001",
-            },
-        )
-        _get_or_create(
-            session,
-            ProfessionalSpecialty,
-            {"profesional_id": professional.id, "especialidad_codigo": specialty.codigo},
-            {"es_principal": True},
-        )
-        _get_or_create(
-            session,
-            OfficeProfessional,
-            {
-                "consultorio_id": office.id,
-                "profesional_id": professional.id,
-                "fecha_inicio": date(2020, 1, 1),
-            },
-            {"es_responsable": True},
+        if professional is None:
+            raise RuntimeError(
+                "Falta un profesional de medicina; ejecute las migraciones antes de la semilla."
+            )
+        registration_professional = (
+            session.scalar(
+                select(Professional)
+                .where(Professional.id != professional.id)
+                .order_by(Professional.id)
+            )
+            or professional
         )
         demo_professional_user = _ensure_demo_professional_user(session, professional)
 
@@ -1160,13 +1104,74 @@ def seed_demo_data() -> dict[str, int]:
         session.close()
 
 
+def seed_real_patients() -> dict[str, int]:
+    """Create only the real source patients, without the fictional cohort.
+
+    The rows come from the origin ``Data_base.mdb`` (real identity and
+    residence), so they stay in development environments. The clinician account
+    is created separately with ``create_professional_user``.
+    """
+
+    environment = get_settings().environment.strip().casefold()
+    if environment != "development":
+        raise RuntimeError(
+            "Las semillas de demostración solo pueden ejecutarse con ENVIRONMENT=development."
+        )
+
+    session = SessionLocal()
+    try:
+        professional = session.scalar(
+            select(Professional)
+            .where(Professional.activo.is_(True))
+            .order_by(Professional.id)
+        )
+        if professional is None:
+            raise RuntimeError(
+                "No hay profesionales sembrados; ejecute las migraciones antes de la semilla."
+            )
+        patients = _seed_source_examples(
+            session, ubigeo_codigo="040102", professional=professional
+        )
+        session.commit()
+        identifiers = {
+            "professional_id": professional.id,
+            "real_patient_count": len(patients),
+        }
+        for document, patient in patients.items():
+            identifiers[f"patient_{document}"] = patient.id
+        return identifiers
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 def main() -> None:
-    identifiers = seed_demo_data()
-    print("Semillas de demostración creadas o verificadas.")
+    parser = argparse.ArgumentParser(
+        description="Carga datos de desarrollo: cohorte ficticio o solo pacientes reales."
+    )
+    parser.add_argument(
+        "--real-only",
+        action="store_true",
+        help=(
+            "Carga solo los pacientes reales del origen, sin cohorte ficticio "
+            "ni cuenta clínica."
+        ),
+    )
+    args = parser.parse_args()
+
+    if args.real_only:
+        identifiers = seed_real_patients()
+        print("Pacientes reales del origen creados o verificados.")
+    else:
+        identifiers = seed_demo_data()
+        print("Semillas de demostración creadas o verificadas.")
     for key, value in identifiers.items():
         print(f"{key}={value}")
-    print(f"professional_username={DEMO_PROFESSIONAL_USERNAME}")
-    print(f"professional_password={DEMO_PROFESSIONAL_PASSWORD}")
+    if not args.real_only:
+        print(f"professional_username={DEMO_PROFESSIONAL_USERNAME}")
+        print(f"professional_password={DEMO_PROFESSIONAL_PASSWORD}")
 
 
 if __name__ == "__main__":

@@ -43,12 +43,13 @@ este ajuste visual no requiere otra migración ni inventa datos para pacientes.
 ## Flujo
 
 1. En **Datos del paciente**, debajo de **Seguro**, revise o complete las tres
-   casillas de afiliación SIS. A solicitud del usuario, se retiraron de esta
-   interfaz el control Secuencia/RN y la nota informativa. Esto no borra una
-   secuencia ya guardada: sigue disponible en la ficha inicial, backend e impresión.
+   casillas de afiliación SIS, la **Secuencia/RN** y la **Etnia declarada**.
+   La secuencia no es el régimen del seguro y se guarda tal cual; la etnia se
+   elige del catálogo de etnias del backend. Un paciente con etnia o secuencia
+   pendientes puede completarlas aquí sin registrar uno nuevo.
    **Guardar cambios** actualiza la ficha del paciente por PATCH, incluyendo
    solo campos modificados. Los cambios pendientes deben guardarse antes de la
-   atención. La etnia sigue mostrándose desde la ficha y el catálogo del backend.
+   atención.
 2. Pulse **Guardar atención**. Se muestra la confirmación sin navegar ni borrar
    los datos; la atención queda en modo lectura para evitar un segundo registro.
 3. **Imprimir S.I.S.** se habilita con la copia devuelta por el servidor. Personal

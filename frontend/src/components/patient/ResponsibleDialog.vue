@@ -138,11 +138,13 @@ async function save(): Promise<void> {
 
   errorMessage.value = null
   try {
+    // El backend exige tipo y número juntos: si no hay número, no se envía tipo.
+    const numeroDocumento = form.numero_documento?.trim() || null
     const payload = {
       parentesco: form.parentesco,
       nombre_completo: form.nombre_completo,
-      tipo_documento_codigo: form.tipo_documento_codigo || null,
-      numero_documento: form.numero_documento || null,
+      tipo_documento_codigo: numeroDocumento ? form.tipo_documento_codigo || null : null,
+      numero_documento: numeroDocumento,
       telefono: form.telefono || null,
       es_principal: form.es_principal,
       activo: form.activo,

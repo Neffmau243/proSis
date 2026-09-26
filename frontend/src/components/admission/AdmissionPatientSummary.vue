@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from 'vue'
-import AdmissionPatientSisSummary from './AdmissionPatientSisSummary.vue'
 import PatientSisCodeFields from '@/components/patients/PatientSisCodeFields.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAdmissionPatientDetails } from '@/composables/useAdmissionPatientDetails'
 import { useAdmissionPatientEditor } from '@/composables/useAdmissionPatientEditor'
+import AdmissionPatientRelations from '@/components/admission/AdmissionPatientRelations.vue'
 import { patientFields, type PatientFieldKey } from '@/utils/patientDraft'
 import { pacientes, type Patient } from '@/services/pacientes'
-import type { CodeCatalogItem } from '@/services/catalogos'
+import type { CodeCatalogItem, RiskGroupCatalogItem } from '@/services/catalogos'
 
 const props = defineProps<{
   patient: Patient
@@ -17,6 +17,10 @@ const props = defineProps<{
   blocked?: boolean
   /** Catálogo cargado por la vista, que también lo usa para el diálogo de responsables. */
   tiposDocumento: CodeCatalogItem[]
+  /** Catálogos que alimentan el diálogo de riesgo dentro del panel. */
+  gruposRiesgo?: RiskGroupCatalogItem[]
+  /** Grupo etario calculado por la vista (no se guarda en el paciente). */
+  grupoEtareoLabel?: string
 }>()
 const emit = defineEmits<{
   saved: [patient: Patient]
@@ -37,7 +41,6 @@ const { draft, saving, dirty, error, fieldErrors, save, reset } = useAdmissionPa
 const {
   sexos,
   seguros,
-  etnias,
   catalogError,
   loadCatalogs,
   establishments,
@@ -62,6 +65,11 @@ const disabled = computed(
 )
 const canRemove = computed(
   () => Boolean(props.canDelete) && props.patient.estado && !props.blocked && !saving.value,
+)
+// La admisión edita la ficha vigente, no el registro: la secuencia/etnia SIS,
+// la inscripción y la condición se completan al dar de alta al paciente.
+const admissionFields = patientFields.filter(
+  (field) => field.key !== 'fecha_inscripcion' && field.key !== 'condicion',
 )
 const options = computed<
   Partial<Record<PatientFieldKey, { label: string; value: string | number }[]>>
@@ -133,6 +141,14 @@ function searchEstablishments(query: string) {
     establishments.items.value.filter((item) => item.id === draft.establecimiento_registro_id),
   )
 }
+function onRelationsSaved(updated: Patient): void {
+  emit('saved', updated)
+}
+
+function onRelationsBusy(busy: boolean): void {
+  emit('busyChange', busy)
+}
+
 async function removePatient(): Promise<void> {
   try {
     await ElMessageBox.confirm(
@@ -177,7 +193,7 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
         label-width="110px"
         @submit.prevent="save"
       >
-        <template v-for="field in patientFields" :key="field.key">
+        <template v-for="field in admissionFields" :key="field.key">
           <el-form-item
             :class="{ 'patient-context__insurance': field.key === 'seguro_id' }"
             :label="field.label"
@@ -291,6 +307,20 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
             @update="Object.assign(draft, $event)"
           />
         </template>
+        <div class="patient-context__relations">
+          <AdmissionPatientRelations
+            :patient="patient"
+            :disabled="disabled"
+            :can-edit="canEdit"
+            :tipos-documento="tiposDocumento"
+            :grupos-riesgo="gruposRiesgo ?? []"
+            @saved="onRelationsSaved"
+            @busy-change="onRelationsBusy"
+          />
+          <el-form-item class="patient-context__age-group" label="Grupo etáreo">
+            <span class="patient-context__readonly">{{ grupoEtareoLabel || '—' }}</span>
+          </el-form-item>
+        </div>
         <div v-if="canEdit" class="patient-context__actions">
           <el-alert v-if="error" :title="error" type="error" :closable="false" />
           <p class="patient-context__hint" role="status">
@@ -315,11 +345,6 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
           </el-button>
         </div>
       </el-form>
-      <AdmissionPatientSisSummary
-        :patient="patient"
-        :ethnicities="etnias"
-        :show-affiliation="false"
-      />
     </div>
   </section>
 </template>
@@ -385,6 +410,16 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
 }
 .patient-context__insurance {
   grid-column: 1 / -1;
+}
+.patient-context__relations {
+  grid-column: 1 / -1;
+}
+.patient-context__age-group {
+  margin-top: 4px !important;
+}
+.patient-context__readonly {
+  font-size: 12px;
+  color: var(--el-text-color-primary);
 }
 .patient-context__actions :deep(.el-button) {
   margin: 0;

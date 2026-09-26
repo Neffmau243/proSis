@@ -157,8 +157,9 @@ describen las rutas reales. La revisión completa está en
 
 En `/admision`, “Datos del paciente” utiliza un borrador y el botón **Guardar
 cambios**. Permite editar las columnas de `PatientUpdate`: identidad, historias,
-nacimiento, sexo, residencia, establecimiento, seguro, teléfono, inscripción y
-condición. Un único `PATCH /patients/{id}` incluye solo las diferencias;
+nacimiento, sexo, residencia, establecimiento, seguro, teléfono, inscripción,
+condición y los campos SIS (afiliación, secuencia/RN y etnia declarada).
+Un único `PATCH /patients/{id}` incluye solo las diferencias;
 `exclude_unset` conserva los campos omitidos. No hay autoguardado al escribir.
 Se pueden descartar cambios; un error conserva el borrador. El POST de atención
 se bloquea mientras haya cambios del paciente pendientes u operaciones en curso.

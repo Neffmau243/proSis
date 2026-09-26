@@ -40,14 +40,29 @@ def test_health_endpoint_and_route_composition() -> None:
 def test_feature_router_composition() -> None:
     router = APIRouter()
 
-    @router.get("/demo")
+    @router.get("/demo", name="demo_feature_probe")
     def demo() -> dict[str, str]:
         return {"ok": "si"}
 
     before = len(api_router.routes)
     try:
         include_feature_router(router, prefix="/demo", tags=["Demo"])
-        assert [route.path for route in api_router.routes[before:]] == ["/demo/demo"]
+
+        # FastAPI 0.141+ composes routers lazily: ``api_router.routes`` holds
+        # ``_IncludedRouter`` wrappers without a ``.path`` until the router is
+        # mounted. The probe is therefore exercised over HTTP, which proves the
+        # composed route is reachable at its prefixed path.
+        probe = FastAPI()
+        probe.include_router(api_router)
+        client = TestClient(probe)
+
+        response = client.get("/demo/demo")
+        assert response.status_code == 200
+        assert response.json() == {"ok": "si"}
+        # The tags travel with the feature so its section shows up in the docs.
+        assert client.get("/openapi.json").json()["paths"]["/demo/demo"]["get"]["tags"] == [
+            "Demo"
+        ]
     finally:
         # The composition boundary is global by design; the probe route is
         # removed so no other test sees it.

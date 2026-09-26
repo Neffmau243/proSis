@@ -18,4 +18,4 @@ def test_metadata_and_alembic_head_cover_the_bootstrap_schema() -> None:
     } <= set(
         Base.metadata.tables
     )
-    assert script.get_current_head() == "20260924_0019_eess_catalog"
+    assert script.get_current_head() == "20260926_0022_specialty_codes"

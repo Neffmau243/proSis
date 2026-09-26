@@ -15,27 +15,35 @@ Requisitos: Python 3.12 con `requirements.txt` instalado, MySQL local y Node
 
 ```bash
 # terminal 1 — backend, desde la raíz del repo
-python -m app.scripts.bootstrap_database     # crea la BD y aplica migraciones
-python -m app.scripts.seed_demo_data         # datos ficticios (idempotente)
+python -m app.scripts.bootstrap_database              # crea la BD y aplica migraciones
+python -m app.scripts.create_admin --username admin   # primer ADMIN (pide la contraseña)
 uvicorn app.main:app --reload
 
 # terminal 2 — frontend
 cd frontend && npm install && npm run dev
-
-Lucía Valentina Prueba Integral, ID 20
 ```
 
-Abrir <http://localhost:5173> e ingresar con una cuenta demo. La API queda en
+Abrir <http://localhost:5173> e ingresar con el ADMIN creado. La API queda en
 <http://127.0.0.1:8000/api/v1> y su documentación en
 <http://127.0.0.1:8000/docs>.
 
 | Usuario | Contraseña | Rol |
 | --- | --- | --- |
-| `admin` | `74028519` | ADMIN |
-| `medico.demo` | `18594027` | PROFESIONAL |
+| `admin` | `74028519` | ADMIN (base local de este repo) |
+| `medico.demo` | `18594027` | PROFESIONAL (cuenta de pruebas vinculada a un profesional real) |
 
 Las credenciales son exclusivamente para la base local desechable; nunca se
 reutilizan fuera de desarrollo.
+
+> **Estado de la base de este repo**: quedó **limpia** — los catálogos reales de
+> Arequipa (migraciones `20260926_0020_real_catalogs`,
+> `20260926_0021_real_professionals` y `20260926_0022_specialty_codes`), el
+> `admin`, la cuenta clínica `medico.demo` vinculada a un profesional real y
+> **62 profesionales reales con su especialidad y asignación a consultorio**, y
+> los **13 pacientes reales del origen** (los de `Data_base.mdb`). No hay
+> pacientes ficticios. `seed_demo_data` ya **no** crea catálogos `DEMO_*`:
+> resuelve las sedes y los profesionales sembrados por las migraciones y solo
+> agrega el cohorte ficticio (o, con `--real-only`, solo los pacientes reales).
 
 ## Arquitectura
 
@@ -93,6 +101,26 @@ usuarios ↔ roles; pacientes ↔ grupos_riesgo
 La FK compuesta de certificados obliga a que el profesional firmante sea el
 mismo de la atención. documento_series controla la numeración por tipo,
 establecimiento y período.
+
+### Catálogos sembrados por migración
+
+El ámbito de los datos reales es Arequipa y no depende del volcado `etlSis/`
+(que es solo la guía de origen y **no se entrega**): los valores viven horneados
+en las migraciones.
+
+| Migración | Siembra |
+| --- | --- |
+| `20260919_0015_patient_sis` | catálogo de etnias (MINSA) |
+| `20260923_0017_insurance_plans` | planes SIS y Sanidad |
+| `20260924_0018_sis_localities` | 29 distritos (`ubigeos`) + 475 localidades |
+| `20260924_0019_eess_catalog` | 6 sedes con RENAES válido |
+| `20260926_0020_real_catalogs` | DIRESA `040`, 4 redes, 47 microredes, 33 especialidades (código `origen:codigo`) y 42 consultorios (6 sedes × 7 áreas) |
+| `20260926_0021_real_professionals` | 7 profesiones, 62 profesionales (código = `id` de origen), su especialidad principal y una asignación vigente a cada consultorio del área |
+| `20260926_0022_specialty_codes` | normaliza a mayúsculas los códigos de `especialidades`, como exige la API |
+
+Los 32 placeholders `EE.SS. DEL DPTO.` y las filas de texto libre del origen se
+ignoran a propósito. Las filas de `consultorios` son inferidas: el origen solo
+lista áreas de servicio.
 
 `pacientes.profesional_registro_id` apunta al profesional que registró al
 paciente o cambió su sede: alimenta el ámbito asistencial descrito en RB-02 y
@@ -166,10 +194,25 @@ usa el sobre definido por los handlers globales e incluye X-Request-ID.
    python -m app.scripts.create_admin --username admin
    ```
 
-5. Opcionalmente cargue datos ficticios para probar todos los flujos de la API.
-   Este comando es idempotente: crea solo los registros de demostración que no
-   existan y no elimina ni sustituye registros existentes. Úselo únicamente en
-   desarrollo local:
+   Para probar la admisión **sin** cargar pacientes ficticios, cree solo la
+   cuenta clínica vinculada a un profesional real y con asignación vigente:
+
+   ```powershell
+   python -m app.scripts.create_professional_user --username medico.demo
+   ```
+
+   Para tener pacientes reales con los que probar la admisión, sin cargar el
+   cohorte ficticio, use el modo `--real-only` (13 pacientes del origen):
+
+   ```powershell
+   python -m app.scripts.seed_demo_data --real-only
+   ```
+5. Opcionalmente cargue el cohorte ficticio para probar todos los flujos de la
+   API. Este comando es idempotente: crea solo los registros que no existan y no
+   elimina ni sustituye datos existentes. Úselo únicamente en desarrollo local.
+   La semilla **no** crea catálogos `DEMO_*`: resuelve las sedes reales
+   (`20260924_0019_eess_catalog`), el consultorio de medicina y un profesional
+   real (`20260926_0021_real_professionals`) ya sembrados por las migraciones.
 
    ```powershell
    python -m app.scripts.seed_demo_data
@@ -177,15 +220,13 @@ usa el sobre definido por los handlers globales e incluye X-Request-ID.
 
    Al terminar muestra los IDs creados o verificados. La colección Postman los
    descubre automáticamente, por lo que no hace falta copiarlos a un environment.
-   La semilla carga dos sedes (Central y Destino), dos profesionales, la cuenta
-   `medico.demo`, 14 pacientes ficticios con DNI, distritos y seguros variados,
-   responsables para cada menor, antecedentes de riesgo, 5 atenciones históricas
-   con signos vitales, indicadores nutricionales calculados por el servidor y un
-   FUA, un certificado y una referencia; todas las atenciones y documentos se
-   crean a través de `AttentionService` y `DocumentService`, así que respetan
-   las mismas reglas que la API. Los pacientes de IPRESS Demo Destino quedan a
-   propósito fuera de las asignaciones de `medico.demo` para poder comprobar el
-   ámbito asistencial (requiere `alembic upgrade head` al día).
+   La semilla vincula la cuenta `medico.demo` a un profesional real y carga 14
+   pacientes ficticios con DNI, distritos y seguros variados, responsables para
+   cada menor, antecedentes de riesgo, 5 atenciones históricas con signos
+   vitales, indicadores nutricionales calculados por el servidor y un FUA, un
+   certificado y una referencia; todas las atenciones y documentos se crean a
+   través de `AttentionService` y `DocumentService`, así que respetan las mismas
+   reglas que la API (requiere `alembic upgrade head` al día).
 
 6. Ejecute la API:
 
@@ -237,7 +278,8 @@ python -m app.scripts.reset_demo_database --demo-credentials --confirm-delete
 ```
 
 Las credenciales son exclusivamente para esa BD desechable: `admin` /
-`74028519` y `medico.demo` / `18594027`. El script no
+`74028519` y `medico.demo` / `18594027` (este reinicio **sí** vuelve a cargar
+los catálogos `DEMO_*` y los pacientes ficticios). El script no
 puede ejecutarse en producción. Si prefiere una contraseña propia, omita
 `--demo-credentials` y use el modo interactivo o `--generate-password`.
 

@@ -1,5 +1,5 @@
 import type { Patient, PatientUpdatePayload } from '../services/pacientes'
-import { patientSisContractFields, patientSisErrors } from './patientSis.ts'
+import { patientSisErrors, patientSisFields } from './patientSis.ts'
 
 /** General controls; the SIS contract is grouped directly below the insurance selector. */
 export const patientFields = [
@@ -34,7 +34,7 @@ export const patientFields = [
 export type PatientField = (typeof patientFields)[number]
 // ``localidad`` no se edita directamente: lo alimenta el catálogo SIS.
 const localityNameField = { key: 'localidad', label: 'Localidad', kind: 'text', max: 150 } as const
-const editableFields = [...patientFields, localityNameField, ...patientSisContractFields] as const
+const editableFields = [...patientFields, localityNameField, ...patientSisFields] as const
 export type PatientFieldKey = (typeof editableFields)[number]['key']
 export type PatientDraft = { [K in PatientFieldKey]: Exclude<PatientUpdatePayload[K], undefined> }
 export type PatientDraftErrors = Partial<Record<PatientFieldKey, string>>

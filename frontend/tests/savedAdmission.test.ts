@@ -35,7 +35,7 @@ test('printing uses only the saved server copy, keeps inputs, and clears on pati
   scope.stop()
 })
 
-test('admission edits SIS in the patient master without altering ethnicity or unrelated data', () => {
+test('admission edits SIS, sequence and declared ethnicity in the patient master', () => {
   const baseline = createPatientDraft(aPatient(emptyPatientSis()))
   const draft = {
     ...baseline,
@@ -46,12 +46,15 @@ test('admission edits SIS in the patient master without altering ethnicity or un
     etnia_codigo: '2',
   }
   expect(baseline.sis_numero).toBeNull()
-  expect('etnia_codigo' in baseline).toBe(false)
+  // La etnia forma parte del borrador editable: un paciente con etnia nula (como
+  // el paciente demo) puede completarse desde admisión sin crear otro registro.
+  expect(baseline.etnia_codigo).toBeNull()
   expect(buildPatientPatch(baseline, draft)).toEqual({
     sis_diresa: '001',
     sis_tipo: 'E1',
     sis_numero: '000000001',
     sis_secuencia: '01',
+    etnia_codigo: '2',
   })
 })
 

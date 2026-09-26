@@ -56,6 +56,30 @@ function riskSaved(item: PatientRisk) {
 
 <template>
   <section class="patient-relations" aria-label="Responsables y riesgos del paciente">
+    <h4 class="patient-relations__title">Grupo de riesgo</h4>
+    <p v-if="!patient.riesgos.length" class="patient-relations__value">Sin registrar</p>
+    <div
+      v-for="item in patient.riesgos"
+      :key="`${item.grupo_riesgo_id}-${item.fecha_inicio}`"
+      class="patient-relations__row"
+    >
+      <span
+        >{{ item.grupo_riesgo_nombre ?? `Grupo ${item.grupo_riesgo_id}` }} · {{ item.fecha_inicio
+        }}{{ item.fecha_fin ? ` a ${item.fecha_fin}` : ' · Sin cierre' }}</span
+      >
+      <el-button
+        v-if="canEdit"
+        link
+        type="primary"
+        :disabled="disabled"
+        :aria-label="`Editar riesgo ${item.grupo_riesgo_nombre ?? item.grupo_riesgo_id}`"
+        @click="editRisk(item)"
+        >Editar</el-button
+      >
+    </div>
+    <el-button v-if="canEdit" link type="primary" :disabled="disabled" @click="editRisk(null)"
+      >Agregar riesgo</el-button
+    >
     <h4 class="patient-relations__title">Nombre de madre</h4>
     <p class="patient-relations__value">{{ mother?.nombre_completo ?? 'Sin registrar' }}</p>
     <el-button
@@ -92,30 +116,6 @@ function riskSaved(item: PatientRisk) {
         >Agregar responsable</el-button
       >
     </details>
-    <h4 class="patient-relations__title">Grupos de riesgo</h4>
-    <p v-if="!patient.riesgos.length" class="patient-relations__value">Sin registrar</p>
-    <div
-      v-for="item in patient.riesgos"
-      :key="`${item.grupo_riesgo_id}-${item.fecha_inicio}`"
-      class="patient-relations__row"
-    >
-      <span
-        >{{ item.grupo_riesgo_nombre ?? `Grupo ${item.grupo_riesgo_id}` }} · {{ item.fecha_inicio
-        }}{{ item.fecha_fin ? ` a ${item.fecha_fin}` : ' · Sin cierre' }}</span
-      >
-      <el-button
-        v-if="canEdit"
-        link
-        type="primary"
-        :disabled="disabled"
-        :aria-label="`Editar riesgo ${item.grupo_riesgo_nombre ?? item.grupo_riesgo_id}`"
-        @click="editRisk(item)"
-        >Editar</el-button
-      >
-    </div>
-    <el-button v-if="canEdit" link type="primary" :disabled="disabled" @click="editRisk(null)"
-      >Agregar riesgo</el-button
-    >
     <p v-if="canEdit" class="patient-relations__hint">
       Cada responsable y periodo de riesgo se guarda desde su formulario.
     </p>

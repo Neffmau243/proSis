@@ -28,6 +28,8 @@
             :can-delete="auth.hasPermission('PACIENTE_DAR_BAJA')"
             :blocked="saving || attentionCreated"
             :tipos-documento="tiposDocumento"
+            :grupos-riesgo="gruposRiesgo"
+            :grupo-etareo-label="grupoEtarioLabel"
             @saved="applyUpdatedPatient"
             @dirty-change="patientContextDirty = $event"
             @busy-change="patientContextSaving = $event"
@@ -481,17 +483,6 @@
                     <span class="nutrition-age__label">Edad actual del paciente</span>
                     <strong class="nutrition-age__value">{{ nutritionalAge }}</strong>
                   </div>
-                  <div v-if="isAdmission" class="nutrition-age__extra">
-                    <dl>
-                      <div>
-                        <dt>Grupo etario</dt>
-                        <dd>{{ grupoEtarioLabel }}</dd>
-                      </div>
-                    </dl>
-                    <p class="nutrition-age__hint">
-                      Se calculan con la fecha de nacimiento guardada.
-                    </p>
-                  </div>
                 </div>
                 <el-row :gutter="16" class="nutrition-fields">
                   <el-col :span="24">
@@ -522,23 +513,6 @@
                     </el-form-item>
                   </el-col>
                 </el-row>
-
-                <!-- Relaciones del paciente: se muestran aquí para aprovechar
-                     este espacio sin alargar el panel lateral. -->
-                <div
-                  v-if="isAdmission && admissionPatient"
-                  class="admission-patient-extras"
-                >
-                  <AdmissionPatientRelations
-                    :patient="admissionPatient"
-                    :disabled="patientRelationsDisabled"
-                    :can-edit="auth.hasPermission('PACIENTE_EDITAR')"
-                    :tipos-documento="tiposDocumento"
-                    :grupos-riesgo="gruposRiesgo"
-                    @saved="applyUpdatedPatient"
-                    @busy-change="patientContextSaving = $event"
-                  />
-                </div>
 
               </section>
             </el-form>
@@ -583,7 +557,6 @@ import AdmissionHistory from '@/components/admission/AdmissionHistory.vue'
 import AdmissionFinalActions from '@/components/admission/AdmissionFinalActions.vue'
 import FuaPrintDialog from '@/components/admission/FuaPrintDialog.vue'
 import { useSavedAdmission } from '@/composables/useSavedAdmission'
-import AdmissionPatientRelations from '@/components/admission/AdmissionPatientRelations.vue'
 import AdmissionPatientSummary from '@/components/admission/AdmissionPatientSummary.vue'
 import {
   catalogos,
@@ -703,16 +676,6 @@ const rules: FormRules = {
 
 /** El paciente de la admisión nunca debe quedar fuera del formulario. */
 const showForm = computed(() => !isAdmission.value || admissionPatient.value !== null)
-
-/** Las relaciones se deshabilitan mientras el paciente o la atención se guardan. */
-const patientRelationsDisabled = computed(
-  () =>
-    !auth.hasPermission('PACIENTE_EDITAR') ||
-    !admissionPatient.value?.estado ||
-    saving.value ||
-    attentionCreated.value ||
-    patientContextSaving.value,
-)
 
 /** El historial necesita un paciente conocido (admisión o selección manual). */
 const historialPatientId = computed(() =>
@@ -1262,41 +1225,6 @@ onMounted(async () => {
   gap: var(--admission-space);
 }
 
-.nutrition-age__extra {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--el-color-primary-light-7);
-}
-
-.nutrition-age__extra dl {
-  margin: 0;
-}
-
-.nutrition-age__extra dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-}
-
-.nutrition-age__extra dt {
-  color: inherit;
-  font-weight: 650;
-}
-
-.nutrition-age__extra dd {
-  margin: 0;
-  color: var(--el-text-color-primary);
-  font-weight: 600;
-}
-
-.nutrition-age__hint {
-  margin: 2px 0 0;
-  color: var(--el-text-color-regular);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
 .nutrition-age__label {
   color: inherit;
   font-size: 12px;
@@ -1317,10 +1245,6 @@ onMounted(async () => {
 .nutrition-fields {
   display: grid;
   gap: 2px;
-}
-
-.admission-patient-extras {
-  margin-top: var(--admission-space-wide);
 }
 
 .vital-signs,

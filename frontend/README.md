@@ -23,16 +23,21 @@ Vite sirve normalmente [localhost:5173](http://localhost:5173) y reenvía
 Para una API en otro origen, configure `VITE_API_BASE_URL` en `.env.local`,
 incluyendo una sola vez `/api/v1`, y configure CORS en el backend.
 
-Cuentas de la semilla local desechable:
+Cuentas de la base local desechable:
 
 | Usuario | Contraseña | Uso |
 | --- | --- | --- |
 | `admin` | `74028519` | Registro/configuración administrativa. |
-| `medico.demo` | `18594027` | Flujo clínico de los pacientes de su ámbito. |
+| `medico.demo` | `18594027` | Flujo clínico; se crea con `create_professional_user` (o `seed_demo_data`). |
 
-La semilla no sobrescribe cuentas existentes. Los identificadores de pacientes,
-consultorios y profesionales dependen de la base; búsquelos en la aplicación,
-no suponga que un ID fijo pertenece siempre al mismo paciente.
+La base de este repositorio quedó **limpia**: catálogos reales de Arequipa,
+`admin` y 62 profesionales reales con asignación a consultorio, sin pacientes
+ficticios. `seed_demo_data` ya **no** crea catálogos `DEMO_*`: usa las sedes y
+los profesionales de las migraciones y solo agrega 14 pacientes ficticios. No
+sobrescribe cuentas existentes. Los
+identificadores de pacientes, consultorios y profesionales dependen de la base;
+búsquelos en la aplicación, no suponga que un ID fijo pertenece siempre al mismo
+paciente.
 
 ## Flujo de trabajo
 

@@ -8,6 +8,7 @@ their real entry points instead of being mocked.
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Iterator
 
 import pytest
@@ -20,16 +21,20 @@ from app.core.security import verify_password
 from app.models.audit import AuditLog
 from app.models.organization import Establishment
 from app.models.patient import Patient, PatientResponsible
-from app.models.security import Role, User, UserRole
+from app.models.security import Professional, Role, User, UserRole
 from app.scripts import create_admin as create_admin_module
+from app.scripts import create_professional_user as professional_user_module
 from app.scripts import seed_demo_data as seed_module
 from app.scripts.bootstrap_database import create_database_if_missing, upgrade_to_head
 from app.scripts.create_admin import create_admin
+from app.scripts.create_professional_user import create_professional_user
 from app.scripts.reset_demo_database import drop_configured_database
 from app.scripts.seed_demo_data import (
     DEMO_ADMIN_PASSWORD,
     DEMO_PROFESSIONAL_USERNAME,
+    SOURCE_DEMO_PATIENTS,
     seed_demo_data,
+    seed_real_patients,
 )
 
 
@@ -49,7 +54,7 @@ def test_session_factory(migrated_mysql_engine: Engine) -> sessionmaker[Session]
 def _script_sessions(
     monkeypatch: pytest.MonkeyPatch, test_session_factory: sessionmaker[Session]
 ) -> Iterator[None]:
-    for module in (create_admin_module, seed_module):
+    for module in (create_admin_module, professional_user_module, seed_module):
         monkeypatch.setattr(module, "SessionLocal", test_session_factory)
     yield
 
@@ -248,3 +253,89 @@ def test_seed_demo_data_refuses_a_non_development_environment(
 
     with pytest.raises(RuntimeError, match="ENVIRONMENT=development"):
         seed_demo_data()
+
+
+def test_create_professional_user_links_a_real_professional(
+    _script_sessions: None, db_session: Session
+) -> None:
+    """The clinical account is created without loading any fictional patient."""
+
+    user_id = create_professional_user("prof.test", DEMO_ADMIN_PASSWORD)
+
+    db_session.rollback()
+    user = db_session.get(User, user_id)
+    assert user is not None
+    assert user.nombre_usuario == "prof.test"
+    assert user.profesional_id is not None
+    professional = db_session.get(Professional, user.profesional_id)
+    assert professional is not None and professional.numero_documento
+    roles = {
+        role.codigo
+        for role in db_session.scalars(
+            select(Role)
+            .join(UserRole, UserRole.rol_id == Role.id)
+            .where(UserRole.usuario_id == user_id)
+        )
+    }
+    assert roles == {"PROFESIONAL"}
+
+
+def test_seed_real_patients_loads_only_the_source_rows(
+    _script_sessions: None, db_session: Session
+) -> None:
+    """The ``--real-only`` mode loads the origin patients and no fictional cohort."""
+
+    identifiers = seed_real_patients()
+
+    assert identifiers["real_patient_count"] == len(SOURCE_DEMO_PATIENTS)
+    db_session.rollback()
+    sample = db_session.scalar(
+        select(Patient).where(Patient.numero_documento == "77023409")
+    )
+    assert sample is not None
+    assert sample.sis_diresa == "040" and sample.sis_numero == "77023409"
+
+
+def test_seed_cli_real_only_branch(
+    _script_sessions: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["seed_demo_data", "--real-only"])
+    seed_module.main()
+
+    assert "Pacientes reales" in capsys.readouterr().out
+
+
+def test_seed_cli_default_branch(
+    _script_sessions: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["seed_demo_data"])
+    seed_module.main()
+
+    output = capsys.readouterr().out
+    assert "professional_username" in output
+    assert "professional_password" in output
+
+
+def test_create_professional_user_cli(
+    _script_sessions: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "create_professional_user",
+            "--username",
+            "cli.user",
+            "--password",
+            DEMO_ADMIN_PASSWORD,
+        ],
+    )
+    professional_user_module.main()
+
+    assert "Usuario PROFESIONAL creado" in capsys.readouterr().out

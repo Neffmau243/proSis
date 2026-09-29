@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
+import { DocumentChecked, Close } from '@element-plus/icons-vue'
 
 import PatientRegistrationBaseSection from '@/components/patients/PatientRegistrationBaseSection.vue'
 import PatientRegistrationFamilySections from '@/components/patients/PatientRegistrationFamilySections.vue'
@@ -27,6 +28,11 @@ const router = useRouter()
 // La misma vista sirve al botón destacado "Admisión" y a "Nuevo paciente".
 const esAdmision = computed(() => route.name === 'admision')
 const titulo = computed(() => (esAdmision.value ? 'Admisión de paciente' : 'Nuevo paciente'))
+const fechaActual = new Intl.DateTimeFormat('es-PE', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+}).format(new Date())
 
 const formRef = ref<FormInstance>()
 const saving = ref(false)
@@ -208,7 +214,10 @@ onMounted(async () => {
   <div class="patient-registration">
     <header class="page-header patient-registration__header">
       <h2>{{ titulo }}</h2>
-      <el-button @click="router.back()">Volver</el-button>
+      <div class="patient-registration__date">
+        <span>Fecha actual</span>
+        <time>{{ fechaActual }}</time>
+      </div>
     </header>
 
     <el-alert
@@ -246,18 +255,22 @@ onMounted(async () => {
             @search-ubigeos="searchUbigeos"
           />
 
-          <PatientRegistrationFamilySections
-            v-model:responsables="form.responsables"
-            v-model:riesgos="form.riesgos"
-            v-model:telefono-principal="form.telefono_principal"
-            :grupos-riesgo="gruposRiesgo"
-          />
-        </div>
+          <div class="patient-registration__sidebar">
+            <PatientRegistrationFamilySections
+              v-model:responsables="form.responsables"
+              v-model:riesgos="form.riesgos"
+              v-model:telefono-principal="form.telefono_principal"
+              :grupos-riesgo="gruposRiesgo"
+            />
 
-        <footer class="form-actions">
-          <el-button type="primary" :loading="saving" @click="submit">Registrar paciente</el-button>
-          <el-button @click="router.back()">Cancelar</el-button>
-        </footer>
+            <footer class="form-actions">
+              <el-button type="primary" :icon="DocumentChecked" :loading="saving" @click="submit">
+                Registrar paciente
+              </el-button>
+              <el-button :icon="Close" @click="router.back()">Salir</el-button>
+            </footer>
+          </div>
+        </div>
       </el-form>
     </el-card>
   </div>
@@ -266,6 +279,12 @@ onMounted(async () => {
 <style scoped>
 .patient-registration {
   min-width: 0;
+  max-width: 1040px;
+  container-type: inline-size;
+  --registration-panel: #e8eff7;
+  --registration-heading: #d4e1ef;
+  --registration-border: #b9cbdf;
+  --registration-ink: #304f6d;
 }
 
 .page-header {
@@ -273,11 +292,30 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .page-header h2 {
   margin: 0;
+  font-size: 20px;
+}
+
+.patient-registration__date {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--registration-ink);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.patient-registration__date time {
+  padding: 4px 12px;
+  border: 1px solid var(--registration-border);
+  border-radius: 3px;
+  background: var(--el-fill-color-blank);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .form-alert {
@@ -286,51 +324,64 @@ onMounted(async () => {
 
 .patient-registration__card {
   min-width: 0;
-  border-color: var(--el-border-color-lighter);
-  border-radius: 8px;
+  border: 0;
+  background: transparent;
 }
 
 .patient-registration__card :deep(.el-card__body) {
-  padding: 12px;
+  padding: 0;
 }
 
 .patient-registration__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(300px, 0.82fr);
-  align-items: start;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  align-items: stretch;
   gap: 12px;
+}
+
+.patient-registration__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.patient-registration__sidebar :deep(.family-sections) {
+  flex: 1;
+  align-content: stretch;
 }
 
 .form-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 8px;
-  padding-top: 10px;
-  margin-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter);
+  padding: 12px;
+  margin-top: auto;
+  border: 1px solid var(--registration-border);
+  border-radius: 4px;
+  background: var(--registration-panel);
 }
 
 .form-actions :deep(.el-button) {
-  min-height: 28px;
+  min-height: 36px;
+  margin: 0;
+  padding-inline: 8px;
+  flex: 1 1 auto;
 }
 
-@media (max-width: 1060px) {
+@container (max-width: 720px) {
   .patient-registration__layout {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (max-width: 640px) {
-  .patient-registration__card :deep(.el-card__body) {
-    padding: 10px;
-  }
-
-  .form-actions {
-    justify-content: stretch;
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .form-actions :deep(.el-button) {
-    flex: 1 1 0;
+    min-height: 44px;
   }
 }
 </style>

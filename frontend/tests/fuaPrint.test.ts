@@ -2,6 +2,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 
 import type { FuaPrintSnapshot } from '../src/types/fua'
 import {
+  FUA_DEFAULT_PAPER_MM,
   defaultFuaLayout,
   emptyFuaInput,
   fuaPrintHtml,
@@ -98,7 +99,8 @@ test('geometry storage is allowlisted and rejects malformed or out-of-range valu
 
 test('print output escapes names, uses custom page size and excludes background/chrome', () => {
   const html = fuaPrintHtml(defaultFuaLayout(), fuaValues(snapshot))
-  expect(html).toMatch(/size:216mm 356mm;margin:0/)
+  expect(defaultFuaLayout()).toMatchObject(FUA_DEFAULT_PAPER_MM)
+  expect(html).toMatch(new RegExp(`size:${FUA_DEFAULT_PAPER_MM.width}mm ${FUA_DEFAULT_PAPER_MM.height}mm;margin:0`))
   expect(html).toMatch(/&lt;script&gt;/)
   expect(html).not.toMatch(/<script>|<img|<button|border:/)
   const testPrint = fuaPrintHtml(defaultFuaLayout(), fuaValues(snapshot), true)

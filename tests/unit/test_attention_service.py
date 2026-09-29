@@ -63,14 +63,26 @@ def test_add_details_delegates_orm_persistence_to_repository() -> None:
     }
 
 
-def test_non_admin_professional_cannot_operate_for_another_professional() -> None:
+def test_linked_professional_can_register_an_attention_for_another_professional() -> None:
+    service = AttentionService(_RecordingSession())  # type: ignore[arg-type]
+    service._attentions = SimpleNamespace(  # type: ignore[assignment]
+        get_active_professional_id_for_user=lambda _: 7,
+    )
+
+    assert service._ensure_actor_is_linked_professional(
+        actor_id=12,
+        actor_roles={"PROFESIONAL"},
+    ) == 7
+
+
+def test_linked_professional_cannot_cancel_another_professionals_attention() -> None:
     service = AttentionService(_RecordingSession())  # type: ignore[arg-type]
     service._attentions = SimpleNamespace(  # type: ignore[assignment]
         get_active_professional_id_for_user=lambda _: 7,
     )
 
     with pytest.raises(AuthorizationError) as exc_info:
-        service._ensure_actor_can_use_professional(
+        service._ensure_actor_can_cancel_attention(
             actor_id=12,
             actor_roles={"PROFESIONAL"},
             professional_id=8,
@@ -173,10 +185,9 @@ def test_admin_cannot_operate_clinical_encounters() -> None:
     )
 
     with pytest.raises(AuthorizationError) as exc_info:
-        service._ensure_actor_can_use_professional(
+        service._ensure_actor_is_linked_professional(
             actor_id=1,
             actor_roles={"ADMIN"},
-            professional_id=8,
         )
 
     assert exc_info.value.code == "ROL_CLINICO_REQUERIDO"

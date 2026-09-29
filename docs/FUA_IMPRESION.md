@@ -118,11 +118,12 @@ modifica las atenciones previas. Se aplicó a la base local durante la implement
 
 ## Calibración y privacidad
 
-El tamaño inicial **216 × 356 mm es orientativo**, no una afirmación de que esa
-sea la medida de la hoja de la IPRESS. Ajuste ancho, alto, desplazamientos y cada
-campo (X/Y/ancho/alto/fuente/paso por carácter). El omitir caracteres iniciales
-permite no repetir un prefijo de año ya impreso. Los campos pueden desactivarse.
-Las posiciones se basan en proporciones del anexo, no en un escaneo del stock real.
+El perfil inicial es **216 × 356 mm** y las coordenadas parten de una cuadrícula
+visual de referencia. No es una afirmación de que la imagen de ayuda ni la hoja
+disponible en la IPRESS sean el FUA vigente. Ajuste ancho, alto, desplazamientos y
+cada campo (X/Y/ancho/alto/fuente/paso por carácter). El omitir caracteres
+iniciales permite no repetir un prefijo de año ya impreso. Los campos pueden
+desactivarse.
 
 Pruebe cruces sin datos en papel blanco y superponga la hoja. Solo confirme la
 calibración después de comprobarla físicamente. Un cambio de geometría invalida
@@ -133,10 +134,14 @@ En el diálogo de impresión: escala 100 %, sin encabezados/pies, márgenes cero
 tamaño idéntico en el controlador. El navegador no puede validar alimentación,
 área no imprimible, orientación física ni escala impuesta por la impresora.
 
-Se puede cargar una imagen vacía para alinear: permanece en memoria, no se sube
-ni se imprime y se libera al cerrar. Solo la geometría pasa a `localStorage`, con
-un esquema permitido; nunca nombres, documentos, afiliaciones ni mediciones.
-La salida impresa usa texto escapado, sin formulario de fondo ni etiquetas de UI.
+El diálogo muestra inicialmente `frontend/src/assets/fua-referencia.webp`, una
+versión visual de la imagen entregada en `docs/fua.png`. Es una referencia histórica
+para apreciar la superposición; **no** se considera el FUA vigente, no se sube, no
+se guarda y no forma parte de la salida impresa. Se puede reemplazar temporalmente
+por un PNG, JPG o WebP escaneado de una FUA física: ese archivo permanece solo en
+memoria y se libera al cerrar. Solo la geometría pasa a `localStorage`, con un
+esquema permitido; nunca nombres, documentos, afiliaciones ni mediciones. La salida
+impresa usa texto escapado, sin formulario de fondo ni etiquetas de UI.
 
 ## Comprobación
 

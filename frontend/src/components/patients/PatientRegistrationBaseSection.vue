@@ -51,7 +51,7 @@ function updateLocality(localidadId: number | null): void {
     </header>
 
     <div class="base-section__fields">
-      <el-form-item class="base-field" label="N.° historia clínica">
+      <el-form-item class="base-field base-field--short" label="N.° historia clínica">
         <el-input
           :model-value="form.historia_clinica"
           @update:model-value="update({ historia_clinica: $event })"
@@ -70,6 +70,7 @@ function updateLocality(localidadId: number | null): void {
         <div class="base-section__document-fields">
           <el-form-item class="base-field" label="Tipo de documento" prop="tipo_documento_codigo">
             <el-select
+              placeholder="Seleccione"
               :model-value="form.tipo_documento_codigo"
               @update:model-value="update({ tipo_documento_codigo: $event })"
             >
@@ -91,7 +92,11 @@ function updateLocality(localidadId: number | null): void {
         </div>
       </div>
 
-      <el-form-item class="base-field" label="Fecha de nacimiento" prop="fecha_nacimiento">
+      <el-form-item
+        class="base-field base-field--short"
+        label="Fecha de nacimiento"
+        prop="fecha_nacimiento"
+      >
         <el-date-picker
           :model-value="form.fecha_nacimiento"
           type="date"
@@ -132,6 +137,7 @@ function updateLocality(localidadId: number | null): void {
       <el-form-item class="base-field" label="Sexo">
         <el-select
           clearable
+          placeholder="Seleccione"
           :model-value="form.sexo_codigo"
           @update:model-value="update({ sexo_codigo: $event })"
         >
@@ -215,6 +221,7 @@ function updateLocality(localidadId: number | null): void {
         <el-select
           clearable
           filterable
+          placeholder="Seleccione"
           :model-value="form.seguro_id"
           @update:model-value="update({ seguro_id: $event })"
         >
@@ -226,35 +233,41 @@ function updateLocality(localidadId: number | null): void {
           />
         </el-select>
       </el-form-item>
-
-      <el-form-item class="base-field" label="Fecha de inscripción">
-        <el-date-picker
-          :model-value="form.fecha_inscripcion"
-          type="date"
-          value-format="YYYY-MM-DD"
-          @update:model-value="update({ fecha_inscripcion: $event ?? '' })"
-        />
-      </el-form-item>
-
-      <el-form-item class="base-field" label="Condición">
-        <el-input
-          :model-value="form.condicion"
-          @update:model-value="update({ condicion: $event })"
-        />
-      </el-form-item>
     </div>
-    <PatientSisFields :value="form" @update="update" />
+    <PatientSisFields :value="form" @update="update">
+      <div class="base-section__fields">
+        <el-form-item class="base-field" label="Condición">
+          <el-input
+            :model-value="form.condicion"
+            @update:model-value="update({ condicion: $event })"
+          />
+        </el-form-item>
+      </div>
+      <template #additional>
+        <el-form-item label="Fecha de inscripción">
+          <el-date-picker
+            :model-value="form.fecha_inscripcion"
+            type="date"
+            value-format="YYYY-MM-DD"
+            @update:model-value="update({ fecha_inscripcion: $event ?? '' })"
+          />
+        </el-form-item>
+      </template>
+    </PatientSisFields>
   </section>
 </template>
 
 <style scoped>
 .base-section {
   min-width: 0;
-  --el-component-size: 26px;
+  padding: 0 12px 12px;
+  border: 1px solid var(--registration-border, #b9cbdf);
+  border-radius: 4px;
+  background: var(--registration-panel, #e8eff7);
+  --el-component-size: 28px;
 }
 
-/* Element Plus fija min-height: 32px en el wrapper del select y no respeta
-   --el-component-size, así que quedaba 6px más alto que los inputs vecinos. */
+/* El wrapper del select debe seguir la misma altura que los inputs vecinos. */
 .base-section :deep(.el-select__wrapper) {
   min-height: var(--el-component-size);
   padding-top: 0;
@@ -262,44 +275,60 @@ function updateLocality(localidadId: number | null): void {
 }
 
 .base-section__header {
-  margin-bottom: 8px;
+  margin: 0 -12px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--registration-border, #b9cbdf);
+  background: var(--registration-heading, #d4e1ef);
 }
 
 .base-section__title {
   margin: 0;
-  color: var(--el-text-color-primary);
-  font-size: 14px;
+  color: var(--registration-ink, #304f6d);
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.25;
 }
 
 .base-section__fields {
   display: grid;
-  gap: 5px;
+  gap: 6px;
 }
 
 .base-section__fields :deep(.base-field) {
   display: grid;
-  grid-template-columns: minmax(122px, 0.42fr) minmax(0, 1fr);
+  grid-template-columns: 136px minmax(0, 1fr);
   align-items: center;
   min-width: 0;
   margin: 0;
 }
 
 .base-section__fields :deep(.base-field .el-form-item__label) {
+  display: flex;
   height: auto;
   /* Element Plus le pone 8px de margen inferior a la etiqueta en label-position
      "top"; dentro de la grilla eso la subía 4px respecto al centro de la fila. */
   margin: 0;
   padding: 0 8px 0 0;
-  color: var(--el-text-color-secondary);
-  font-size: 11px;
+  color: var(--registration-ink, #304f6d);
+  font-size: 12px;
   line-height: 1.2;
+  justify-content: flex-end;
+  text-align: right;
 }
 
 .base-section__fields :deep(.base-field .el-form-item__content) {
   min-width: 0;
   margin-left: 0 !important;
+}
+
+.base-section__fields :deep(.el-form-item__error) {
+  position: static;
+  flex-basis: 100%;
+  padding-top: 4px;
+}
+
+.base-section__fields :deep(.base-field--short .el-form-item__content) {
+  max-width: 188px;
 }
 
 .base-section__fields :deep(.el-select),
@@ -318,22 +347,23 @@ function updateLocality(localidadId: number | null): void {
    etiqueta encima, así los dos inputs quedan alineados con los demás. */
 .base-section__document-row {
   display: grid;
-  grid-template-columns: minmax(122px, 0.42fr) minmax(0, 1fr);
+  grid-template-columns: 136px minmax(0, 1fr);
   align-items: center;
   min-width: 0;
 }
 
 .base-section__document-label {
   padding: 0 8px 0 0;
-  color: var(--el-text-color-secondary);
-  font-size: 11px;
+  color: var(--registration-ink, #304f6d);
+  font-size: 12px;
   line-height: 1.2;
+  text-align: right;
 }
 
 .base-section__document-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -348,6 +378,7 @@ function updateLocality(localidadId: number | null): void {
   margin: 0;
   padding: 0 0 2px;
   line-height: 1.2;
+  text-align: left;
 }
 
 @media (max-width: 640px) {
@@ -358,6 +389,7 @@ function updateLocality(localidadId: number | null): void {
 
   .base-section__document-label {
     padding-right: 0;
+    text-align: left;
   }
 
   .base-section__document-fields {
@@ -371,6 +403,12 @@ function updateLocality(localidadId: number | null): void {
 
   .base-section__fields :deep(.base-field .el-form-item__label) {
     padding-right: 0;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .base-section {
+    --el-component-size: 36px;
   }
 }
 </style>

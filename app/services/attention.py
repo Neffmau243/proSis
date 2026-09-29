@@ -98,10 +98,9 @@ class AttentionService:
     ) -> AttentionResponse:
         """Validate and persist the encounter, its details and audit atomically."""
         try:
-            self._ensure_actor_can_use_professional(
+            self._ensure_actor_is_linked_professional(
                 actor_id=actor_id,
                 actor_roles=actor_roles,
-                professional_id=command.profesional_id,
             )
             attention_date = command.fecha_atencion.date()
             self._validate_attention_dates(command, attention_date)
@@ -131,7 +130,7 @@ class AttentionService:
                     message="Un paciente menor de edad requiere al menos un responsable activo.",
                 )
             age_group = self._age_groups.resolve(age_in_months)
-            self._validate_clinical_context(command, attention_date)
+            self._validate_clinical_context(command)
             self._validate_vital_signs(command, age_in_months)
             indicators = calculate_nutritional_indicators(
                 birth_date=patient.fecha_nacimiento,
@@ -272,7 +271,7 @@ class AttentionService:
                 raise NotFoundError(
                     code="ATENCION_NO_ENCONTRADA", message="No existe la atención solicitada."
                 )
-            self._ensure_actor_can_use_professional(
+            self._ensure_actor_can_cancel_attention(
                 actor_id=actor_id,
                 actor_roles=actor_roles,
                 professional_id=entity.profesional_id,
@@ -312,7 +311,7 @@ class AttentionService:
             self._session.rollback()
             raise
 
-    def _validate_clinical_context(self, command: AttentionCreate, attention_date: date) -> None:
+    def _validate_clinical_context(self, command: AttentionCreate) -> None:
         if self._attentions.get_active_establishment(command.establecimiento_id) is None:
             raise NotFoundError(
                 code="ESTABLECIMIENTO_NO_ACTIVO", message="El establecimiento no existe o está inactivo."
@@ -335,16 +334,6 @@ class AttentionService:
             raise NotFoundError(
                 code="MODALIDAD_NO_ACTIVA", message="La modalidad de atención no está activa."
             )
-        if not self._attentions.has_valid_office_assignment(
-            office_id=office.id,
-            professional_id=command.profesional_id,
-            on_date=attention_date,
-        ):
-            raise BusinessRuleError(
-                code="PROFESIONAL_NO_ASIGNADO",
-                message="El profesional no tiene una asignación vigente en el consultorio.",
-            )
-
         required_specialty = office.especialidad_codigo
         selected_specialty = command.especialidad_codigo
         if required_specialty is not None and selected_specialty != required_specialty:
@@ -357,26 +346,19 @@ class AttentionService:
                 raise NotFoundError(
                     code="ESPECIALIDAD_NO_ACTIVA", message="La especialidad no existe o está inactiva."
                 )
-            if not self._attentions.professional_has_specialty(
-                command.profesional_id, selected_specialty
-            ):
-                raise BusinessRuleError(
-                    code="PROFESIONAL_SIN_ESPECIALIDAD",
-                    message="El profesional no tiene asignada la especialidad de la atención.",
-                )
 
-    def _ensure_actor_can_use_professional(
+    def _ensure_actor_is_linked_professional(
         self,
         *,
         actor_id: int,
         actor_roles: Iterable[str],
-        professional_id: int,
-    ) -> None:
-        """Bind every clinical action to the authenticated clinician.
+    ) -> int:
+        """Require a valid clinical identity before registering an attention.
 
         Administrative accounts deliberately cannot use this internal path,
-        even if a router is accidentally widened later.  The professional ID
-        comes from persistence, never from a client-controlled request body.
+        even if a router is accidentally widened later.  The user who records
+        the attention remains in the audit trail, while the selected
+        professional represents who attended the patient.
         """
 
         normalized_roles = {role.upper() for role in actor_roles}
@@ -391,10 +373,25 @@ class AttentionService:
                 code="USUARIO_PROFESIONAL_SIN_VINCULO",
                 message="El usuario clínico no está vinculado a un profesional activo.",
             )
+        return linked_professional_id
+
+    def _ensure_actor_can_cancel_attention(
+        self,
+        *,
+        actor_id: int,
+        actor_roles: Iterable[str],
+        professional_id: int,
+    ) -> None:
+        """Keep cancellation restricted to the clinician who attended."""
+
+        linked_professional_id = self._ensure_actor_is_linked_professional(
+            actor_id=actor_id,
+            actor_roles=actor_roles,
+        )
         if linked_professional_id != professional_id:
             raise AuthorizationError(
                 code="PROFESIONAL_DISTINTO_AL_USUARIO",
-                message="Solo puede registrar o anular atenciones de su propio profesional.",
+                message="Solo puede anular atenciones de su propio profesional.",
             )
 
     def _ensure_attention_in_scope(

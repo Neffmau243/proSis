@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import fuaReferenceUrl from '@/assets/fua-referencia.webp'
 import type { FuaPrintSnapshot } from '@/types/fua'
 import {
   defaultFuaLayout, FUA_LAYOUT_KEY, fuaValues, fuaWarnings,
@@ -18,7 +19,9 @@ const selected = computed(() => layout.value.fields.find((field) => field.id ===
 const acknowledged = ref(false)
 const printing = ref(false)
 const localError = ref('')
-const background = ref('')
+// La plantilla incluida es solo una guía; el escaneo alternativo no se persiste.
+const customBackground = ref('')
+const background = computed(() => customBackground.value || fuaReferenceUrl)
 const tab = ref('datos')
 const snapshot = computed(() => props.snapshot)
 const values = computed(() => fuaValues(snapshot.value))
@@ -57,15 +60,15 @@ function loadBackground(event: Event): void {
     localError.value = 'Use un escaneo PNG, JPG o WebP de hasta 10 MB.'
     return
   }
-  if (background.value) URL.revokeObjectURL(background.value)
-  background.value = URL.createObjectURL(file)
+  if (customBackground.value) URL.revokeObjectURL(customBackground.value)
+  customBackground.value = URL.createObjectURL(file)
 }
-function clearBackground(): void {
-  if (background.value) URL.revokeObjectURL(background.value)
-  background.value = ''
+function clearCustomBackground(): void {
+  if (customBackground.value) URL.revokeObjectURL(customBackground.value)
+  customBackground.value = ''
 }
-watch(visible, (open) => { if (!open) clearBackground() })
-onBeforeUnmount(clearBackground)
+watch(visible, (open) => { if (!open) clearCustomBackground() })
+onBeforeUnmount(clearCustomBackground)
 async function print(test: boolean): Promise<void> {
   if (printing.value || (!test && !canPrint.value)) return
   localError.value = ''
@@ -104,7 +107,7 @@ async function print(test: boolean): Promise<void> {
         <p>No es una validación integral del SIS: prestaciones, diagnósticos, firmas, vacunas y otros campos quedan fuera de este prellenado.</p>
       </el-tab-pane>
       <el-tab-pane label="Vista previa y calibración" name="calibracion">
-        <el-alert title="Posiciones iniciales orientativas: pruebe en papel en blanco antes de usar una FUA." type="warning" :closable="false" />
+        <el-alert title="La plantilla es referencial; pruebe en papel en blanco antes de usar una FUA vigente." type="warning" :closable="false" />
         <div class="fua-calibration">
           <div class="fua-controls">
             <el-form label-position="top" @change="changeGeometry">
@@ -118,13 +121,14 @@ async function print(test: boolean): Promise<void> {
                 <el-input-number v-model="selected[control.key]" :min="control.min" :max="control.max" :step="control.key === 'skip' ? 1 : 0.5" :precision="control.key === 'skip' ? 0 : 2" :value-on-clear="control.min" @change="changeGeometry" />
               </el-form-item>
             </el-form>
-            <label for="fua-scan">Escaneo vacío, solo como guía (no se imprime ni se sube)</label>
+            <p class="fua-reference-note">Se muestra una FUA histórica solo para comparar posiciones. No se envía, no se guarda y nunca se imprime.</p>
+            <label for="fua-scan">Usar un escaneo propio como guía temporal</label>
             <input id="fua-scan" type="file" accept="image/png,image/jpeg,image/webp" @change="loadBackground" />
-            <el-button v-if="background" @click="clearBackground">Quitar guía</el-button>
+            <el-button v-if="customBackground" @click="clearCustomBackground">Volver a la plantilla referencial</el-button>
           </div>
           <div class="fua-preview-scroll" aria-label="Vista previa de posiciones sobre la hoja">
             <div class="fua-preview" :style="{ width: `${layout.width}mm`, height: `${layout.height}mm` }">
-              <img v-if="background" :src="background" alt="Escaneo de referencia; no se imprime" class="fua-background" />
+              <img :src="background" alt="Plantilla FUA de referencia; no se imprime" class="fua-background" />
               <button v-for="field in availableFields.filter(f => f.enabled)" :key="field.id" type="button"
                 class="fua-position" :class="{ 'fua-position--selected': selectedId === field.id }"
                 :aria-label="`Ajustar ${field.label}`" :title="field.label"
@@ -167,10 +171,11 @@ async function print(test: boolean): Promise<void> {
 .fua-calibration { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 20px; margin-top: 16px; }
 .fua-controls { max-height: 60vh; overflow: auto; padding-right: 12px; }
 .fua-controls input[type='file'] { max-width: 100%; margin: 8px 0; }
+.fua-reference-note { margin: 16px 0 0; font-size: 13px; color: var(--el-text-color-secondary); }
 .fua-preview-scroll { max-height: 65vh; overflow: auto; background: var(--el-fill-color); padding: 12px; border: 1px solid var(--el-border-color); }
 .fua-preview { position: relative; background: white; zoom: 0.7; }
-.fua-background { position: absolute; width: 100%; height: 100%; object-fit: fill; }
-.fua-position { position: absolute; margin: 0; padding: 0; border: 0; outline: 0.2mm dashed #677386; text-align: left; background: transparent; color: #111; font-family: 'Courier New', monospace; line-height: 1.2; white-space: nowrap; cursor: pointer; }
+.fua-background { position: absolute; z-index: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
+.fua-position { position: absolute; z-index: 1; margin: 0; padding: 0; border: 0; outline: 0.2mm dashed #677386; text-align: left; background: transparent; color: #111; font-family: 'Courier New', monospace; line-height: 1.2; white-space: nowrap; cursor: pointer; }
 .fua-position--selected, .fua-position:focus-visible { outline: 0.6mm solid #1252a1; background: #e5f0ff; }
 .fua-position:hover { background: #e5f0ff; }
 .fua-footer, .fua-calibration-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }

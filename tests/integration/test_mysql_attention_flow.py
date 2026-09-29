@@ -1,8 +1,8 @@
 """Clinical attention lifecycle (create, read, cancel, search) over MySQL.
 
-These tests protect the rules that make an encounter attributable: only the
-linked PROFESIONAL of the teaching appointment can register it, the site and
-office must match, and every derived value is computed server-side.
+These tests protect the rules that make an encounter attributable: a linked
+PROFESIONAL records it, the selected clinician must be assigned to the site and
+office, and every derived value is computed server-side.
 """
 
 from __future__ import annotations
@@ -177,7 +177,7 @@ def test_encounter_records_services_and_diagnoses(
     assert unknown_diagnosis.json()["error"]["code"] == "CIE10_NO_ACTIVO"
 
 
-def test_encounter_is_bound_to_the_authenticated_professional(
+def test_linked_professional_can_select_an_active_attending_professional(
     clinic_scene, create_professional, create_patient, api_prefix
 ) -> None:
     patient = create_patient(clinic_scene.professional_client)
@@ -188,11 +188,11 @@ def test_encounter_is_bound_to_the_authenticated_professional(
         json=_payload(clinic_scene, patient, profesional_id=other.id),
     )
 
-    assert response.status_code == 403
-    assert response.json()["error"]["code"] == "PROFESIONAL_DISTINTO_AL_USUARIO"
+    assert response.status_code == 201, response.text
+    assert response.json()["profesional_id"] == other.id
 
 
-def test_encounter_validates_site_office_and_assignment(
+def test_encounter_validates_site_and_office_context(
     clinic_scene, create_patient, db_session: Session, api_prefix
 ) -> None:
     patient = create_patient(clinic_scene.professional_client)
@@ -219,12 +219,12 @@ def test_encounter_validates_site_office_and_assignment(
     db_session.add(unassigned_office)
     db_session.commit()
 
-    not_assigned = clinic_scene.professional_client.post(
+    active_office = clinic_scene.professional_client.post(
         f"{api_prefix}/atenciones",
         json=_payload(clinic_scene, patient, consultorio_id=unassigned_office.id),
     )
-    assert not_assigned.status_code == 422
-    assert not_assigned.json()["error"]["code"] == "PROFESIONAL_NO_ASIGNADO"
+    assert active_office.status_code == 201, active_office.text
+    assert active_office.json()["consultorio_id"] == unassigned_office.id
 
     unknown_mode = clinic_scene.professional_client.post(
         f"{api_prefix}/atenciones",

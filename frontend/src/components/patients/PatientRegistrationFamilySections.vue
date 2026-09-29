@@ -145,6 +145,7 @@ function updateRiskStartDate(fechaInicio: string): void {
         <el-form-item class="family-field" label="Relación al menor">
           <el-select
             clearable
+            placeholder="Seleccione"
             :model-value="relacionAlMenor"
             @update:model-value="updateRelacionAlMenor"
           >
@@ -168,7 +169,7 @@ function updateRiskStartDate(fechaInicio: string): void {
             @update:model-value="updateParentField('PADRE', 'nombre_completo', $event)"
           />
         </el-form-item>
-        <el-form-item class="family-field" label="Nro. DNI">
+        <el-form-item class="family-field family-field--short" label="Nro. DNI">
           <el-input
             :model-value="parentValue('PADRE', 'numero_documento')"
             @update:model-value="updateParentField('PADRE', 'numero_documento', $event)"
@@ -189,7 +190,7 @@ function updateRiskStartDate(fechaInicio: string): void {
             @update:model-value="updateParentField('MADRE', 'nombre_completo', $event)"
           />
         </el-form-item>
-        <el-form-item class="family-field" label="Nro. DNI">
+        <el-form-item class="family-field family-field--short" label="Nro. DNI">
           <el-input
             :model-value="parentValue('MADRE', 'numero_documento')"
             @update:model-value="updateParentField('MADRE', 'numero_documento', $event)"
@@ -206,6 +207,7 @@ function updateRiskStartDate(fechaInicio: string): void {
         <el-form-item class="family-field" label="Grupo de riesgo">
           <el-select
             clearable
+            placeholder="Seleccione"
             :model-value="riesgoPrincipal?.grupo_riesgo_id ?? null"
             @update:model-value="updateRiskGroup"
           >
@@ -236,11 +238,10 @@ function updateRiskStartDate(fechaInicio: string): void {
   align-content: start;
   gap: 8px;
   min-width: 0;
-  --el-component-size: 26px;
+  --el-component-size: 28px;
 }
 
-/* Element Plus fija min-height: 32px en el wrapper del select y no respeta
-   --el-component-size, así que quedaba 6px más alto que los inputs vecinos. */
+/* El wrapper del select debe seguir la misma altura que los inputs vecinos. */
 .family-sections :deep(.el-select__wrapper) {
   min-height: var(--el-component-size);
   padding-top: 0;
@@ -249,23 +250,26 @@ function updateRiskStartDate(fechaInicio: string): void {
 
 .family-section {
   min-width: 0;
-  padding: 8px 10px 10px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 7px;
-  background-color: var(--el-fill-color-blank);
+  padding: 0 12px 12px;
+  border: 1px solid var(--registration-border, #b9cbdf);
+  border-radius: 4px;
+  background: var(--registration-panel, #e8eff7);
 }
 
 .family-section--contact {
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .family-section__header {
-  margin-bottom: 6px;
+  margin: 0 -12px 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--registration-border, #b9cbdf);
+  background: var(--registration-heading, #d4e1ef);
 }
 
 .family-section__title {
   margin: 0;
-  color: var(--el-text-color-primary);
+  color: var(--registration-ink, #304f6d);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.25;
@@ -277,31 +281,32 @@ function updateRiskStartDate(fechaInicio: string): void {
 
 .family-section__fields {
   display: grid;
-  gap: 5px;
+  gap: 8px;
 }
 
 .family-section__fields :deep(.family-field) {
-  display: grid;
-  grid-template-columns: minmax(108px, 0.55fr) minmax(0, 1fr);
-  align-items: center;
+  display: block;
   min-width: 0;
   margin: 0;
 }
 
 .family-section__fields :deep(.family-field .el-form-item__label) {
   height: auto;
-  /* Element Plus le pone 8px de margen inferior a la etiqueta en label-position
-     "top"; dentro de la grilla eso la subía 4px respecto al centro de la fila. */
-  margin: 0;
-  padding: 0 8px 0 0;
-  color: var(--el-text-color-secondary);
-  font-size: 11px;
+  display: block;
+  margin: 0 0 4px;
+  padding: 0;
+  color: var(--registration-ink, #304f6d);
+  font-size: 12px;
   line-height: 1.2;
 }
 
 .family-section__fields :deep(.family-field .el-form-item__content) {
   min-width: 0;
   margin-left: 0 !important;
+}
+
+.family-section__fields :deep(.family-field--short .el-form-item__content) {
+  max-width: 160px;
 }
 
 .family-section__fields :deep(.el-select),
@@ -316,13 +321,8 @@ function updateRiskStartDate(fechaInicio: string): void {
 }
 
 @media (max-width: 640px) {
-  .family-section__fields :deep(.family-field) {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2px;
-  }
-
-  .family-section__fields :deep(.family-field .el-form-item__label) {
-    padding-right: 0;
+  .family-sections {
+    --el-component-size: 36px;
   }
 }
 </style>

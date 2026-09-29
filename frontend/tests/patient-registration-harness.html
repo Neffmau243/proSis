@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Registro de paciente · prueba visual</title>
+    <style>
+      .fixture {
+        max-width: 984px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .fixture-note {
+        font: 12px/1.5 system-ui;
+        color: #506176;
+        margin: 0 0 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="fixture">
+      <p class="fixture-note">
+        Prueba visual con catálogos sintéticos. No guarda pacientes ni consulta la API.
+      </p>
+      <div id="app"></div>
+    </main>
+    <script type="module">
+      import { createApp, h } from 'vue'
+      import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
+      import ElementPlus from 'element-plus'
+      import 'element-plus/dist/index.css'
+      import '../src/assets/main.css'
+      import PacienteNuevoView from '../src/views/PacienteNuevoView.vue'
+      import { catalogos } from '../src/services/catalogos.ts'
+      import { pacientes } from '../src/services/pacientes.ts'
+
+      // The production view is mounted with in-memory dependencies; no session is created.
+      const page = (items) => ({ items, total: items.length, has_more: false })
+      catalogos.tiposDocumento = async () => [
+        { codigo: 'DNI', nombre: 'DNI', activo: true },
+        { codigo: 'CE', nombre: 'Carné de extranjería', activo: true },
+        { codigo: 'PAS', nombre: 'Pasaporte', activo: true },
+      ]
+      catalogos.sexos = async () => [
+        { codigo: 'M', nombre: 'Masculino', activo: true },
+        { codigo: 'F', nombre: 'Femenino', activo: true },
+      ]
+      catalogos.seguros = async () => [{ id: 1, codigo: 'SIS', nombre: 'SIS', activo: true }]
+      catalogos.etnias = async () => [{ codigo: '01', nombre: 'Etnia de prueba', activo: true }]
+      catalogos.gruposRiesgo = async () => [
+        { id: 1, codigo: 'PRUEBA', nombre: 'Grupo de prueba', activo: true },
+      ]
+      catalogos.establecimientos = async () =>
+        page([{ id: 1, nombre: 'Establecimiento de prueba', activo: true }])
+      catalogos.ubigeos = async () =>
+        page([
+          {
+            codigo: '000001',
+            departamento: 'Prueba',
+            provincia: 'Prueba',
+            distrito: 'Distrito de prueba',
+          },
+        ])
+      catalogos.localidades = async () =>
+        page([{ id: 1, nombre: 'Localidad de prueba', activo: true }])
+      pacientes.create = async () => {
+        throw new Error('Prueba visual: el guardado está desactivado.')
+      }
+
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [
+          { path: '/pacientes/nuevo', name: 'paciente-nuevo', component: PacienteNuevoView },
+        ],
+      })
+      await router.push('/pacientes/nuevo')
+      await router.isReady()
+      createApp({ render: () => h(RouterView) })
+        .use(router)
+        .use(ElementPlus)
+        .mount('#app')
+    </script>
+  </body>
+</html>

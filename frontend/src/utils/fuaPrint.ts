@@ -79,8 +79,14 @@ export interface FuaLayout {
   fields: FuaField[]
 }
 
-// Approximate starting positions only. Derived from annex 1's proportions;
-// physical stock is not standardized by this application. Always calibrate.
+/** Baseline paper profile used by the FUA preview and the printed page. */
+export const FUA_DEFAULT_PAPER_MM = Object.freeze({ width: 216, height: 356 })
+const FUA_REFERENCE_GRID_PX = Object.freeze({ width: 607, height: 1006 })
+const FUA_REFERENCE_MARGIN_MM = 10
+
+// Approximate starting positions only. They use the grid of the visual reference
+// and are not an assertion that the reference is the currently valid SIS FUA.
+// A physical test with the IPRESS stock is still required before printing data.
 const seeds: [string, string, number, number, number, number?][] = [
   ['codigo_renipress', 'RENIPRESS', 5, 105, 135],
   ['ipress_nombre', 'Nombre IPRESS', 155, 105, 444],
@@ -126,11 +132,15 @@ const seeds: [string, string, number, number, number, number?][] = [
 ]
 
 export function defaultFuaLayout(): FuaLayout {
+  const printableWidth = FUA_DEFAULT_PAPER_MM.width - FUA_REFERENCE_MARGIN_MM * 2
+  const printableHeight = FUA_DEFAULT_PAPER_MM.height - FUA_REFERENCE_MARGIN_MM * 2
   return {
-    version: 1, width: 216, height: 356, offsetX: 0, offsetY: 0, calibrated: false,
+    version: 1, width: FUA_DEFAULT_PAPER_MM.width, height: FUA_DEFAULT_PAPER_MM.height,
+    offsetX: 0, offsetY: 0, calibrated: false,
     fields: seeds.map(([id, label, x, y, width, step]) => ({
-      id, label, x: +(10 + x * 196 / 607).toFixed(2),
-      y: +(10 + y * 336 / 1006).toFixed(2), width: +(width * 196 / 607).toFixed(2),
+      id, label, x: +(FUA_REFERENCE_MARGIN_MM + x * printableWidth / FUA_REFERENCE_GRID_PX.width).toFixed(2),
+      y: +(FUA_REFERENCE_MARGIN_MM + y * printableHeight / FUA_REFERENCE_GRID_PX.height).toFixed(2),
+      width: +(width * printableWidth / FUA_REFERENCE_GRID_PX.width).toFixed(2),
       height: 4, font: 8, step: step ?? 0, skip: 0, enabled: true,
     })),
   }

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import or_, select
@@ -13,8 +12,8 @@ from app.models.audit import AuditLog
 from app.models.catalog import AttentionMode, Cie10, ServiceOffering, Specialty
 from app.models.clinical import Attention, AttentionDiagnosis, AttentionService
 from app.models.documents import Certificate, Fua, Referral
-from app.models.organization import Establishment, Office, OfficeProfessional
-from app.models.security import Professional, ProfessionalSpecialty, User
+from app.models.organization import Establishment, Office
+from app.models.security import Professional, User
 from app.models.surveillance import NutritionalEvaluation
 
 
@@ -122,28 +121,6 @@ class AttentionRepository:
         return self._session.scalar(
             select(Cie10).where(Cie10.codigo == code, Cie10.activo.is_(True))
         )
-
-    def has_valid_office_assignment(
-        self,
-        *,
-        office_id: int,
-        professional_id: int,
-        on_date: date,
-    ) -> bool:
-        statement = select(OfficeProfessional.consultorio_id).where(
-            OfficeProfessional.consultorio_id == office_id,
-            OfficeProfessional.profesional_id == professional_id,
-            OfficeProfessional.fecha_inicio <= on_date,
-            or_(OfficeProfessional.fecha_fin.is_(None), OfficeProfessional.fecha_fin >= on_date),
-        )
-        return self._session.scalar(statement) is not None
-
-    def professional_has_specialty(self, professional_id: int, specialty_code: str) -> bool:
-        statement = select(ProfessionalSpecialty.profesional_id).where(
-            ProfessionalSpecialty.profesional_id == professional_id,
-            ProfessionalSpecialty.especialidad_codigo == specialty_code,
-        )
-        return self._session.scalar(statement) is not None
 
     def add(self, entity: Attention) -> None:
         self._session.add(entity)

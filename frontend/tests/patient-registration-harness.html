@@ -15,6 +15,14 @@
         color: #506176;
         margin: 0 0 16px;
       }
+      .fixture--shell {
+        height: 100%;
+        max-width: none;
+        padding: 0;
+      }
+      .fixture--shell > .fixture-note {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -26,11 +34,15 @@
     </main>
     <script type="module">
       import { createApp, h } from 'vue'
+      import { createPinia } from 'pinia'
       import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
       import ElementPlus from 'element-plus'
+      import * as ElementPlusIcons from '@element-plus/icons-vue'
       import 'element-plus/dist/index.css'
       import '../src/assets/main.css'
       import PacienteNuevoView from '../src/views/PacienteNuevoView.vue'
+      import AppLayout from '../src/layouts/AppLayout.vue'
+      import { useAuthStore } from '../src/stores/auth.ts'
       import { catalogos } from '../src/services/catalogos.ts'
       import { pacientes } from '../src/services/pacientes.ts'
 
@@ -67,18 +79,34 @@
         throw new Error('Prueba visual: el guardado está desactivado.')
       }
 
+      const pinia = createPinia()
+      useAuthStore(pinia).permisos = [
+        'PACIENTE_EDITAR',
+        'PACIENTE_LEER',
+        'PACIENTE_DAR_BAJA',
+        'ATENCION_CREAR',
+        'ATENCION_LEER',
+      ]
+      const shell = new URLSearchParams(location.search).has('shell')
+      if (shell) document.querySelector('.fixture').classList.add('fixture--shell')
+      const registrationRoute = {
+        path: 'pacientes/nuevo',
+        name: 'paciente-nuevo',
+        component: PacienteNuevoView,
+        meta: { title: 'Paciente nuevo · prueba sin API' },
+      }
       const router = createRouter({
         history: createMemoryHistory(),
-        routes: [
-          { path: '/pacientes/nuevo', name: 'paciente-nuevo', component: PacienteNuevoView },
-        ],
+        routes: shell
+          ? [{ path: '/', component: AppLayout, children: [registrationRoute] }]
+          : [{ ...registrationRoute, path: `/${registrationRoute.path}` }],
       })
       await router.push('/pacientes/nuevo')
       await router.isReady()
-      createApp({ render: () => h(RouterView) })
-        .use(router)
-        .use(ElementPlus)
-        .mount('#app')
+      const app = createApp({ render: () => h(RouterView) })
+      app.use(pinia).use(router).use(ElementPlus)
+      for (const [name, icon] of Object.entries(ElementPlusIcons)) app.component(name, icon)
+      app.mount('#app')
     </script>
   </body>
 </html>

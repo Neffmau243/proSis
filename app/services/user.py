@@ -34,6 +34,18 @@ class UserService:
         self._users = UserRepository(session)
         self._audit = audit
 
+    def list(self, *, include_inactive: bool = False) -> list[UserResponse]:
+        """Return the accounts an administrator can manage.
+
+        The route dependency already enforces the ADMIN role; this keeps the
+        contract in one place without duplicating role checks per call.
+        """
+
+        return [
+            user_to_response(user)
+            for user in self._users.list(include_inactive=include_inactive)
+        ]
+
     def create(self, command: UserCreate, *, actor_id: int, actor_roles: Iterable[str]) -> UserResponse:
         self._require_admin(actor_roles)
         if self._users.find_by_username(command.nombre_usuario, lock=True) is not None:

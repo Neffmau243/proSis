@@ -1,0 +1,207 @@
+/* La admisión conserva el lenguaje visual del registro y el orden de ETLSIS.
+   La atención independiente mantiene su distribución original. */
+.admission-page--workspace {
+  --admission-panel: #e8eff7;
+  --admission-heading: #d4e1ef;
+  --admission-border: #b9cbdf;
+  --admission-ink: #304f6d;
+  --admission-control-size: 24px;
+  --el-component-size: var(--admission-control-size);
+  --el-text-color-placeholder: #61758b;
+  container-type: inline-size;
+}
+
+.admission-page--workspace .admission-workbench {
+  grid-template-areas: 'patient content' 'patient history';
+  grid-template-columns: minmax(300px, 0.95fr) minmax(0, 2fr);
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+}
+
+.admission-page--workspace .encounter-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  container-type: normal;
+}
+
+.admission-page--workspace .encounter-card :deep(.el-card__body) {
+  display: grid;
+  grid-template-areas: 'header header' 'context nutrition' 'measurements actions';
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: start;
+  gap: 8px;
+  padding: 0;
+}
+
+/* Keep a single form/validation owner, with sections participating in the grid.
+   Actions stay outside el-form so printing still works after the form is locked. */
+.admission-page--workspace .encounter-form {
+  display: contents;
+}
+
+.admission-page--workspace .clinical-section {
+  padding: 6px;
+  border: 1px solid var(--admission-border);
+  border-radius: 4px;
+  background: var(--admission-panel);
+}
+
+.admission-page--workspace .clinical-section__heading {
+  margin: -6px -6px 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--admission-border);
+  background: var(--admission-heading);
+}
+
+.admission-page--workspace .clinical-section__title,
+.admission-page--workspace .measurement-group__title {
+  color: var(--admission-ink);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.admission-page--workspace .attention-mode-control {
+  margin-bottom: 4px;
+}
+.admission-page--workspace .measurement-group__title {
+  margin-bottom: 4px;
+}
+.admission-page--workspace .measurement-groups {
+  gap: 4px;
+}
+.admission-page--workspace .measurement-group + .measurement-group {
+  padding-top: 4px;
+  border-color: var(--admission-border);
+}
+
+.admission-page--workspace .nutrition-age {
+  margin-bottom: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.admission-page--workspace .nutrition-age__row {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.admission-page--workspace .nutrition-age__value {
+  font-size: 13px;
+}
+
+.admission-page--workspace :deep(.encounter-form .el-form-item) {
+  margin-bottom: 2px;
+}
+.admission-page--workspace :deep(.encounter-form .el-form-item__label) {
+  margin: 0;
+  color: var(--admission-ink);
+  font-size: 12px;
+  font-weight: 400;
+}
+.admission-page--workspace :deep(.encounter-header .el-form-item) {
+  margin-bottom: 0;
+}
+.admission-page--workspace :deep(.encounter-form .el-form-item__error) {
+  position: static;
+  line-height: 1.3;
+  flex-basis: 100%;
+}
+.admission-page--workspace :deep(.admission-context-field),
+.admission-page--workspace :deep(.measurement-field),
+.admission-page--workspace :deep(.nutrition-field) {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.admission-page--workspace :deep(.admission-context-field .el-form-item__label) {
+  flex: 0 0 80px;
+}
+.admission-page--workspace :deep(.measurement-field .el-form-item__label) {
+  flex: 0 0 144px;
+  min-width: 0;
+}
+.admission-page--workspace :deep(.measurement-field .el-form-item__content) {
+  flex: 1 1 0;
+}
+.admission-page--workspace :deep(.nutrition-field .el-form-item__label) {
+  flex: 0 0 100px;
+  min-width: 0;
+}
+.admission-page--workspace .nutrition-fields :deep(.nutrition-field) {
+  padding: 0;
+  border: 0;
+}
+.admission-page--workspace :deep(.el-select__wrapper) {
+  min-height: var(--el-component-size);
+  padding-block: 0;
+}
+.admission-page--workspace :deep(.encounter-form .el-input__inner),
+.admission-page--workspace :deep(.encounter-form .el-select__selected-item),
+.admission-page--workspace :deep(.encounter-form .el-radio__label) {
+  font-size: 12px;
+}
+.admission-page--workspace :deep(.encounter-form .el-radio) {
+  height: auto;
+  min-height: var(--admission-control-size);
+  white-space: normal;
+}
+.admission-page--workspace .care-group-selector :deep(.el-radio:first-child) {
+  flex-basis: 100%;
+}
+.admission-page--workspace :deep(.encounter-form .el-radio__label) {
+  line-height: 1.35;
+  white-space: normal;
+}
+.admission-page--workspace .vital-signs {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.admission-page--workspace .vital-signs :deep(.vital-signs__input) {
+  width: 48px;
+}
+.admission-page--workspace .vital-signs :deep(.el-input__wrapper) {
+  padding-inline: 4px;
+}
+.admission-page--workspace :deep(.admission-final-actions) {
+  padding: 6px;
+}
+.admission-page--workspace :deep(.admission-final-actions__button) {
+  min-height: 48px;
+  padding-block: 4px;
+}
+.admission-page--workspace :deep(.admission-final-actions__reason) {
+  margin-bottom: 4px;
+}
+.admission-page--workspace .vital-signs__label,
+.admission-page--workspace .vital-signs__unit {
+  color: var(--admission-ink);
+}
+
+/* Tablet: patient and encounter remain distinct, the clinical blocks stack. */
+@container (max-width: 900px) {
+  .admission-page--workspace .encounter-card :deep(.el-card__body) {
+    grid-template-areas: 'header' 'context' 'measurements' 'nutrition' 'actions';
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Narrow panes / zoom: linear DOM order, no horizontally scrolling form. */
+@container (max-width: 700px) {
+  .admission-page--workspace .admission-workbench {
+    grid-template-areas: 'patient' 'content' 'history';
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .admission-page--workspace {
+    --admission-control-size: 36px;
+  }
+  .admission-page--workspace :deep(.encounter-form .el-input__inner) {
+    font-size: 16px;
+  }
+}
+@media (pointer: coarse) {
+  .admission-page--workspace {
+    --admission-control-size: 36px;
+  }
+}

@@ -1,5 +1,6 @@
 import type { Patient, PatientUpdatePayload } from '../services/pacientes'
 import { patientSisErrors, patientSisFields } from './patientSis.ts'
+import { documentProblem } from './patientDocument.ts'
 
 /** General controls; the SIS contract is grouped directly below the insurance selector. */
 export const patientFields = [
@@ -22,7 +23,7 @@ export const patientFields = [
   { key: 'seguro_id', label: 'Seguro', kind: 'select' },
   { key: 'telefono_principal', label: 'Teléfono', kind: 'text', max: 30 },
   { key: 'fecha_inscripcion', label: 'Fecha inscripción', kind: 'date' },
-  { key: 'condicion', label: 'Condición', kind: 'text', max: 100 },
+  { key: 'condicion', label: 'Condición', kind: 'select' },
 ] as const satisfies ReadonlyArray<{
   key: keyof PatientUpdatePayload
   label: string
@@ -61,7 +62,11 @@ export function buildPatientPatch(
   ) as PatientUpdatePayload
 }
 
-export function validatePatientDraft(draft: PatientDraft, today: string): PatientDraftErrors {
+export function validatePatientDraft(
+  draft: PatientDraft,
+  today: string,
+  baseline?: PatientDraft,
+): PatientDraftErrors {
   const errors: PatientDraftErrors = { ...patientSisErrors(draft) }
   for (const field of patientFields) {
     const value = normalized(draft[field.key])
@@ -95,5 +100,15 @@ export function validatePatientDraft(draft: PatientDraft, today: string): Patien
   ) {
     errors.localidad_id = 'La localidad debe ser un nombre, no el código de ubigeo.'
   }
+  // A legacy invalid number must not block unrelated corrections. The API uses
+  // the same rule: revalidate the complete pair whenever either part changes.
+  const documentChanged =
+    !baseline ||
+    normalized(draft.tipo_documento_codigo) !== normalized(baseline.tipo_documento_codigo) ||
+    normalized(draft.numero_documento) !== normalized(baseline.numero_documento)
+  const documentError = documentChanged
+    ? documentProblem(draft.tipo_documento_codigo, draft.numero_documento)
+    : null
+  if (documentError) errors.numero_documento = documentError
   return errors
 }

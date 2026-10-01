@@ -8,6 +8,7 @@ import {
   fuaPrintHtml,
   fuaValues,
   fuaWarnings,
+  fuaIdentityProblem,
   layoutProblems,
   normalizeFuaText,
   parseFuaLayout,
@@ -54,6 +55,16 @@ const snapshot: FuaPrintSnapshot = {
   otros_nombres: null,
   historia_clinica: 'HC-0001',
 }
+
+test('unsupported or mismatched TDI is a blocking problem, never an invented equivalence', () => {
+  expect(fuaIdentityProblem(snapshot)).toBeNull()
+  expect(fuaIdentityProblem({ ...snapshot, tipo_documento: 'CE', tdi: '3' })).toBeNull()
+  for (const tipo_documento of ['PAS', 'DE', 'OTRO']) {
+    expect(fuaIdentityProblem({ ...snapshot, tipo_documento, tdi: null })).toContain('No se puede imprimir')
+    expect(fuaIdentityProblem({ ...snapshot, tipo_documento, tdi: '2' })).toBeTruthy()
+  }
+  expect(fuaIdentityProblem({ ...snapshot, tdi: '3' })).toBeTruthy()
+})
 
 test('typing a multi-word IPRESS name preserves space separators', () => {
   let text = ''

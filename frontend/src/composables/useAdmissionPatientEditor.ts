@@ -41,7 +41,7 @@ export function useAdmissionPatientEditor(options: {
     const today = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
       .toISOString()
       .slice(0, 10)
-    fieldErrors.value = validatePatientDraft(draft, today)
+    fieldErrors.value = validatePatientDraft(draft, today, baseline.value)
     if (Object.keys(fieldErrors.value).length) {
       error.value = 'Revise los campos indicados antes de guardar.'
       return

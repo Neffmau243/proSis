@@ -31,6 +31,7 @@
             <el-icon><View /></el-icon>
             <span>Ver paciente</span>
           </el-button>
+          <!-- OCULTO temporalmente para revisión visual: descomentar para restaurar.
           <el-button
             v-if="puedeModificarDatos"
             class="side__patient-action"
@@ -40,6 +41,7 @@
             <el-icon><EditPen /></el-icon>
             <span>Modificar datos</span>
           </el-button>
+          -->
           <el-button
             v-if="can('PACIENTE_DAR_BAJA')"
             class="side__patient-action side__patient-action--danger"
@@ -96,37 +98,32 @@
         </template>
       </nav>
 
-      <!-- Usuario + salir -->
+      <!-- Identidad del usuario y acciones de sesión -->
       <div class="side__footer">
         <div class="side__user">
           <span class="side__avatar">{{ iniciales }}</span>
           <span class="side__user-info">
-            <span class="side__user-name">{{ auth.nombreUsuario || 'Usuario' }}</span>
+            <span class="side__user-name" :title="nombreUsuario">{{ nombreUsuario }}</span>
             <span class="side__user-role">{{ auth.roles.join(' · ') || 'sin rol' }}</span>
           </span>
         </div>
-        <el-button class="side__salir" @click="salir">
-          <el-icon><SwitchButton /></el-icon>
-          <span>Salir</span>
-        </el-button>
+        <div class="side__session">
+          <el-button class="side__session-btn" title="Cambiar contraseña" @click="cambiarContrasena">
+            <el-icon><Lock /></el-icon>
+            <span>Contraseña</span>
+          </el-button>
+          <el-button class="side__session-btn side__salir" @click="salir">
+            <el-icon><SwitchButton /></el-icon>
+            <span>Salir</span>
+          </el-button>
+        </div>
       </div>
     </el-aside>
 
     <el-container>
+      <!-- La identidad del usuario vive solo en el pie de la barra lateral. -->
       <el-header class="topbar" height="52px">
         <div class="topbar__title">{{ currentTitle }}</div>
-        <el-dropdown @command="handleCommand">
-          <span class="topbar__user">
-            <span class="topbar__avatar">{{ iniciales }}</span>
-            {{ auth.nombreUsuario || 'Usuario' }}
-            <el-icon><ArrowDown /></el-icon>
-          </span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="password">Cambiar contraseña</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
       </el-header>
 
       <el-main class="app-layout__main">
@@ -159,6 +156,8 @@ const auth = useAuthStore()
 const { seleccionado, seleccionar, notificarCambio } = usePacienteSeleccionado()
 
 const currentTitle = computed(() => route.meta.title ?? '')
+
+const nombreUsuario = computed(() => auth.nombreUsuario || 'Usuario')
 
 const iniciales = computed(() => {
   const name = (auth.nombreUsuario || 'U').trim()
@@ -211,16 +210,16 @@ const navSections = computed(() => {
   if (clinic.length) sections.push({ title: 'Clínico', items: clinic })
 
   const admin: NavItem[] = []
-  if (can('USUARIO_GESTIONAR')) admin.push({ to: '/configuracion/usuarios', label: 'Usuarios', icon: 'User' })
+  // Profesionales y cuentas viven en una sola vista con pestañas.
+  if (canAny(['PROFESIONAL_GESTIONAR', 'USUARIO_GESTIONAR'])) {
+    admin.push({ to: '/configuracion/personal', label: 'Personal y cuentas', icon: 'UserFilled' })
+  }
   if (can('AUDITORIA_LEER')) admin.push({ to: '/configuracion/auditoria', label: 'Auditoría', icon: 'DataLine' })
   if (admin.length) sections.push({ title: 'Administración', items: admin })
 
   const config: NavItem[] = []
   if (can('GRUPO_ETARIO_CONFIGURAR')) {
     config.push({ to: '/configuracion/grupos-etarios', label: 'Grupos etarios', icon: 'Odometer' })
-  }
-  if (can('PROFESIONAL_GESTIONAR')) {
-    config.push({ to: '/configuracion/profesionales', label: 'Profesionales', icon: 'UserFilled' })
   }
   if (can('CONSULTORIO_GESTIONAR')) {
     config.push({ to: '/configuracion/consultorios', label: 'Consultorios', icon: 'OfficeBuilding' })
@@ -234,6 +233,11 @@ function can(permission: string): boolean {
   return auth.hasPermission(permission)
 }
 
+/** Algunas entradas agrupan dos permisos: basta con tener uno. */
+function canAny(permissions: string[]): boolean {
+  return permissions.some((permission) => can(permission))
+}
+
 function isActive(item: NavItem): boolean {
   return item.match ? item.match(route.path) : route.path === item.to
 }
@@ -241,12 +245,13 @@ function isActive(item: NavItem): boolean {
 /** Solo se ofrece la baja de un paciente activo y con el permiso explícito. */
 const puedeDarBaja = computed(() => Boolean(seleccionado.value?.estado) && can('PACIENTE_DAR_BAJA'))
 
-/**
- * La corrección de datos del paciente vive en el contexto de admisión, por lo
- * que además de editar el paciente hace falta el permiso clínico de esa ruta
- * (ver el redirect de `pacientes/:id/editar` en el router).
- */
-const puedeModificarDatos = computed(() => can('PACIENTE_EDITAR') && can('ATENCION_CREAR'))
+// OCULTO temporalmente junto con el botón "Modificar datos" (revisión visual).
+// /**
+//  * La corrección de datos del paciente vive en el contexto de admisión, por lo
+//  * que además de editar el paciente hace falta el permiso clínico de esa ruta
+//  * (ver el redirect de `pacientes/:id/editar` en el router).
+//  */
+// const puedeModificarDatos = computed(() => can('PACIENTE_EDITAR') && can('ATENCION_CREAR'))
 
 function nuevoPaciente(): void {
   router.push({ name: 'paciente-nuevo' })
@@ -262,12 +267,13 @@ function verPaciente(): void {
   router.push({ name: 'paciente-detalle', params: { id: patient.id } })
 }
 
-function modificarDatos(): void {
-  const patient = seleccionado.value
-  if (!patient) return
-  // La corrección de datos del paciente vive en el contexto de admisión (ver router).
-  router.push({ name: 'admision', query: { patientId: String(patient.id) } })
-}
+// OCULTO temporalmente junto con el botón "Modificar datos" (revisión visual).
+// function modificarDatos(): void {
+//   const patient = seleccionado.value
+//   if (!patient) return
+//   // La corrección de datos del paciente vive en el contexto de admisión (ver router).
+//   router.push({ name: 'admision', query: { patientId: String(patient.id) } })
+// }
 
 async function borrarPaciente(): Promise<void> {
   const patient = seleccionado.value
@@ -306,10 +312,8 @@ function salir(): void {
   router.push({ name: 'login' })
 }
 
-function handleCommand(command: string): void {
-  if (command === 'password') {
-    router.push({ name: 'cambiar-contrasena' })
-  }
+function cambiarContrasena(): void {
+  router.push({ name: 'cambiar-contrasena' })
 }
 </script>
 
@@ -578,8 +582,7 @@ function handleCommand(command: string): void {
   gap: 10px;
 }
 
-.side__avatar,
-.topbar__avatar {
+.side__avatar {
   display: grid;
   place-items: center;
   width: 32px;
@@ -612,10 +615,31 @@ function handleCommand(command: string): void {
   color: var(--el-text-color-secondary);
 }
 
-.side__salir {
-  width: 100%;
+/* Acciones de sesión: dos botones en una fila para no ganar altura. */
+.side__session {
+  display: flex;
+  gap: 8px;
+}
+
+.side__session-btn {
+  flex: 1;
+  height: 34px;
   margin-left: 0 !important;
+  padding: 0 8px;
   border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+  border-color: var(--el-border-color);
+}
+
+.side__session-btn:hover {
+  background-color: var(--el-fill-color-light);
+  border-color: transparent;
+  color: var(--el-color-primary);
+}
+
+.side__salir {
   color: var(--el-color-danger);
   border-color: var(--el-color-danger-light-5);
 }
@@ -638,15 +662,6 @@ function handleCommand(command: string): void {
 .topbar__title {
   font-size: 15px;
   font-weight: 600;
-}
-
-.topbar__user {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  color: var(--el-text-color-primary);
-  outline: none;
 }
 
 .app-layout__main {

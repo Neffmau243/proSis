@@ -63,6 +63,16 @@ async function fillIdentity(
   await flushPromises()
 }
 
+/** La fecha de inscripción arranca en hoy y se puede corregir antes de guardar. */
+async function setRegistrationDate(
+  wrapper: Awaited<ReturnType<typeof mountView>>['wrapper'],
+  value: string,
+) {
+  const item = wrapper.find('.form-actions__date')
+  item.findComponent({ name: 'ElDatePicker' }).vm.$emit('update:modelValue', value)
+  await flushPromises()
+}
+
 async function submit(wrapper: Awaited<ReturnType<typeof mountView>>['wrapper']) {
   const button = wrapper.findAll('button').find((item) => item.text().includes('Registrar paciente'))
   await button!.trigger('click')
@@ -81,6 +91,8 @@ const validIdentity = {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.useFakeTimers({ shouldAdvanceTime: true })
+  // Mediodía local: la fecha de inscripción que envía el alta es determinista.
+  vi.setSystemTime(new Date(2026, 2, 15, 12, 0, 0))
   catalogos.tiposDocumento.mockResolvedValue([{ codigo: 'DNI', nombre: 'DNI', activo: true }])
   catalogos.sexos.mockResolvedValue([{ codigo: 'F', nombre: 'Femenino', activo: true }])
   catalogos.seguros.mockResolvedValue([{ id: 2, codigo: 'SIS', nombre: 'SIS', activo: true }])
@@ -104,6 +116,26 @@ test('sin datos obligatorios no se registra nada y el formulario lo señala', as
   expect(wrapper.find('.el-form-item.is-error').exists()).toBe(true)
 })
 
+test('un número de pasaporte no se envía como DNI al cambiar el selector', async () => {
+  const { wrapper } = await mountView()
+  await fillIdentity(wrapper, { ...validIdentity, tipo_documento_codigo: 'PAS', numero_documento: 'PASUI000033' })
+  await fillIdentity(wrapper, { tipo_documento_codigo: 'DNI' })
+  await submit(wrapper)
+  expect(create).not.toHaveBeenCalled()
+  expect(wrapper.text()).toContain('8 dígitos')
+  await fillIdentity(wrapper, { numero_documento: '00112233' })
+  await submit(wrapper)
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ tipo_documento_codigo: 'DNI', numero_documento: '00112233' }))
+})
+
+test('cambiar de SIS a sin seguro limpia los cuatro campos y conserva etnia', async () => {
+  const { wrapper } = await mountView()
+  await fillIdentity(wrapper, { ...validIdentity, seguro_id: 2, sis_diresa: '040', sis_tipo: '2', sis_numero: '00112233', sis_secuencia: '01', etnia_codigo: '58' })
+  await fillIdentity(wrapper, { seguro_id: null })
+  await submit(wrapper)
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ seguro_id: null, sis_diresa: null, sis_tipo: null, sis_numero: null, sis_secuencia: null, etnia_codigo: '58' }))
+})
+
 test('el alta envía solo los campos del contrato y navega a la ficha creada', async () => {
   const { wrapper, router } = await mountView()
   await fillIdentity(wrapper, { ...validIdentity, apellido_paterno: 'Quispe', otros_nombres: '' })
@@ -116,7 +148,8 @@ test('el alta envía solo los campos del contrato y navega a la ficha creada', a
     historia_clinica: null,
     historia_familiar: null,
     fecha_nacimiento: '1990-05-10',
-    fecha_inscripcion: null,
+    // La inscripción no se pide en el formulario: el alta envía el día de hoy.
+    fecha_inscripcion: '2026-03-15',
     apellido_paterno: 'Quispe',
     apellido_materno: null,
     primer_nombre: 'Ana',
@@ -140,6 +173,31 @@ test('el alta envía solo los campos del contrato y navega a la ficha creada', a
   })
   expect(router.currentRoute.value.name).toBe('paciente-detalle')
   expect(router.currentRoute.value.params.id).toBe('77')
+})
+
+test('la fecha de inscripción elegida reemplaza a la de hoy', async () => {
+  const { wrapper } = await mountView()
+  await fillIdentity(wrapper, validIdentity)
+
+  await setRegistrationDate(wrapper, '2019-07-04')
+  await submit(wrapper)
+
+  expect(create.mock.calls[0]![0].fecha_inscripcion).toBe('2019-07-04')
+})
+
+test('una inscripción futura o previa al nacimiento no se envía', async () => {
+  const { wrapper } = await mountView()
+  await fillIdentity(wrapper, validIdentity)
+
+  await setRegistrationDate(wrapper, '2026-03-16')
+  await submit(wrapper)
+  expect(create).not.toHaveBeenCalled()
+  expect(wrapper.text()).toContain('La fecha de inscripción no puede estar en el futuro.')
+
+  await setRegistrationDate(wrapper, '1989-01-01')
+  await submit(wrapper)
+  expect(create).not.toHaveBeenCalled()
+  expect(wrapper.text()).toContain('No puede ser anterior a la fecha de nacimiento.')
 })
 
 test('los responsables viajan con el parentesco y los riesgos con su grupo', async () => {
@@ -229,8 +287,10 @@ test('un fallo sin mensaje usa el texto por defecto', async () => {
 
 test('la misma vista sirve al flujo de admisión y lo advierte', async () => {
   const { wrapper } = await mountView('admision')
-  expect(wrapper.find('h2').text()).toBe('Admisión de paciente')
+  // El título lo aporta la barra superior del layout, la vista no lo repite.
+  expect(wrapper.find('h2').exists()).toBe(false)
   expect(wrapper.text()).toContain('Admisión: registre al paciente')
+  expect(wrapper.text()).toContain('Fecha de inscripción')
 })
 
 test('las búsquedas de establecimiento y ubigeo consultan al catálogo', async () => {

@@ -8,6 +8,7 @@ business operations are valid and the mapper performs all conversions.
 from __future__ import annotations
 
 from app.schemas.patient_sis import PatientSisFields
+from app.domain.patient_condition import PatientCondition
 
 from datetime import date, datetime
 from enum import Enum
@@ -152,7 +153,7 @@ class PatientCreate(PatientSisFields):
     establecimiento_registro_id: Annotated[int, Field(gt=0)] | None = None
     seguro_id: Annotated[int, Field(gt=0)] | None = None
     telefono_principal: Annotated[str, Field(max_length=30)] | None = None
-    condicion: Annotated[str, Field(max_length=100)] | None = None
+    condicion: PatientCondition = None
     responsables: list[PatientResponsibleCreate] = Field(default_factory=list)
     riesgos: list[PatientRiskCreate] = Field(default_factory=list)
 
@@ -212,7 +213,7 @@ class PatientUpdate(PatientSisFields):
     establecimiento_registro_id: Annotated[int, Field(gt=0)] | None = None
     seguro_id: Annotated[int, Field(gt=0)] | None = None
     telefono_principal: Annotated[str, Field(max_length=30)] | None = None
-    condicion: Annotated[str, Field(max_length=100)] | None = None
+    condicion: PatientCondition = None
 
     @field_validator("tipo_documento_codigo", "numero_documento", "fecha_nacimiento")
     @classmethod

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -73,6 +73,15 @@ def change_own_password(
         actor_id=principal.user_id,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@users_router.get("", response_model=list[UserResponse])
+def list_users(
+    _: Administrator,
+    db: DatabaseSession,
+    incluir_inactivos: bool = Query(default=False),
+) -> list[UserResponse]:
+    return UserService(db).list(include_inactive=incluir_inactivos)
 
 
 @users_router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

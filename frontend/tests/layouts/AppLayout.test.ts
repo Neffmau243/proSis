@@ -44,6 +44,7 @@ async function mountLayout(permissions: string[], path = '/') {
       { path: '/admision', name: 'admision', component: stub },
       { path: '/laboratorio', name: 'laboratorio', component: stub },
       { path: '/cuenta/cambiar-contrasena', name: 'cambiar-contrasena', component: stub },
+      { path: '/configuracion/personal', name: 'personal', component: stub },
     ],
   })
   const pinia = createPinia()
@@ -111,14 +112,14 @@ test('los permisos administrativos revelan sus secciones y la corrección de dat
   expect(links).toEqual([
     'Base de datos',
     'Nueva atención',
-    'Usuarios',
+    'Personal y cuentas',
     'Auditoría',
     'Grupos etarios',
-    'Profesionales',
     'Consultorios',
   ])
   expect(wrapper.text()).toContain('Paciente nuevo')
-  expect(button(wrapper, 'Modificar datos').exists()).toBe(true)
+  // OCULTO temporalmente: el botón "Modificar datos" está comentado en el layout.
+  // expect(button(wrapper, 'Modificar datos').exists()).toBe(true)
 })
 
 test('sin paciente seleccionado las acciones quedan deshabilitadas y se explica por qué', async () => {
@@ -142,7 +143,7 @@ test('el paciente seleccionado muestra su nombre, documento e historia clínica'
   expect(button(wrapper, 'Ver paciente').attributes('disabled')).toBeUndefined()
 })
 
-test('ver y modificar datos navegan al destino documentado', async () => {
+test('ver paciente navega al destino documentado', async () => {
   const { wrapper, router } = await mountLayout([
     'PACIENTE_LEER',
     'PACIENTE_EDITAR',
@@ -157,14 +158,15 @@ test('ver y modificar datos navegan al destino documentado', async () => {
   expect(router.currentRoute.value.name).toBe('paciente-detalle')
   expect(router.currentRoute.value.params.id).toBe('77')
 
-  router.push('/')
-  await flushPromises()
-  await flushPromises()
-  await button(wrapper, 'Modificar datos').trigger('click')
-  await flushPromises()
-  await flushPromises()
-  expect(router.currentRoute.value.name).toBe('admision')
-  expect(router.currentRoute.value.query.patientId).toBe('77')
+  // OCULTO temporalmente: "Modificar datos" está comentado en el layout.
+  // router.push('/')
+  // await flushPromises()
+  // await flushPromises()
+  // await button(wrapper, 'Modificar datos').trigger('click')
+  // await flushPromises()
+  // await flushPromises()
+  // expect(router.currentRoute.value.name).toBe('admision')
+  // expect(router.currentRoute.value.query.patientId).toBe('77')
 })
 
 test('la admisión exige un paciente y viaja con su identificador', async () => {
@@ -270,17 +272,23 @@ test('salir cierra la sesión y vuelve al login', async () => {
   expect(router.currentRoute.value.name).toBe('login')
 })
 
-test('el menú superior muestra la iniciales y ofrece cambiar la contraseña', async () => {
+test('la identidad del usuario se muestra una sola vez, en la barra lateral', async () => {
+  const { wrapper } = await mountLayout(['PACIENTE_LEER'])
+
+  expect(wrapper.find('.topbar__avatar').exists()).toBe(false)
+  expect(wrapper.find('.topbar__user').exists()).toBe(false)
+  expect(wrapper.find('.side__avatar').text()).toBe('AQ')
+  expect(wrapper.find('.side__user-name').text()).toBe('ana.quispe')
+  expect(wrapper.find('.side__user-role').text()).toBe('ADMIN')
+  expect(wrapper.find('.topbar').text()).not.toContain('ana.quispe')
+})
+
+test('cambiar la contraseña se ofrece desde el pie de la barra lateral', async () => {
   const { wrapper, router } = await mountLayout(['PACIENTE_LEER'])
-  expect(wrapper.find('.topbar__avatar').text()).toBe('AQ')
 
-  const dropdown = wrapper.findComponent({ name: 'ElDropdown' })
-  dropdown.vm.$emit('command', 'password')
+  await button(wrapper, 'Contraseña').trigger('click')
   await flushPromises()
-  expect(router.currentRoute.value.name).toBe('cambiar-contrasena')
 
-  dropdown.vm.$emit('command', 'otra-cosa')
-  await flushPromises()
   expect(router.currentRoute.value.name).toBe('cambiar-contrasena')
 })
 

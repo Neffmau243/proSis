@@ -291,6 +291,35 @@ def test_user_creation_rejects_retired_roles_and_unknown_professionals(
     assert unknown_professional.json()["error"]["code"] == "PROFESIONAL_NO_ACTIVO"
 
 
+def test_administrator_lists_users_with_optional_inactives(
+    clinic_scene, api_prefix, scene_password
+) -> None:
+    username = f"listado-{uuid4().hex[:8]}"
+    created = clinic_scene.admin_client.post(
+        f"{api_prefix}/usuarios",
+        json={"nombre_usuario": username, "password": scene_password, "roles": ["ADMIN"]},
+    ).json()
+
+    active = clinic_scene.admin_client.get(f"{api_prefix}/usuarios")
+    assert active.status_code == 200, active.text
+    listing = active.json()
+    usernames = [item["nombre_usuario"] for item in listing]
+    assert username in usernames
+    assert all(item["activo"] is True for item in listing)
+    assert "password" not in listing[0] and "password_hash" not in listing[0]
+
+    clinic_scene.admin_client.delete(f"{api_prefix}/usuarios/{created['id']}")
+
+    after = clinic_scene.admin_client.get(f"{api_prefix}/usuarios").json()
+    assert username not in [item["nombre_usuario"] for item in after]
+
+    with_inactives = clinic_scene.admin_client.get(
+        f"{api_prefix}/usuarios", params={"incluir_inactivos": True}
+    ).json()
+    inactive = next(item for item in with_inactives if item["nombre_usuario"] == username)
+    assert inactive["activo"] is False
+
+
 def test_administrator_deactivates_and_resets_another_account(
     api_client, clinic_scene, create_professional, api_prefix, scene_password
 ) -> None:

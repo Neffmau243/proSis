@@ -1,0 +1,173 @@
+{
+  "database": "ipress_test_admission_20260930_a1",
+  "checks": [
+    {
+      "case": "Documento tipo inexistente",
+      "pass": true,
+      "status": 422,
+      "detail": {
+        "error": {
+          "code": "CATALOGO_NO_DISPONIBLE",
+          "message": "El tipo de documento 'INVALID' no existe o no está activo.",
+          "details": {
+            "catalogo": "tipo de documento",
+            "valor": "INVALID"
+          },
+          "request_id": "7465d472b3af4af1a1784abd2382adfb"
+        }
+      }
+    },
+    {
+      "case": "Seguro inexistente",
+      "pass": true,
+      "status": 422,
+      "detail": {
+        "error": {
+          "code": "CATALOGO_NO_DISPONIBLE",
+          "message": "El seguro '99999999' no existe o no está activo.",
+          "details": {
+            "catalogo": "seguro",
+            "valor": 99999999
+          },
+          "request_id": "c218c97b171e4150a93d5c509829bb33"
+        }
+      }
+    },
+    {
+      "case": "Seguro ESSALUD PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro OTRO PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro PARTICULAR PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro SIS_AFILIACION_TEMPORAL PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro SIS_GRATUITO PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro SIS_NRUS PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro SIS_SEMI_SUBSIDIADO PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro SIS_PARA_TODOS PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro SANIDAD PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro SIN_SEGURO PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Seguro SIS PATCH/GET/MySQL",
+      "pass": true
+    },
+    {
+      "case": "Atencion UI 11 GET/MySQL",
+      "pass": true,
+      "expected": [
+        15,
+        "AMBULATORIA",
+        "NINOS_ADOLESCENTES_ADULTOS_MAYORES",
+        "NINO"
+      ],
+      "actual": [
+        15,
+        "AMBULATORIA",
+        "NINOS_ADOLESCENTES_ADULTOS_MAYORES",
+        "NINO"
+      ]
+    },
+    {
+      "case": "Atencion UI 11 FUA modalidad/grupo",
+      "pass": true
+    },
+    {
+      "case": "Atencion UI 12 GET/MySQL",
+      "pass": true,
+      "expected": [
+        16,
+        "EMERGENCIA",
+        "NINOS_ADOLESCENTES_ADULTOS_MAYORES",
+        "ADULTO_MAYOR"
+      ],
+      "actual": [
+        16,
+        "EMERGENCIA",
+        "NINOS_ADOLESCENTES_ADULTOS_MAYORES",
+        "ADULTO_MAYOR"
+      ]
+    },
+    {
+      "case": "Atencion UI 12 FUA modalidad/grupo",
+      "pass": true
+    },
+    {
+      "case": "Atencion UI 13 GET/MySQL",
+      "pass": true,
+      "expected": [
+        3,
+        "AMBULATORIA",
+        "GESTANTES",
+        "ADULTO"
+      ],
+      "actual": [
+        3,
+        "AMBULATORIA",
+        "GESTANTES",
+        "ADULTO"
+      ]
+    },
+    {
+      "case": "Atencion UI 13 FUA modalidad/grupo",
+      "pass": true
+    },
+    {
+      "case": "Gestante conserva datos obstetricos",
+      "pass": true
+    },
+    {
+      "case": "Atencion UI 14 GET/MySQL",
+      "pass": true,
+      "expected": [
+        3,
+        "EMERGENCIA",
+        "PUERPERAS",
+        "ADULTO"
+      ],
+      "actual": [
+        3,
+        "EMERGENCIA",
+        "PUERPERAS",
+        "ADULTO"
+      ]
+    },
+    {
+      "case": "Atencion UI 14 FUA modalidad/grupo",
+      "pass": true
+    },
+    {
+      "case": "Cambio UI a puerpera limpia datos obstetricos",
+      "pass": true
+    },
+    {
+      "case": "FUA historica mantiene documento original tras PATCH",
+      "pass": true
+    }
+  ]
+}

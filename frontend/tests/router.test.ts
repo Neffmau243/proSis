@@ -18,10 +18,9 @@ vi.mock('@/views/PacienteDetalleView.vue', stub)
 vi.mock('@/views/AtencionesListView.vue', stub)
 vi.mock('@/views/AtencionNuevaView.vue', stub)
 vi.mock('@/views/AtencionDetalleView.vue', stub)
-vi.mock('@/views/UsuariosView.vue', stub)
+vi.mock('@/views/PersonalView.vue', stub)
 vi.mock('@/views/AuditoriaView.vue', stub)
 vi.mock('@/views/GruposEtariosView.vue', stub)
-vi.mock('@/views/ProfesionalesView.vue', stub)
 vi.mock('@/views/ConsultoriosView.vue', stub)
 
 function session(overrides: Partial<PersistedSession> = {}): PersistedSession {
@@ -122,4 +121,23 @@ test('una ruta desconocida cae en la base de datos', async () => {
   const route = await goTo('/ruta/que/no/existe')
 
   expect(route.name).toBe('inicio')
+})
+
+test('la vista unificada exige al menos uno de los permisos de gestión', async () => {
+  saveSession(session({ permisos: ['PACIENTE_LEER'] }))
+  expect((await goTo('/configuracion/personal')).name).toBe('inicio')
+
+  saveSession(session({ permisos: ['PACIENTE_LEER', 'USUARIO_GESTIONAR'] }))
+  expect((await goTo('/configuracion/personal')).name).toBe('personal')
+})
+
+test('los enlaces antiguos redirigen a la vista unificada con su pestaña', async () => {
+  saveSession(session({ permisos: ['PACIENTE_LEER', 'PROFESIONAL_GESTIONAR', 'USUARIO_GESTIONAR'] }))
+
+  const professionals = await goTo('/configuracion/profesionales')
+  expect(professionals.name).toBe('personal')
+
+  const users = await goTo('/configuracion/usuarios')
+  expect(users.name).toBe('personal')
+  expect(users.query.tab).toBe('cuentas')
 })

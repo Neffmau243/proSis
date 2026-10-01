@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import PatientSisFields from './PatientSisFields.vue'
+import PatientConditionSelect from './PatientConditionSelect.vue'
+import { isSisInsurance } from '@/utils/patientInsurance'
 import type {
   CodeCatalogItem,
   EstablishmentCatalogItem,
@@ -234,25 +236,19 @@ function updateLocality(localidadId: number | null): void {
         </el-select>
       </el-form-item>
     </div>
-    <PatientSisFields :value="form" @update="update">
+    <PatientSisFields
+      :value="form"
+      :affiliation-disabled="!isSisInsurance(seguros.find((item) => item.id === form.seguro_id))"
+      @update="update"
+    >
       <div class="base-section__fields">
         <el-form-item class="base-field" label="Condición">
-          <el-input
+          <PatientConditionSelect
             :model-value="form.condicion"
-            @update:model-value="update({ condicion: $event })"
+            @update:model-value="update({ condicion: $event ?? '' })"
           />
         </el-form-item>
       </div>
-      <template #additional>
-        <el-form-item label="Fecha de inscripción">
-          <el-date-picker
-            :model-value="form.fecha_inscripcion"
-            type="date"
-            value-format="YYYY-MM-DD"
-            @update:model-value="update({ fecha_inscripcion: $event ?? '' })"
-          />
-        </el-form-item>
-      </template>
     </PatientSisFields>
   </section>
 </template>
@@ -260,11 +256,11 @@ function updateLocality(localidadId: number | null): void {
 <style scoped>
 .base-section {
   min-width: 0;
-  padding: 0 12px 12px;
+  padding: 0 8px 6px;
   border: 1px solid var(--registration-border, #b9cbdf);
   border-radius: 4px;
   background: var(--registration-panel, #e8eff7);
-  --el-component-size: 28px;
+  --el-component-size: var(--registration-control-size, 28px);
 }
 
 /* El wrapper del select debe seguir la misma altura que los inputs vecinos. */
@@ -275,8 +271,8 @@ function updateLocality(localidadId: number | null): void {
 }
 
 .base-section__header {
-  margin: 0 -12px 12px;
-  padding: 8px 12px;
+  margin: 0 -8px 6px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--registration-border, #b9cbdf);
   background: var(--registration-heading, #d4e1ef);
 }
@@ -291,7 +287,7 @@ function updateLocality(localidadId: number | null): void {
 
 .base-section__fields {
   display: grid;
-  gap: 6px;
+  gap: 2px;
 }
 
 .base-section__fields :deep(.base-field) {

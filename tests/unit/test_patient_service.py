@@ -96,7 +96,7 @@ class InMemoryPatientRepository:
 
     @staticmethod
     def get_active_insurance(insurance_id: int) -> object:
-        return object()
+        return SimpleNamespace(codigo="SIS" if insurance_id == 2 else "SIN_SEGURO", regimen="SIS" if insurance_id == 2 else "NINGUNO")
 
     @staticmethod
     def get_ubigeo(code: str) -> object:
@@ -300,7 +300,7 @@ def test_registers_unique_adult_and_audits_in_one_commit(
 
 def test_sis_patch_validates_merged_affiliation_and_audits_master_data(environment):
     service, repository, session, audit = environment
-    created = service.create(adult_command(sis_diresa="001", sis_tipo="2", sis_numero="00000001", etnia_codigo="58"), actor_id=41)
+    created = service.create(adult_command(seguro_id=2, sis_diresa="001", sis_tipo="2", sis_numero="00000001", etnia_codigo="58"), actor_id=41)
     updated = service.update(created.id, PatientUpdate(sis_numero="000000002", sis_secuencia="01"), actor_id=41)
     assert updated.sis_diresa == "001"
     assert updated.sis_numero == "000000002"

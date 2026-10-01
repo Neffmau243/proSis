@@ -9,6 +9,8 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     /** Permisos (códigos del backend) requeridos para ver la ruta. */
     permissions?: string[]
+    /** Permisos alternativos: basta con tener uno de ellos. */
+    permissionsAny?: string[]
   }
 }
 
@@ -98,10 +100,20 @@ const router = createRouter({
           meta: { title: 'Detalle de atención', permissions: ['ATENCION_LEER'] },
         },
         {
+          // Profesionales y cuentas comparten una sola ruta con pestañas;
+          // la vista decide qué mostrar según cada permiso.
+          path: 'configuracion/personal',
+          name: 'personal',
+          component: () => import('@/views/PersonalView.vue'),
+          meta: {
+            title: 'Personal y cuentas',
+            permissionsAny: ['PROFESIONAL_GESTIONAR', 'USUARIO_GESTIONAR'],
+          },
+        },
+        {
+          // Enlaces antiguos: cada uno abre su pestaña correspondiente.
           path: 'configuracion/usuarios',
-          name: 'usuarios',
-          component: () => import('@/views/UsuariosView.vue'),
-          meta: { title: 'Usuarios', permissions: ['USUARIO_GESTIONAR'] },
+          redirect: { name: 'personal', query: { tab: 'cuentas' } },
         },
         {
           path: 'configuracion/auditoria',
@@ -120,9 +132,7 @@ const router = createRouter({
         },
         {
           path: 'configuracion/profesionales',
-          name: 'profesionales',
-          component: () => import('@/views/ProfesionalesView.vue'),
-          meta: { title: 'Profesionales', permissions: ['PROFESIONAL_GESTIONAR'] },
+          redirect: { name: 'personal' },
         },
         {
           path: 'configuracion/consultorios',
@@ -150,6 +160,14 @@ router.beforeEach((to) => {
         (permission) => !session.permisos.includes(permission),
       )
       if (missing.length > 0) {
+        return { name: 'inicio' }
+      }
+    }
+    if (to.meta.permissionsAny?.length) {
+      const allowed = to.meta.permissionsAny.some((permission) =>
+        session.permisos.includes(permission),
+      )
+      if (!allowed) {
         return { name: 'inicio' }
       }
     }

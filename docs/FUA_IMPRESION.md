@@ -77,8 +77,8 @@ reimprimirse con este flujo; requieren un procedimiento explícito de revisión.
 | --- | --- |
 | Personal y lugar de atención | Configuración del establecimiento guardada en backend; valores iniciales IPRESS e INTRAMURAL. AISPED requiere código. No se eligen al imprimir. |
 | Atención | Modalidad de la atención guardada. No se cambia desde la impresión. Es distinto del módulo de referencias de salida. |
-| Identificación | Documento del paciente. Mapeo explícito DNI → TDI 2, CE → TDI 3. Otros tipos dejan identificación en blanco y generan aviso. |
-| Código del asegurado | `pacientes.sis_diresa`, `sis_tipo`, `sis_numero` y `sis_secuencia`; copia por atención desde la ficha. No se copia `seguro_id` ni se infiere afiliación del DNI. Secuencia no equivale a régimen. |
+| Identificación | Documento del paciente. Mapeo explícito DNI → TDI 2, CE → TDI 3. PAS, DE y OTRO conservan tipo y número en la copia, pero bloquean la impresión hasta disponer de una equivalencia TDI verificada. No se permite confirmar un aviso para imprimirlos sin identificación. |
+| Código del asegurado | `pacientes.sis_diresa`, `sis_tipo`, `sis_numero` y `sis_secuencia`; copia por atención solo cuando el seguro de la ficha pertenece al régimen SIS. Cambiar a otro régimen o quitar el seguro limpia la afiliación actual, sin modificar copias históricas. No se infiere afiliación del DNI. Secuencia no equivale a régimen. |
 | Apellidos, nombres y nacimiento | Datos del paciente al registrar la atención, incluidos otros nombres. Un apellido ausente queda vacío. |
 | Historia clínica | `historia_clinica_snapshot`, no la historia actual después de una modificación. |
 | Etnia | Código declarado del paciente, validado contra el catálogo activo de etnias del backend. No se infiere por nombre, aspecto o domicilio. |

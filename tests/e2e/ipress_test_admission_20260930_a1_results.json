@@ -1,0 +1,750 @@
+{
+  "database": "ipress_test_admission_20260930_a1",
+  "cases": [
+    {
+      "case": "Alta CE, ESSALUD, nacimiento 2020-03-10",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "GET paciente 1",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "MySQL paciente 1",
+      "pass": true
+    },
+    {
+      "case": "Alta DE, OTRO, nacimiento 1950-06-15",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 2
+    },
+    {
+      "case": "GET paciente 2",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 2
+    },
+    {
+      "case": "MySQL paciente 2",
+      "pass": true
+    },
+    {
+      "case": "Alta DNI, PARTICULAR, nacimiento 1994-02-10",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 3
+    },
+    {
+      "case": "GET paciente 3",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 3
+    },
+    {
+      "case": "MySQL paciente 3",
+      "pass": true
+    },
+    {
+      "case": "Alta OTRO, SIS_AFILIACION_TEMPORAL, nacimiento 2020-03-10",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 4
+    },
+    {
+      "case": "GET paciente 4",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 4
+    },
+    {
+      "case": "MySQL paciente 4",
+      "pass": true
+    },
+    {
+      "case": "Alta PAS, SIS_GRATUITO, nacimiento 1950-06-15",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 5
+    },
+    {
+      "case": "GET paciente 5",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 5
+    },
+    {
+      "case": "MySQL paciente 5",
+      "pass": true
+    },
+    {
+      "case": "Alta CE, SIS_NRUS, nacimiento 1994-02-10",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 6
+    },
+    {
+      "case": "GET paciente 6",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 6
+    },
+    {
+      "case": "MySQL paciente 6",
+      "pass": true
+    },
+    {
+      "case": "Alta DE, SIS_SEMI_SUBSIDIADO, nacimiento 2020-03-10",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 7
+    },
+    {
+      "case": "GET paciente 7",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 7
+    },
+    {
+      "case": "MySQL paciente 7",
+      "pass": true
+    },
+    {
+      "case": "Alta DNI, SIS_PARA_TODOS, nacimiento 1950-06-15",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 8
+    },
+    {
+      "case": "GET paciente 8",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 8
+    },
+    {
+      "case": "MySQL paciente 8",
+      "pass": true
+    },
+    {
+      "case": "Alta OTRO, SANIDAD, nacimiento 1994-02-10",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 9
+    },
+    {
+      "case": "GET paciente 9",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 9
+    },
+    {
+      "case": "MySQL paciente 9",
+      "pass": true
+    },
+    {
+      "case": "Alta PAS, SIN_SEGURO, nacimiento 2020-03-10",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 10
+    },
+    {
+      "case": "GET paciente 10",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 10
+    },
+    {
+      "case": "MySQL paciente 10",
+      "pass": true
+    },
+    {
+      "case": "Alta CE, SIS, nacimiento 1950-06-15",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 11
+    },
+    {
+      "case": "GET paciente 11",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 11
+    },
+    {
+      "case": "MySQL paciente 11",
+      "pass": true
+    },
+    {
+      "case": "Atencion AMBULATORIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "GET atencion 1",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "MySQL atencion 1",
+      "pass": true
+    },
+    {
+      "case": "Atencion AMBULATORIA/GESTANTES",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 2
+    },
+    {
+      "case": "GET atencion 2",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 2
+    },
+    {
+      "case": "MySQL atencion 2",
+      "pass": true
+    },
+    {
+      "case": "Atencion AMBULATORIA/PUERPERAS",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 3
+    },
+    {
+      "case": "GET atencion 3",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 3
+    },
+    {
+      "case": "MySQL atencion 3",
+      "pass": true
+    },
+    {
+      "case": "Atencion EMERGENCIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 4
+    },
+    {
+      "case": "GET atencion 4",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 4
+    },
+    {
+      "case": "MySQL atencion 4",
+      "pass": true
+    },
+    {
+      "case": "Atencion EMERGENCIA/GESTANTES",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 5
+    },
+    {
+      "case": "GET atencion 5",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 5
+    },
+    {
+      "case": "MySQL atencion 5",
+      "pass": true
+    },
+    {
+      "case": "Atencion EMERGENCIA/PUERPERAS",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 6
+    },
+    {
+      "case": "GET atencion 6",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 6
+    },
+    {
+      "case": "MySQL atencion 6",
+      "pass": true
+    },
+    {
+      "case": "Atencion edad 2020-03-10",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 7
+    },
+    {
+      "case": "Atencion edad 1950-06-15",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 8
+    },
+    {
+      "case": "PATCH documento CE",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "Relectura documento CE",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH documento DE",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "Relectura documento DE",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH documento DNI",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "Relectura documento DNI",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH documento OTRO",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "Relectura documento OTRO",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH documento PAS",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "Relectura documento PAS",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro ESSALUD",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro OTRO",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro PARTICULAR",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro SIS_AFILIACION_TEMPORAL",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro SIS_GRATUITO",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro SIS_NRUS",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro SIS_SEMI_SUBSIDIADO",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro SIS_PARA_TODOS",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro SANIDAD",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro SIN_SEGURO",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro SIS",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "PATCH seguro sin declarar",
+      "status": 200,
+      "expected": 200,
+      "pass": true,
+      "id": 1
+    },
+    {
+      "case": "Documento duplicado",
+      "status": 409,
+      "expected": 409,
+      "pass": true,
+      "detail": {
+        "error": {
+          "code": "DOCUMENTO_PACIENTE_DUPLICADO",
+          "message": "Ya existe un paciente registrado con ese tipo y número de documento.",
+          "details": null,
+          "request_id": "70728238c796499c86856d1e1063dcd2"
+        }
+      }
+    },
+    {
+      "case": "Menor sin responsable",
+      "status": 422,
+      "expected": 422,
+      "pass": true,
+      "detail": {
+        "error": {
+          "code": "MENOR_SIN_RESPONSABLE",
+          "message": "Un paciente menor de 18 años debe tener al menos un responsable activo.",
+          "details": null,
+          "request_id": "4b21b5e169ee43ae8a99bd4b7908ae92"
+        }
+      }
+    },
+    {
+      "case": "Documento tipo inexistente",
+      "status": 422,
+      "expected": 404,
+      "pass": false,
+      "detail": {
+        "error": {
+          "code": "CATALOGO_NO_DISPONIBLE",
+          "message": "El tipo de documento 'INVALID' no existe o no está activo.",
+          "details": {
+            "catalogo": "tipo de documento",
+            "valor": "INVALID"
+          },
+          "request_id": "a019946dd02d42d2befe4995d5fd7e30"
+        }
+      }
+    },
+    {
+      "case": "Seguro inexistente",
+      "status": 422,
+      "expected": 404,
+      "pass": false,
+      "detail": {
+        "error": {
+          "code": "CATALOGO_NO_DISPONIBLE",
+          "message": "El seguro '99999999' no existe o no está activo.",
+          "details": {
+            "catalogo": "seguro",
+            "valor": 99999999
+          },
+          "request_id": "9b6cc6ad75e443fab2c6f92e5ad647da"
+        }
+      }
+    },
+    {
+      "case": "Documento 31 caracteres",
+      "status": 422,
+      "expected": 422,
+      "pass": true,
+      "detail": {
+        "error": {
+          "code": "REQUEST_VALIDATION_ERROR",
+          "message": "La solicitud contiene datos inválidos.",
+          "details": [
+            {
+              "field": "body.numero_documento",
+              "message": "String should have at most 30 characters",
+              "type": "string_too_long"
+            }
+          ],
+          "request_id": "7f7a7fe6d07549dc8ba0ae64621c3005"
+        }
+      }
+    },
+    {
+      "case": "Documento 30 caracteres",
+      "status": 201,
+      "expected": 201,
+      "pass": true,
+      "id": 12
+    },
+    {
+      "case": "Modalidad invalida",
+      "status": 422,
+      "expected": 422,
+      "pass": true,
+      "detail": {
+        "error": {
+          "code": "REQUEST_VALIDATION_ERROR",
+          "message": "La solicitud contiene datos inválidos.",
+          "details": [
+            {
+              "field": "body.modalidad_atencion_codigo",
+              "message": "Input should be 'AMBULATORIA' or 'EMERGENCIA'",
+              "type": "enum"
+            }
+          ],
+          "request_id": "42f2bd5ecb944d709a4affbc805abd35"
+        }
+      }
+    },
+    {
+      "case": "Grupo invalido",
+      "status": 422,
+      "expected": 422,
+      "pass": true,
+      "detail": {
+        "error": {
+          "code": "REQUEST_VALIDATION_ERROR",
+          "message": "La solicitud contiene datos inválidos.",
+          "details": [
+            {
+              "field": "body.grupo_atencion_codigo",
+              "message": "Input should be 'NINOS_ADOLESCENTES_ADULTOS_MAYORES', 'GESTANTES' or 'PUERPERAS'",
+              "type": "enum"
+            }
+          ],
+          "request_id": "08432b9b30ca4efd943e367a3f5e1cf1"
+        }
+      }
+    },
+    {
+      "case": "SIS incompleto",
+      "status": 422,
+      "expected": 422,
+      "pass": true,
+      "detail": {
+        "error": {
+          "code": "AFILIACION_SIS_INCOMPLETA",
+          "message": "Complete tipo/formato y número de afiliación SIS juntos, o deje toda la afiliación vacía.",
+          "details": null,
+          "request_id": "1246b1374eb1466fabfe57632bfac2f0"
+        }
+      }
+    }
+  ],
+  "observations": [
+    {
+      "case": "DNI no numerico de un caracter",
+      "status": 201,
+      "stored": {
+        "id": 13,
+        "tipo_documento_codigo": "DNI",
+        "numero_documento": "A"
+      }
+    },
+    {
+      "case": "Cambiar solo PAS a DNI conserva numero incompatible",
+      "status": 200,
+      "stored": {
+        "id": 14,
+        "tipo_documento_codigo": "DNI",
+        "numero_documento": "PAS112525"
+      }
+    },
+    {
+      "case": "Cambiar SIS a SIN_SEGURO conserva afiliacion",
+      "status": 200,
+      "stored": {
+        "id": 4,
+        "seguro_id": 1,
+        "sis_diresa": "040",
+        "sis_tipo": "2",
+        "sis_numero": "00000003"
+      }
+    },
+    {
+      "case": "GENERAL permite datos de embarazo por API",
+      "status": 201,
+      "stored": {
+        "id": 9,
+        "grupo_atencion_codigo": "NINOS_ADOLESCENTES_ADULTOS_MAYORES",
+        "tipo_embarazo_codigo": "UNICO",
+        "peso_antes_embarazo_kg": "55.00"
+      }
+    },
+    {
+      "case": "Grupo GESTANTES sin datos obstetricos",
+      "status": 201,
+      "stored": {
+        "id": 10,
+        "grupo_atencion_codigo": "GESTANTES"
+      }
+    }
+  ],
+  "patients": [
+    {
+      "id": 1,
+      "tipo_documento_codigo": "CE",
+      "numero_documento": "E2E112525000",
+      "fecha_nacimiento": "2020-03-10",
+      "seguro_id": 3
+    },
+    {
+      "id": 2,
+      "tipo_documento_codigo": "DE",
+      "numero_documento": "E2E112525001",
+      "fecha_nacimiento": "1950-06-15",
+      "seguro_id": 5
+    },
+    {
+      "id": 3,
+      "tipo_documento_codigo": "DNI",
+      "numero_documento": "82000002",
+      "fecha_nacimiento": "1994-02-10",
+      "seguro_id": 4
+    },
+    {
+      "id": 4,
+      "tipo_documento_codigo": "OTRO",
+      "numero_documento": "E2E112525003",
+      "fecha_nacimiento": "2020-03-10",
+      "seguro_id": 8
+    },
+    {
+      "id": 5,
+      "tipo_documento_codigo": "PAS",
+      "numero_documento": "E2E112525004",
+      "fecha_nacimiento": "1950-06-15",
+      "seguro_id": 6
+    },
+    {
+      "id": 6,
+      "tipo_documento_codigo": "CE",
+      "numero_documento": "E2E112525005",
+      "fecha_nacimiento": "1994-02-10",
+      "seguro_id": 10
+    },
+    {
+      "id": 7,
+      "tipo_documento_codigo": "DE",
+      "numero_documento": "E2E112525006",
+      "fecha_nacimiento": "2020-03-10",
+      "seguro_id": 9
+    },
+    {
+      "id": 8,
+      "tipo_documento_codigo": "DNI",
+      "numero_documento": "82000007",
+      "fecha_nacimiento": "1950-06-15",
+      "seguro_id": 7
+    },
+    {
+      "id": 9,
+      "tipo_documento_codigo": "OTRO",
+      "numero_documento": "E2E112525008",
+      "fecha_nacimiento": "1994-02-10",
+      "seguro_id": 11
+    },
+    {
+      "id": 10,
+      "tipo_documento_codigo": "PAS",
+      "numero_documento": "E2E112525009",
+      "fecha_nacimiento": "2020-03-10",
+      "seguro_id": 1
+    },
+    {
+      "id": 11,
+      "tipo_documento_codigo": "CE",
+      "numero_documento": "E2E112525010",
+      "fecha_nacimiento": "1950-06-15",
+      "seguro_id": 2
+    }
+  ]
+}

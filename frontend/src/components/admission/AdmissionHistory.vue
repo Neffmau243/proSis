@@ -5,6 +5,7 @@ defineProps<{
   entries: Attention[]
   loading: boolean
   error?: string | null
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -19,13 +20,14 @@ function formatDate(value: string | null): string {
 </script>
 
 <template>
-  <el-card class="admission-history" shadow="never">
+  <el-card
+    class="admission-history"
+    :class="{ 'admission-history--compact': compact }"
+    shadow="never"
+  >
     <header class="admission-history__header">
       <div>
         <h3 class="admission-history__title">Historial de atenciones del paciente</h3>
-        <p class="admission-history__description">
-          Atenciones registradas previamente para este paciente.
-        </p>
       </div>
       <el-button size="small" :loading="loading" @click="emit('refresh')">Refrescar</el-button>
     </header>
@@ -34,7 +36,7 @@ function formatDate(value: string | null): string {
     <div v-else class="admission-history__table-wrap">
       <el-table
         :data="entries"
-        :height="124"
+        :max-height="compact ? 128 : 180"
         table-layout="fixed"
         v-loading="loading"
         size="small"
@@ -94,12 +96,12 @@ function formatDate(value: string | null): string {
 <style scoped>
 .admission-history {
   min-width: 0;
-  border-color: var(--el-border-color-lighter);
-  border-radius: 12px;
+  border-color: var(--admission-border, #b9cbdf);
+  border-radius: 4px;
 }
 
 .admission-history :deep(.el-card__body) {
-  padding: 10px 12px;
+  padding: 8px;
 }
 
 .admission-history__header {
@@ -112,7 +114,7 @@ function formatDate(value: string | null): string {
 
 .admission-history__title {
   margin: 0;
-  color: var(--el-text-color-primary);
+  color: var(--admission-ink, #304f6d);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.35;
@@ -135,8 +137,8 @@ function formatDate(value: string | null): string {
 }
 
 .admission-history__table :deep(.el-table__header-wrapper th.el-table__cell) {
-  color: var(--el-color-primary-dark-2);
-  background-color: var(--el-color-primary-light-9);
+  color: var(--admission-ink, #304f6d);
+  background-color: var(--admission-heading, #d4e1ef);
   font-size: 11px;
   font-weight: 700;
   line-height: 1.2;
@@ -151,6 +153,17 @@ function formatDate(value: string | null): string {
   line-height: 1.25;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.admission-history--compact :deep(.el-card__body) {
+  padding: 6px;
+}
+.admission-history--compact .admission-history__header {
+  align-items: center;
+  margin-bottom: 4px;
+}
+.admission-history--compact .admission-history__title {
+  font-size: 13px;
 }
 
 @media (max-width: 680px) {

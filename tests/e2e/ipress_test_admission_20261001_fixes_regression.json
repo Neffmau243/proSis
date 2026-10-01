@@ -1,0 +1,501 @@
+{
+  "database": "ipress_test_admission_20261001_fixes",
+  "cases": [
+    {
+      "case": "DNI inv\u00e1lido: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "DNI inv\u00e1lido: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "DNI inv\u00e1lido: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "DNI inv\u00e1lido: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "DNI inv\u00e1lido: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Alta DNI / 2020-03-10: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar DNI: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Persistencia documento DNI",
+      "pass": true
+    },
+    {
+      "case": "MySQL documento DNI",
+      "pass": true
+    },
+    {
+      "case": "Alta CE / 1950-06-15: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar CE: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Persistencia documento CE",
+      "pass": true
+    },
+    {
+      "case": "MySQL documento CE",
+      "pass": true
+    },
+    {
+      "case": "Alta PAS / 1994-02-10: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar PAS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Persistencia documento PAS",
+      "pass": true
+    },
+    {
+      "case": "MySQL documento PAS",
+      "pass": true
+    },
+    {
+      "case": "Alta DE / 2020-03-10: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar DE: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Persistencia documento DE",
+      "pass": true
+    },
+    {
+      "case": "MySQL documento DE",
+      "pass": true
+    },
+    {
+      "case": "Alta OTRO / 1950-06-15: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar OTRO: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Persistencia documento OTRO",
+      "pass": true
+    },
+    {
+      "case": "MySQL documento OTRO",
+      "pass": true
+    },
+    {
+      "case": "PATCH solo tipo PAS a DNI inv\u00e1lido: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "PATCH conjunto v\u00e1lido: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "PATCH solo n\u00famero inv\u00e1lido: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "FUA con SIS: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "SIS presente en FUA inicial",
+      "pass": true
+    },
+    {
+      "case": "SIS a sin seguro: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Afiliaci\u00f3n limpia en respuesta",
+      "pass": true
+    },
+    {
+      "case": "Afiliaci\u00f3n limpia en MySQL",
+      "pass": true
+    },
+    {
+      "case": "Nueva FUA sin seguro: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Nueva FUA sin afiliaci\u00f3n residual",
+      "pass": true
+    },
+    {
+      "case": "Releer FUA hist\u00f3rica: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Historia inmutable",
+      "pass": true
+    },
+    {
+      "case": "No a\u00f1adir SIS con sin seguro: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Alta incompatible: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro ESSALUD: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro OTRO: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro PARTICULAR: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro SIS_AFILIACION_TEMPORAL: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "A\u00f1adir afiliaci\u00f3n a plan SIS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Limpiar afiliaci\u00f3n antes del siguiente plan: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro SIS_GRATUITO: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "A\u00f1adir afiliaci\u00f3n a plan SIS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Limpiar afiliaci\u00f3n antes del siguiente plan: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro SIS_NRUS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "A\u00f1adir afiliaci\u00f3n a plan SIS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Limpiar afiliaci\u00f3n antes del siguiente plan: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro SIS_SEMI_SUBSIDIADO: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "A\u00f1adir afiliaci\u00f3n a plan SIS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Limpiar afiliaci\u00f3n antes del siguiente plan: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro SIS_PARA_TODOS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "A\u00f1adir afiliaci\u00f3n a plan SIS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Limpiar afiliaci\u00f3n antes del siguiente plan: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro SANIDAD: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro SIN_SEGURO: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "Cambiar seguro SIS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "No resucita afiliaci\u00f3n",
+      "pass": true
+    },
+    {
+      "case": "A\u00f1adir afiliaci\u00f3n a plan SIS: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Limpiar afiliaci\u00f3n antes del siguiente plan: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Rechazar tipo_embarazo_codigo en AMBULATORIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazar peso_antes_embarazo_kg en AMBULATORIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazar fecha_probable_parto en AMBULATORIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Atenci\u00f3n v\u00e1lida AMBULATORIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar atenci\u00f3n: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Modo/grupo recuperados",
+      "pass": true
+    },
+    {
+      "case": "MySQL modo/grupo",
+      "pass": true
+    },
+    {
+      "case": "Atenci\u00f3n v\u00e1lida AMBULATORIA/GESTANTES: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar atenci\u00f3n: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Modo/grupo recuperados",
+      "pass": true
+    },
+    {
+      "case": "MySQL modo/grupo",
+      "pass": true
+    },
+    {
+      "case": "Rechazar tipo_embarazo_codigo en AMBULATORIA/PUERPERAS: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazar peso_antes_embarazo_kg en AMBULATORIA/PUERPERAS: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazar fecha_probable_parto en AMBULATORIA/PUERPERAS: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Atenci\u00f3n v\u00e1lida AMBULATORIA/PUERPERAS: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar atenci\u00f3n: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Modo/grupo recuperados",
+      "pass": true
+    },
+    {
+      "case": "MySQL modo/grupo",
+      "pass": true
+    },
+    {
+      "case": "Rechazar tipo_embarazo_codigo en EMERGENCIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazar peso_antes_embarazo_kg en EMERGENCIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazar fecha_probable_parto en EMERGENCIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Atenci\u00f3n v\u00e1lida EMERGENCIA/NINOS_ADOLESCENTES_ADULTOS_MAYORES: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar atenci\u00f3n: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Modo/grupo recuperados",
+      "pass": true
+    },
+    {
+      "case": "MySQL modo/grupo",
+      "pass": true
+    },
+    {
+      "case": "Atenci\u00f3n v\u00e1lida EMERGENCIA/GESTANTES: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar atenci\u00f3n: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Modo/grupo recuperados",
+      "pass": true
+    },
+    {
+      "case": "MySQL modo/grupo",
+      "pass": true
+    },
+    {
+      "case": "Rechazar tipo_embarazo_codigo en EMERGENCIA/PUERPERAS: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazar peso_antes_embarazo_kg en EMERGENCIA/PUERPERAS: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazar fecha_probable_parto en EMERGENCIA/PUERPERAS: HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Atenci\u00f3n v\u00e1lida EMERGENCIA/PUERPERAS: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar atenci\u00f3n: HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Modo/grupo recuperados",
+      "pass": true
+    },
+    {
+      "case": "MySQL modo/grupo",
+      "pass": true
+    },
+    {
+      "case": "FUA documento y edad: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Identidad conservada en snapshot",
+      "pass": true
+    },
+    {
+      "case": "TDI no inventado",
+      "pass": true
+    },
+    {
+      "case": "FUA documento y edad: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Identidad conservada en snapshot",
+      "pass": true
+    },
+    {
+      "case": "TDI no inventado",
+      "pass": true
+    },
+    {
+      "case": "FUA documento y edad: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Identidad conservada en snapshot",
+      "pass": true
+    },
+    {
+      "case": "TDI no inventado",
+      "pass": true
+    },
+    {
+      "case": "FUA documento y edad: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Identidad conservada en snapshot",
+      "pass": true
+    },
+    {
+      "case": "TDI no inventado",
+      "pass": true
+    },
+    {
+      "case": "FUA documento y edad: HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Identidad conservada en snapshot",
+      "pass": true
+    },
+    {
+      "case": "TDI no inventado",
+      "pass": true
+    }
+  ]
+}

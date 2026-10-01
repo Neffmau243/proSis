@@ -8,6 +8,7 @@ export interface CodeCatalogItem {
 }
 
 export interface IdCatalogItem {
+  regimen?: string | null
   id: number
   codigo: string
   nombre: string

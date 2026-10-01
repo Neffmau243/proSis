@@ -6,6 +6,7 @@ import { patientSisContractFields, type PatientSisData } from '@/utils/patientSi
 defineProps<{
   value: Partial<PatientSisData>
   disabled?: boolean
+  affiliationDisabled?: boolean
   errors?: Partial<Record<keyof PatientSisData, string>>
 }>()
 const emit = defineEmits<{ update: [value: Partial<PatientSisData>] }>()
@@ -34,7 +35,7 @@ onMounted(load)
 
 <template>
   <div class="patient-sis-fields">
-    <fieldset class="patient-sis-fields__code" :disabled="disabled">
+    <fieldset class="patient-sis-fields__code" :disabled="disabled || affiliationDisabled">
       <legend class="patient-sis-fields__legend">Código del asegurado SIS</legend>
       <div class="patient-sis-fields__segments">
         <el-form-item
@@ -46,7 +47,7 @@ onMounted(load)
           <el-input
             :model-value="value[field.key]"
             :maxlength="field.max"
-            :disabled="disabled"
+            :disabled="disabled || affiliationDisabled"
             :aria-label="field.label"
             :inputmode="['sis_numero', 'sis_secuencia'].includes(field.key) ? 'numeric' : 'text'"
             @update:model-value="emit('update', { [field.key]: $event.toUpperCase() || null })"
@@ -101,8 +102,8 @@ onMounted(load)
 <style scoped>
 .patient-sis-fields {
   display: grid;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 4px;
+  margin-top: 6px;
   min-width: 0;
 }
 
@@ -114,7 +115,7 @@ onMounted(load)
 }
 
 .patient-sis-fields__legend {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   padding: 0;
   color: var(--registration-ink, #304f6d);
   font-size: 12px;
@@ -135,7 +136,7 @@ onMounted(load)
 
 .patient-sis-fields :deep(.el-form-item__label) {
   height: auto;
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   padding: 0;
   font-size: 12px;
   line-height: 1.25;
@@ -166,7 +167,9 @@ onMounted(load)
 }
 
 .patient-sis-fields__additional summary {
-  padding-block: 8px;
+  box-sizing: border-box;
+  min-height: 24px;
+  padding-block: 4px;
   color: var(--registration-ink, #304f6d);
   font-size: 12px;
   cursor: pointer;
@@ -179,7 +182,7 @@ onMounted(load)
 
 .patient-sis-fields__additional-content {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   padding-top: 4px;
 }
 

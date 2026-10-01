@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admisión · prueba visual aislada</title>
+    <style>
+      body {
+        margin: 0;
+      }
+      .fixture-stage {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .fixture-note {
+        font: 12px/1.5 system-ui;
+        margin: 0 0 12px;
+        color: #304f6d;
+      }
+      .fixture-stage--shell {
+        height: 100%;
+        max-width: none;
+        padding: 0;
+      }
+      .fixture-stage--shell > .fixture-note {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="fixture-stage">
+      <p class="fixture-note">
+        Prueba aislada · paciente ficticio · no consulta ni guarda en la API.
+      </p>
+      <div id="app"></div>
+    </main>
+    <script type="module">
+      import { createApp, h } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
+      import ElementPlus from 'element-plus'
+      import * as ElementPlusIcons from '@element-plus/icons-vue'
+      import 'element-plus/dist/index.css'
+      import '../src/assets/main.css'
+      import AdmisionView from '../src/views/AdmisionView.vue'
+      import AppLayout from '../src/layouts/AppLayout.vue'
+      import { catalogos } from '../src/services/catalogos.ts'
+      import { pacientes } from '../src/services/pacientes.ts'
+      import { atenciones } from '../src/services/atenciones.ts'
+      import { useAuthStore } from '../src/stores/auth.ts'
+      import { aPatient } from './fixtures/patient.ts'
+
+      const page = (items) => ({
+        items,
+        total: items.length,
+        limit: 50,
+        offset: 0,
+        has_more: false,
+      })
+      let patient = aPatient({
+        id: 13,
+        condicion: 'NO GESTANTE',
+        apellido_paterno: 'PACIENTE',
+        apellido_materno: 'DE PRUEBA',
+        primer_nombre: 'DEMO',
+        sis_diresa: '001',
+        sis_tipo: '2',
+        sis_numero: '000000001',
+      })
+      catalogos.tiposDocumento = async () => [
+        { codigo: 'DNI', nombre: 'DNI', activo: true },
+        { codigo: 'CE', nombre: 'Carné de extranjería', activo: true },
+        { codigo: 'PAS', nombre: 'Pasaporte', activo: true },
+        { codigo: 'DE', nombre: 'Documento extranjero', activo: true },
+      ]
+      catalogos.sexos = async () => [{ codigo: 'F', nombre: 'FEMENINO', activo: true }]
+      catalogos.seguros = async () => [
+        { id: 2, codigo: 'SIS', nombre: 'S.I.S. PARA TODOS', activo: true },
+      ]
+      catalogos.etnias = async () => []
+      catalogos.establecimientos = async () =>
+        page([{ id: 1, nombre: 'C. S. ALTO SELVA ALEGRE · DEMOSTRACIÓN', activo: true }])
+      catalogos.ubigeos = async () =>
+        page([
+          {
+            codigo: '040101',
+            distrito: 'Distrito de prueba',
+            provincia: 'Prueba',
+            departamento: 'Prueba',
+          },
+        ])
+      catalogos.localidades = async () => page([])
+      catalogos.especialidades = async () => [
+        { codigo: '001', nombre: 'MEDICINA GENERAL', activo: true },
+      ]
+      catalogos.consultorios = async () =>
+        page([
+          {
+            id: 1,
+            nombre: 'MEDICINA',
+            establecimiento_id: 1,
+            especialidad_codigo: '001',
+            activo: true,
+          },
+        ])
+      catalogos.profesionales = async () =>
+        page([{ id: 1, nombre_completo: 'PROFESIONAL DE PRUEBA', activo: true }])
+      catalogos.gruposEtarios = async () => [
+        {
+          codigo: 'ADULTO',
+          nombre: 'ADULTO',
+          edad_minima_meses: 360,
+          edad_maxima_meses: 719,
+          activo: true,
+        },
+      ]
+      catalogos.gruposRiesgo = async () => [
+        { id: 1, codigo: 'NUT_TALLA_BAJA', nombre: 'Riesgo de talla baja', activo: true },
+      ]
+      pacientes.get = async () => structuredClone(patient)
+      pacientes.update = async (_id, patch) => {
+        patient = { ...patient, ...patch }
+        return structuredClone(patient)
+      }
+      // Writes not explicitly mocked are blocked; the fixture never reaches the API.
+      for (const method of [
+        'create',
+        'deactivate',
+        'addRisk',
+        'updateRisk',
+        'addResponsible',
+        'updateResponsible',
+      ]) {
+        pacientes[method] = async () => {
+          throw new Error('Operación deshabilitada en esta prueba visual.')
+        }
+      }
+      const history = [1, 2, 3].map((id) => ({
+        id,
+        paciente_id: 13,
+        historia_clinica_snapshot: 'HC-TEST',
+        fecha_atencion: `2026-09-0${id}T09:00:00`,
+        edad_detallada: '36 años, 3 meses y 22 días',
+        peso_kg: '60',
+        talla_cm: '160',
+        presion_sistolica: 110,
+        presion_diastolica: 70,
+        imc: '23.4',
+        consultorio_nombre: 'MEDICINA',
+        estado: 'ATENDIDO',
+      }))
+      atenciones.listByPatient = async () => [...history]
+      atenciones.create = async (payload) => {
+        const result = { ...payload, id: 99, estado: 'ATENDIDO', fua_impresion: null }
+        history.unshift(result)
+        return result
+      }
+      const pinia = createPinia()
+      // Only component permissions are simulated. No login, token or persisted session.
+      useAuthStore(pinia).permisos = [
+        'PACIENTE_EDITAR',
+        'PACIENTE_LEER',
+        'PACIENTE_DAR_BAJA',
+        'ATENCION_CREAR',
+        'ATENCION_LEER',
+      ]
+      const shell = new URLSearchParams(location.search).has('shell')
+      if (shell) document.querySelector('.fixture-stage').classList.add('fixture-stage--shell')
+      const routes = [
+        {
+          path: 'admision',
+          name: 'admision',
+          component: AdmisionView,
+          meta: { title: 'Admisión · paciente ficticio · sin API' },
+        },
+        { path: '', name: 'inicio', component: { template: '<p>Fin de la prueba.</p>' } },
+      ]
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: shell
+          ? [{ path: '/', component: AppLayout, children: routes }]
+          : routes.map((route) => ({ ...route, path: `/${route.path}` })),
+      })
+      await router.push('/admision?patientId=13')
+      await router.isReady()
+      const app = createApp({ render: () => h(RouterView) })
+      app.use(pinia).use(router).use(ElementPlus)
+      for (const [name, icon] of Object.entries(ElementPlusIcons)) app.component(name, icon)
+      app.mount('#app')
+    </script>
+  </body>
+</html>

@@ -37,6 +37,19 @@ class UserRepository:
             statement = statement.with_for_update()
         return self._session.scalar(statement)
 
+    def list(self, *, include_inactive: bool = False) -> list[User]:
+        statement: Select[tuple[User]] = (
+            select(User)
+            .options(
+                selectinload(User.roles),
+                selectinload(User.roles_usuario).selectinload(UserRole.rol),
+            )
+            .order_by(User.nombre_usuario.asc())
+        )
+        if not include_inactive:
+            statement = statement.where(User.activo.is_(True))
+        return list(self._session.scalars(statement))
+
     def list_active_usernames(self) -> list[str]:
         statement = (
             select(User.nombre_usuario)

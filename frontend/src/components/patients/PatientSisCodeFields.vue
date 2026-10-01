@@ -5,6 +5,8 @@ import type { PatientSisContractKey, PatientSisData } from '@/utils/patientSis'
 defineProps<{
   value: Partial<PatientSisData>
   disabled?: boolean
+  /** Compacto para admisión; las etiquetas y ayudas siguen accesibles. */
+  compact?: boolean
   errors?: Partial<Record<PatientSisContractKey, string>>
 }>()
 const emit = defineEmits<{
@@ -25,7 +27,7 @@ const fields = [
 </script>
 
 <template>
-  <fieldset class="sis-code" :disabled="disabled">
+  <fieldset class="sis-code" :class="{ 'sis-code--compact': compact }" :disabled="disabled">
     <legend class="sis-code__legend">Código del asegurado SIS</legend>
     <div class="sis-code__segments">
       <div v-for="field in fields" :key="field.key" class="sis-code__field">
@@ -99,5 +101,27 @@ const fields = [
   margin: 4px 0;
   list-style: none;
   color: #b42318;
+}
+.sis-code--compact {
+  margin: 0;
+}
+.sis-code--compact .sis-code__segments {
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 0.55fr) minmax(0, 1.6fr);
+  gap: 4px;
+}
+.sis-code--compact .sis-code__legend,
+.sis-code--compact .sis-code__label,
+.sis-code--compact .sis-code__hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.sis-code--compact :deep(.el-input__wrapper) {
+  padding-inline: 6px;
 }
 </style>

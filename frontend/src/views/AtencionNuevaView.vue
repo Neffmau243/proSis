@@ -1,5 +1,5 @@
 <template>
-  <div class="admission-page">
+  <div class="admission-page" :class="{ 'admission-page--workspace': isAdmission }">
     <el-alert
       v-if="errorMessage"
       :title="errorMessage"
@@ -29,7 +29,6 @@
             :blocked="saving || attentionCreated"
             :tipos-documento="tiposDocumento"
             :grupos-riesgo="gruposRiesgo"
-            :grupo-etareo-label="grupoEtarioLabel"
             @saved="applyUpdatedPatient"
             @dirty-change="patientContextDirty = $event"
             @busy-change="patientContextSaving = $event"
@@ -47,39 +46,31 @@
               :label-width="isAdmission ? 'auto' : '200px'"
               :label-position="isAdmission ? 'top' : 'right'"
               class="encounter-form"
+              @submit.prevent="submit"
             >
+              <AdmissionEncounterHeader v-if="isAdmission" v-model="form.fecha_atencion" />
               <section
                 class="clinical-section clinical-section--context"
                 aria-labelledby="encounter-context-title"
               >
                 <div class="attention-mode-control">
                   <el-form-item label="Modalidad de atención" prop="modalidad_atencion_codigo">
-                    <div
+                    <el-radio-group
                       class="attention-mode-selector"
-                      role="group"
+                      v-model="form.modalidad_atencion_codigo"
                       aria-label="Modalidad de atención"
                     >
-                      <el-checkbox
-                        :model-value="form.modalidad_atencion_codigo === 'AMBULATORIA'"
-                        @change="selectAttentionMode('AMBULATORIA')"
-                      >
-                        Ambulatoria
-                      </el-checkbox>
-                      <el-checkbox
-                        :model-value="form.modalidad_atencion_codigo === 'EMERGENCIA'"
-                        @change="selectAttentionMode('EMERGENCIA')"
-                      >
-                        Emergencia
-                      </el-checkbox>
-                    </div>
+                      <el-radio value="AMBULATORIA"> Ambulatoria </el-radio>
+                      <el-radio value="EMERGENCIA"> Emergencia </el-radio>
+                    </el-radio-group>
                   </el-form-item>
                 </div>
                 <div class="clinical-section__heading">
                   <div>
                     <h3 id="encounter-context-title" class="clinical-section__title">
-                      Atención y consultorio
+                      Consultorio
                     </h3>
-                    <p class="clinical-section__description">
+                    <p v-if="!isAdmission" class="clinical-section__description">
                       {{
                         isAdmission
                           ? 'Seleccione consultorio, especialidad y profesional para la atención.'
@@ -88,7 +79,7 @@
                     </p>
                   </div>
                 </div>
-                <el-row :gutter="16">
+                <el-row :gutter="isAdmission ? 12 : 16">
                   <template v-if="isAdmission">
                     <el-col :span="24">
                       <el-form-item
@@ -317,29 +308,21 @@
               >
                 <div class="clinical-population-selector">
                   <el-form-item label="Grupo de atención">
-                    <div class="care-group-selector" role="group" aria-label="Grupo de atención">
-                      <el-checkbox
-                        :model-value="selectedCareGroup === 'NINOS_ADOLESCENTES_ADULTOS_MAYORES'"
-                        @change="selectCareGroup('NINOS_ADOLESCENTES_ADULTOS_MAYORES')"
-                      >
+                    <el-radio-group
+                      class="care-group-selector"
+                      :model-value="selectedCareGroup"
+                      aria-label="Grupo de atención"
+                      @update:model-value="selectCareGroup($event as CareGroupCode)"
+                    >
+                      <el-radio value="NINOS_ADOLESCENTES_ADULTOS_MAYORES">
                         Niños, adolescentes, adultos y adultos mayores
-                      </el-checkbox>
-                      <el-checkbox
-                        :model-value="selectedCareGroup === 'GESTANTES'"
-                        @change="selectCareGroup('GESTANTES')"
-                      >
-                        Gestantes
-                      </el-checkbox>
-                      <el-checkbox
-                        :model-value="selectedCareGroup === 'PUERPERAS'"
-                        @change="selectCareGroup('PUERPERAS')"
-                      >
-                        Puérperas
-                      </el-checkbox>
-                    </div>
+                      </el-radio>
+                      <el-radio value="GESTANTES"> Gestantes </el-radio>
+                      <el-radio value="PUERPERAS"> Puérperas </el-radio>
+                    </el-radio-group>
                   </el-form-item>
                 </div>
-                <div class="clinical-section__heading">
+                <div v-if="!isAdmission" class="clinical-section__heading">
                   <div>
                     <h3 id="measurements-title" class="clinical-section__title">
                       Mediciones clínicas
@@ -351,8 +334,13 @@
                 </div>
                 <div class="measurement-groups">
                   <div class="measurement-group">
-                    <h4 class="measurement-group__title">Antropometría</h4>
-                    <el-row :gutter="16">
+                    <h4
+                      :id="isAdmission ? 'measurements-title' : undefined"
+                      class="measurement-group__title"
+                    >
+                      Mediciones clínicas
+                    </h4>
+                    <el-row :gutter="isAdmission ? 12 : 16">
                       <el-col v-if="isPregnant" :span="24">
                         <el-form-item class="measurement-field" label="Tipo de embarazo">
                           <el-select
@@ -371,7 +359,10 @@
                         </el-form-item>
                       </el-col>
                       <el-col v-if="isPregnant" :span="24">
-                        <el-form-item class="measurement-field" label="Peso antes del embarazo (kg)">
+                        <el-form-item
+                          class="measurement-field"
+                          label="Peso antes del embarazo (kg)"
+                        >
                           <el-input-number
                             v-model="form.peso_antes_embarazo_kg"
                             :min="0"
@@ -480,11 +471,11 @@
                 </div>
                 <div class="nutrition-age" aria-live="polite">
                   <div class="nutrition-age__row">
-                    <span class="nutrition-age__label">Edad actual del paciente</span>
+                    <span class="nutrition-age__label">Edad a la atención</span>
                     <strong class="nutrition-age__value">{{ nutritionalAge }}</strong>
                   </div>
                 </div>
-                <el-row :gutter="16" class="nutrition-fields">
+                <el-row :gutter="isAdmission ? 12 : 16" class="nutrition-fields">
                   <el-col :span="24">
                     <el-form-item class="nutrition-field" label="Diagnóstico P/E">
                       <el-input
@@ -513,7 +504,6 @@
                     </el-form-item>
                   </el-col>
                 </el-row>
-
               </section>
             </el-form>
             <AdmissionFinalActions
@@ -521,21 +511,34 @@
               :saved="attentionCreated"
               :print-ready="!!fuaSnapshot"
               :disabled="patientContextDirty || patientContextSaving"
-              :disabled-reason="patientContextSaving
-                ? 'Termine de guardar los datos del paciente.'
-                : patientContextDirty
-                  ? 'Guarde o descarte los cambios del paciente antes de guardar la atención.'
-                  : attentionCreated
-                    ? 'Atención guardada correctamente. Los datos se conservan en modo lectura; ya puede imprimir S.I.S.'
-                    : 'Guarde la atención para habilitar Imprimir S.I.S.'"
-              :primary-label="attentionCreated ? 'Atención guardada' : isAdmission ? 'Guardar atención' : 'Registrar atención'"
-              @submit="submit" @exit="cancel" @pending="notifyUnavailableAction" @print="fuaDialog = true"
+              :disabled-reason="
+                patientContextSaving
+                  ? 'Termine de guardar los datos del paciente.'
+                  : patientContextDirty
+                    ? 'Guarde o descarte los cambios del paciente antes de guardar la atención.'
+                    : attentionCreated
+                      ? fuaSnapshot
+                        ? 'Atención guardada correctamente. Ya puede imprimir S.I.S.'
+                        : 'Atención guardada. La copia para imprimir S.I.S. no está disponible.'
+                      : 'Guarde la atención para habilitar Imprimir S.I.S.'
+              "
+              :primary-label="
+                attentionCreated
+                  ? 'Atención guardada'
+                  : isAdmission
+                    ? 'Guardar atención'
+                    : 'Registrar atención'
+              "
+              @submit="submit"
+              @exit="cancel"
+              @print="fuaDialog = true"
             />
           </el-card>
         </div>
 
         <div v-if="showHistorial" class="admission-workbench__history">
           <AdmissionHistory
+            :compact="isAdmission"
             :entries="historial"
             :loading="historialLoading"
             :error="historialError"
@@ -554,13 +557,13 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vu
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 
 import AdmissionHistory from '@/components/admission/AdmissionHistory.vue'
+import AdmissionEncounterHeader from '@/components/admission/AdmissionEncounterHeader.vue'
 import AdmissionFinalActions from '@/components/admission/AdmissionFinalActions.vue'
 import FuaPrintDialog from '@/components/admission/FuaPrintDialog.vue'
 import { useSavedAdmission } from '@/composables/useSavedAdmission'
 import AdmissionPatientSummary from '@/components/admission/AdmissionPatientSummary.vue'
 import {
   catalogos,
-  type AgeGroupCatalogItem,
   type CodeCatalogItem,
   type EstablishmentCatalogItem,
   type OfficeCatalogItem,
@@ -579,7 +582,7 @@ import {
   type NutritionalSnapshotPayload,
   type PregnancyTypeCode,
 } from '@/services/atenciones'
-import { calculateCalendarAge, formatCalendarAge } from '@/utils/calendarAge'
+import { formatCalendarAge } from '@/utils/calendarAge'
 import { PREGNANCY_TYPES } from '@/utils/pregnancy'
 
 const props = withDefaults(
@@ -617,7 +620,6 @@ const consultoriosLoading = ref(false)
 const profesionales = ref<ProfessionalCatalogItem[]>([])
 const profesionalesLoading = ref(false)
 const especialidades = ref<SpecialtyCatalogItem[]>([])
-const gruposEtarios = ref<AgeGroupCatalogItem[]>([])
 const tiposDocumento = ref<CodeCatalogItem[]>([])
 const gruposRiesgo = ref<RiskGroupCatalogItem[]>([])
 const historial = ref<Attention[]>([])
@@ -653,8 +655,9 @@ const form = reactive({
   },
 })
 
-type AttentionMode = 'AMBULATORIA' | 'EMERGENCIA'
-const { fuaDialog, fuaSnapshot, attentionCreated, remember } = useSavedAdmission(() => form.paciente_id)
+const { fuaDialog, fuaSnapshot, attentionCreated, remember } = useSavedAdmission(
+  () => form.paciente_id,
+)
 /** Población clínica declarada; se persiste en la atención. */
 const selectedCareGroup = ref<CareGroupCode>('NINOS_ADOLESCENTES_ADULTOS_MAYORES')
 
@@ -693,24 +696,6 @@ const nutritionalAge = computed(() => {
   if (!birthDate) return '—'
 
   return formatCalendarAge(birthDate, form.fecha_atencion || new Date()) ?? '—'
-})
-
-/** Grupo etario vigente según los meses cumplidos y el catálogo configurado. */
-const grupoEtarioLabel = computed(() => {
-  const birthDate = nutritionalPatient.value?.fecha_nacimiento
-  if (!birthDate) return '—'
-  const age = calculateCalendarAge(birthDate, new Date())
-  if (!age) return '—'
-  const months = age.years * 12 + age.months
-  return (
-    gruposEtarios.value.find(
-      (group) =>
-        group.activo &&
-        group.edad_minima_meses !== null &&
-        months >= group.edad_minima_meses &&
-        (group.edad_maxima_meses === null || months <= group.edad_maxima_meses),
-    )?.nombre ?? '—'
-  )
 })
 
 /** ¿El profesional registró algún dato de la valoración nutricional? */
@@ -791,10 +776,6 @@ function buildNutritionalPayload(): NutritionalSnapshotPayload | null {
   }
 }
 
-function selectAttentionMode(mode: AttentionMode): void {
-  form.modalidad_atencion_codigo = mode
-}
-
 function selectCareGroup(group: CareGroupCode): void {
   selectedCareGroup.value = group
   if (group === 'GESTANTES') {
@@ -806,11 +787,6 @@ function selectCareGroup(group: CareGroupCode): void {
   form.tipo_embarazo_codigo = null
   form.peso_antes_embarazo_kg = null
   form.fecha_probable_parto = null
-}
-
-function notifyUnavailableAction(action: string): void {
-  console.log(`[Admisión] Acción pendiente activada: ${action}`)
-  ElMessage.info(`${action} estará disponible próximamente.`)
 }
 
 async function searchPacientes(query: string): Promise<void> {
@@ -1022,7 +998,6 @@ onMounted(async () => {
       especialidadesResult,
       estResult,
       profesionalesResult,
-      gruposEtariosResult,
       tiposDocumentoResult,
       gruposRiesgoResult,
       patient,
@@ -1030,7 +1005,6 @@ onMounted(async () => {
       catalogos.especialidades(),
       catalogos.establecimientos(undefined, 25, 0),
       catalogos.profesionales(undefined, 50, 0),
-      catalogos.gruposEtarios(),
       catalogos.tiposDocumento(),
       catalogos.gruposRiesgo(),
       preselectedPatientId === null ? Promise.resolve(null) : pacientes.get(preselectedPatientId),
@@ -1038,7 +1012,6 @@ onMounted(async () => {
     especialidades.value = especialidadesResult
     establecimientos.value = estResult.items
     profesionales.value = profesionalesResult.items
-    gruposEtarios.value = gruposEtariosResult
     tiposDocumento.value = tiposDocumentoResult
     gruposRiesgo.value = gruposRiesgoResult
 
@@ -1472,3 +1445,5 @@ onMounted(async () => {
   }
 }
 </style>
+
+<style scoped src="@/assets/admission-workspace.css"></style>

@@ -18,6 +18,7 @@ def fixtures():
         fecha_probable_parto=date(2027, 1, 1),
     )
     patient = SimpleNamespace(
+        insurance=SimpleNamespace(codigo="SIS", regimen="SIS"),
         tipo_documento_codigo="DNI", numero_documento="01234567", apellido_paterno="Pérez",
         apellido_materno=None, primer_nombre="Ana", otros_nombres="María",
         sexo_codigo="F", fecha_nacimiento=date(1990, 2, 3),

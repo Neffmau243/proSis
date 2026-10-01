@@ -1,3 +1,20 @@
+/* Paleta: la de Element Plus por defecto (primary #409EFF) con el texto
+   informativo en negro. Los grises de fábrica —#909399 en etiquetas,
+   descripciones y encabezados de tabla, #606266 en valores y cuerpo— se
+   perdían de vista sobre los fondos claros de la app. El color queda
+   reservado para lo que sí significa algo: errores (#F56C6C), estados y la
+   acción activa. El gris de los placeholders y de lo deshabilitado se
+   conserva a propósito: "esto es una pista" y "esto no se edita" no son
+   texto que haya que leer en negro. */
+:root {
+  --el-text-color-primary: #000;
+  --el-text-color-regular: #000;
+  --el-text-color-secondary: #000;
+  /* Estos dos no son texto: la barra de scroll debe seguir discreta. */
+  --el-scrollbar-bg-color: #c0c4cc;
+  --el-scrollbar-hover-bg-color: #909399;
+}
+
 html,
 body,
 #app {

@@ -41,6 +41,14 @@ export function validateFuaInput(value: FuaPrintInput): string[] {
   return errors
 }
 
+export function fuaIdentityProblem(s: FuaPrintSnapshot): string | null {
+  const expected = ({ DNI: '2', CE: '3' } as Record<string, string>)[s.tipo_documento]
+  if (!expected || s.tdi !== expected) {
+    return `No se puede imprimir: ${s.tipo_documento} no tiene una equivalencia TDI verificada. La identificación está conservada; valide el catálogo SIS antes de imprimir.`
+  }
+  return null
+}
+
 export function fuaWarnings(s: FuaPrintSnapshot): string[] {
   const result: string[] = []
   const required: [unknown, string][] = [
@@ -53,7 +61,8 @@ export function fuaWarnings(s: FuaPrintSnapshot): string[] {
     [s.etnia_codigo, 'Etnia (cuando corresponda)'],
   ]
   for (const [value, label] of required) if (!value) result.push(label)
-  if (!s.tdi) result.push(`TDI no mapeado para ${s.tipo_documento}; identificación queda en blanco`)
+  const identityProblem = fuaIdentityProblem(s)
+  if (identityProblem) result.push(identityProblem)
   return result
 }
 

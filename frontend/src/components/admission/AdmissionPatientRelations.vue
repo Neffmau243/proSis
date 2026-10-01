@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef, useId, watch } from 'vue'
+import { ArrowDown, Edit } from '@element-plus/icons-vue'
 import ResponsibleDialog from '@/components/patient/ResponsibleDialog.vue'
 import RiskDialog from '@/components/patient/RiskDialog.vue'
 import type { Patient, PatientResponsible, PatientRisk } from '@/services/pacientes'
@@ -17,6 +18,24 @@ const responsibleOpen = shallowRef(false)
 const riskOpen = shallowRef(false)
 const editingResponsible = shallowRef<PatientResponsible | null>(null)
 const editingRisk = shallowRef<PatientRisk | null>(null)
+const id = useId()
+const activeRisks = computed(() => {
+  const now = new Date()
+  const today = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 10)
+  return props.patient.riesgos.filter(
+    (item) => item.fecha_inicio <= today && (!item.fecha_fin || item.fecha_fin >= today),
+  )
+})
+function riskName(item: PatientRisk): string {
+  return (
+    item.grupo_riesgo_nombre ??
+    props.gruposRiesgo.find((group) => group.id === item.grupo_riesgo_id)?.nombre ??
+    `Grupo ${item.grupo_riesgo_id}`
+  )
+}
+const riskSummary = computed(() => [...new Set(activeRisks.value.map(riskName))].join(' · '))
 const activeResponsibles = computed(() => props.patient.responsables.filter((item) => item.activo))
 const mother = computed(
   () =>
@@ -32,6 +51,16 @@ function editResponsible(item: PatientResponsible | null) {
 function editRisk(item: PatientRisk | null) {
   editingRisk.value = item
   riskOpen.value = true
+}
+function onRiskCommand(command: string) {
+  if (props.disabled || !props.canEdit) return
+  if (command === 'add') editRisk(null)
+  else {
+    const item = props.patient.riesgos.find(
+      (risk) => `${risk.grupo_riesgo_id}|${risk.fecha_inicio}` === command,
+    )
+    if (item) editRisk(item)
+  }
 }
 function responsibleSaved(item: PatientResponsible) {
   const others = props.patient.responsables.filter((existing) => existing.id !== item.id)
@@ -56,69 +85,73 @@ function riskSaved(item: PatientRisk) {
 
 <template>
   <section class="patient-relations" aria-label="Responsables y riesgos del paciente">
-    <h4 class="patient-relations__title">Grupo de riesgo</h4>
-    <p v-if="!patient.riesgos.length" class="patient-relations__value">Sin registrar</p>
-    <div
-      v-for="item in patient.riesgos"
-      :key="`${item.grupo_riesgo_id}-${item.fecha_inicio}`"
-      class="patient-relations__row"
-    >
-      <span
-        >{{ item.grupo_riesgo_nombre ?? `Grupo ${item.grupo_riesgo_id}` }} · {{ item.fecha_inicio
-        }}{{ item.fecha_fin ? ` a ${item.fecha_fin}` : ' · Sin cierre' }}</span
-      >
-      <el-button
+    <div class="patient-relations__entry">
+      <label :for="`${id}-risk`" class="patient-relations__title">Grupo de riesgo</label>
+      <el-dropdown
         v-if="canEdit"
-        link
-        type="primary"
+        class="patient-relations__risk"
+        trigger="click"
         :disabled="disabled"
-        :aria-label="`Editar riesgo ${item.grupo_riesgo_nombre ?? item.grupo_riesgo_id}`"
-        @click="editRisk(item)"
-        >Editar</el-button
+        @command="onRiskCommand"
       >
-    </div>
-    <el-button v-if="canEdit" link type="primary" :disabled="disabled" @click="editRisk(null)"
-      >Agregar riesgo</el-button
-    >
-    <h4 class="patient-relations__title">Nombre de madre</h4>
-    <p class="patient-relations__value">{{ mother?.nombre_completo ?? 'Sin registrar' }}</p>
-    <el-button
-      v-if="canEdit"
-      link
-      type="primary"
-      :disabled="disabled"
-      @click="editResponsible(mother ?? null)"
-      >{{ mother ? 'Editar madre' : 'Agregar madre' }}</el-button
-    >
-    <details class="patient-relations__details">
-      <summary>Responsables ({{ activeResponsibles.length }})</summary>
-      <div v-for="item in patient.responsables" :key="item.id" class="patient-relations__row">
-        <span
-          >{{ item.nombre_completo }} · {{ item.parentesco
-          }}{{ item.activo ? '' : ' · Inactivo' }}</span
-        >
-        <el-button
-          v-if="canEdit"
-          link
-          type="primary"
+        <button
+          :id="`${id}-risk`"
+          class="patient-relations__risk-trigger"
+          type="button"
           :disabled="disabled"
-          :aria-label="`Editar responsable ${item.nombre_completo}`"
-          @click="editResponsible(item)"
-          >Editar</el-button
+          :title="riskSummary || 'Sin registrar'"
+          aria-label="Grupo de riesgo"
         >
-      </div>
-      <el-button
-        v-if="canEdit"
-        link
-        type="primary"
-        :disabled="disabled"
-        @click="editResponsible(null)"
-        >Agregar responsable</el-button
+          <span class="patient-relations__risk-value">{{ riskSummary || 'Sin registrar' }}</span>
+          <el-icon><ArrowDown /></el-icon>
+        </button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item
+              v-for="item in patient.riesgos"
+              :key="`${item.grupo_riesgo_id}|${item.fecha_inicio}`"
+              :command="`${item.grupo_riesgo_id}|${item.fecha_inicio}`"
+            >
+              Editar {{ riskName(item) }} · {{ item.fecha_inicio }}
+              {{ item.fecha_fin ? ` a ${item.fecha_fin}` : ' · Sin cierre' }}
+            </el-dropdown-item>
+            <el-dropdown-item command="add">Agregar riesgo</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <el-input
+        v-else
+        :id="`${id}-risk`"
+        :model-value="riskSummary"
+        placeholder="Sin registrar"
+        readonly
+        aria-label="Grupo de riesgo"
+      />
+    </div>
+    <div class="patient-relations__entry">
+      <label :for="`${id}-mother`" class="patient-relations__title">Nombre de madre</label>
+      <el-input
+        :id="`${id}-mother`"
+        class="patient-relations__mother"
+        :model-value="mother?.nombre_completo ?? ''"
+        placeholder="Sin registrar"
+        readonly
+        :title="mother?.nombre_completo"
+        aria-label="Nombre de madre"
       >
-    </details>
-    <p v-if="canEdit" class="patient-relations__hint">
-      Cada responsable y periodo de riesgo se guarda desde su formulario.
-    </p>
+        <template v-if="canEdit" #suffix>
+          <el-button
+            link
+            :icon="Edit"
+            :disabled="disabled"
+            :aria-label="mother ? 'Editar madre' : 'Agregar madre'"
+            :title="mother ? 'Editar madre' : 'Agregar madre'"
+            @click="editResponsible(mother ?? null)"
+          />
+        </template>
+      </el-input>
+    </div>
+    <slot name="condition" />
     <ResponsibleDialog
       v-model="responsibleOpen"
       :patient-id="patient.id"
@@ -138,38 +171,71 @@ function riskSaved(item: PatientRisk) {
 
 <style scoped>
 .patient-relations {
-  margin-top: 16px;
-  border-top: 1px solid var(--el-border-color-lighter);
+  display: grid;
+  gap: 2px;
+}
+.patient-relations__entry {
+  display: grid;
+  grid-template-columns: 102px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
 }
 .patient-relations__title {
-  margin: 12px 0 4px;
+  margin: 0;
   font-size: 12px;
+  font-weight: 400;
+  color: var(--admission-ink, #304f6d);
+  text-align: right;
 }
-.patient-relations__value,
-.patient-relations__hint {
-  margin: 4px 0;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-  line-height: 1.5;
+.patient-relations__risk {
+  min-width: 0;
+  width: 100%;
 }
-.patient-relations__hint {
-  color: var(--el-text-color-regular);
-}
-.patient-relations__details {
-  margin-top: 10px;
-  font-size: 12px;
-}
-.patient-relations__details > summary {
-  cursor: pointer;
-  padding-block: 4px;
-}
-.patient-relations__row {
+.patient-relations__risk-trigger {
   display: flex;
-  align-items: start;
-  gap: 8px;
+  align-items: center;
   justify-content: space-between;
-  margin: 6px 0;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--el-component-size, 28px);
+  padding: 4px 8px;
+  color: var(--el-text-color-regular);
+  background: #fff0dd;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  font: inherit;
   font-size: 12px;
-  overflow-wrap: anywhere;
+  text-align: left;
+  cursor: pointer;
+}
+.patient-relations__risk-trigger:disabled {
+  cursor: not-allowed;
+  color: var(--el-disabled-text-color);
+}
+.patient-relations__risk-trigger:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+.patient-relations__risk-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.patient-relations__mother :deep(.el-input__wrapper) {
+  background: #fff0dd;
+}
+.patient-relations__mother :deep(.el-input__suffix .el-button) {
+  min-width: 24px;
+  min-height: 24px;
+}
+@media (max-width: 560px) {
+  .patient-relations__entry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .patient-relations__title {
+    text-align: left;
+  }
 }
 </style>

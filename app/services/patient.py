@@ -14,6 +14,8 @@ from typing import Any, Protocol, TypeVar
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.domain.patient_document import document_problem
+from app.domain.patient_insurance import SIS_FIELDS, is_sis_insurance
 from app.exceptions import (
     AuthorizationError,
     BusinessRuleError,
@@ -26,27 +28,27 @@ from app.mappers.patient import (
     patient_to_response,
     patient_update_to_entity_kwargs,
     responsible_create_to_entity_kwargs,
-    responsible_update_to_entity_kwargs,
     responsible_to_response,
+    responsible_update_to_entity_kwargs,
     risk_create_to_entity_kwargs,
-    risk_update_to_entity_kwargs,
     risk_to_response,
+    risk_update_to_entity_kwargs,
 )
 from app.repositories.patient import PatientRepository
-from app.schemas.patient_sis import affiliation_problem
 from app.schemas.patient import (
     PatientCreate,
     PatientDeactivationResponse,
+    PatientResponse,
     PatientResponsibleCreate,
     PatientResponsibleResponse,
     PatientResponsibleUpdate,
-    PatientResponse,
     PatientRiskCreate,
     PatientRiskResponse,
     PatientRiskUpdate,
     PatientUpdate,
     ResponsibleRelationship,
 )
+from app.schemas.patient_sis import affiliation_problem
 
 
 class AuditWriter(Protocol):
@@ -158,6 +160,8 @@ class PatientService:
                 ubigeo_code=command.ubigeo_residencia_codigo,
                 establishment_id=command.establecimiento_registro_id,
             )
+            self._validate_document_number(command.tipo_documento_codigo, command.numero_documento)
+            self._validate_insurance_affiliation(command.model_dump())
             self._validate_sis_and_ethnicity(command.model_dump())
             self._validate_patient_residence(
                 ubigeo_code=command.ubigeo_residencia_codigo,
@@ -241,9 +245,7 @@ class PatientService:
                 )
 
             effective_birth_date = values.get("fecha_nacimiento", patient.fecha_nacimiento)
-            effective_registration_date = values.get(
-                "fecha_inscripcion", patient.fecha_inscripcion
-            )
+            effective_registration_date = values.get("fecha_inscripcion", patient.fecha_inscripcion)
             self._validate_birth_and_registration_dates(
                 effective_birth_date,
                 effective_registration_date,
@@ -253,11 +255,9 @@ class PatientService:
                 "tipo_documento_codigo", patient.tipo_documento_codigo
             )
             effective_document_number = values.get("numero_documento", patient.numero_documento)
-            if (
-                "tipo_documento_codigo" in values
-                or "numero_documento" in values
-            ):
+            if "tipo_documento_codigo" in values or "numero_documento" in values:
                 self._require_active_document_type(effective_document_type)
+                self._validate_document_number(effective_document_type, effective_document_number)
                 self._ensure_document_is_available(
                     effective_document_type,
                     effective_document_number,
@@ -265,9 +265,27 @@ class PatientService:
                 )
 
             self._validate_changed_patient_catalogs(values)
+            if "seguro_id" in values:
+                insurance = (
+                    self._repository.get_active_insurance(values["seguro_id"])
+                    if values["seguro_id"]
+                    else None
+                )
+                if not is_sis_insurance(insurance):
+                    # Changing insurer clears the current affiliation, never historic FUAs.
+                    values.update(dict.fromkeys(SIS_FIELDS))
+            if "seguro_id" in values or any(key in values for key in SIS_FIELDS):
+                self._validate_insurance_affiliation(
+                    {
+                        key: values.get(key, getattr(patient, key, None))
+                        for key in (*SIS_FIELDS, "seguro_id")
+                    }
+                )
             sis_keys = ("sis_diresa", "sis_tipo", "sis_numero", "sis_secuencia", "etnia_codigo")
             if any(key in values for key in sis_keys):
-                self._validate_sis_and_ethnicity({key: values.get(key, getattr(patient, key, None)) for key in sis_keys})
+                self._validate_sis_and_ethnicity(
+                    {key: values.get(key, getattr(patient, key, None)) for key in sis_keys}
+                )
             effective_ubigeo_code = values.get(
                 "ubigeo_residencia_codigo", patient.ubigeo_residencia_codigo
             )
@@ -363,9 +381,7 @@ class PatientService:
             )
             active = self._repository.get_active_responsibles(patient.id)
             self._validate_responsible(command)
-            self._ensure_active_principal_limit(
-                [*active, *([command] if command.activo else [])]
-            )
+            self._ensure_active_principal_limit([*active, *([command] if command.activo else [])])
 
             responsible = self._repository.create_responsible(
                 responsible_create_to_entity_kwargs(command, patient_id=patient.id)
@@ -724,6 +740,23 @@ class PatientService:
         if self._repository.get_active_localidad(localidad_id, ubigeo_code) is None:
             self._raise_unavailable_catalog("localidad", localidad_id)
 
+    @staticmethod
+    def _validate_document_number(document_type: str, number: str) -> None:
+        problem = document_problem(document_type, number)
+        if problem:
+            raise ValidationDomainError(code="DOCUMENTO_INVALIDO", message=problem)
+
+    def _validate_insurance_affiliation(self, values: dict[str, Any]) -> None:
+        if not any(values.get(key) for key in SIS_FIELDS):
+            return
+        insurance_id = values.get("seguro_id")
+        insurance = self._repository.get_active_insurance(insurance_id) if insurance_id else None
+        if not is_sis_insurance(insurance):
+            raise ValidationDomainError(
+                code="AFILIACION_SIN_SEGURO_SIS",
+                message="Seleccione un seguro del régimen SIS antes de registrar su afiliación.",
+            )
+
     def _validate_sis_and_ethnicity(self, values: dict[str, Any]) -> None:
         problem = affiliation_problem(values)
         if problem:
@@ -747,9 +780,7 @@ class PatientService:
             and values["establecimiento_registro_id"] is not None
         ):
             if (
-                self._repository.get_active_establishment(
-                    values["establecimiento_registro_id"]
-                )
+                self._repository.get_active_establishment(values["establecimiento_registro_id"])
                 is None
             ):
                 self._raise_unavailable_catalog(

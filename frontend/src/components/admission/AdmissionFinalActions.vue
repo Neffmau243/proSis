@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import {
+  CircleClose,
+  DocumentAdd,
+  DocumentChecked,
+  Printer,
+  SwitchButton,
+} from '@element-plus/icons-vue'
 defineProps<{
   saving: boolean
   primaryLabel: string
@@ -12,7 +19,6 @@ const emit = defineEmits<{
   submit: []
   exit: []
   print: []
-  pending: [action: string]
 }>()
 </script>
 
@@ -40,15 +46,29 @@ const emit = defineEmits<{
         <el-icon><Printer /></el-icon>
         <span>Imprimir S.I.S.</span>
       </el-button>
-      <el-button class="admission-final-actions__button" @click="emit('pending', 'Otra consulta')">
+      <el-button
+        class="admission-final-actions__button"
+        disabled
+        title="Otra consulta: aún no disponible"
+      >
         <el-icon><SwitchButton /></el-icon>
         <span>Otra consulta</span>
       </el-button>
-      <el-button class="admission-final-actions__button" @click="emit('pending', 'FUA adicional')">
+      <el-button
+        class="admission-final-actions__button"
+        disabled
+        title="FUA adicional: aún no disponible"
+      >
         <el-icon><DocumentAdd /></el-icon>
         <span>FUA adicional</span>
       </el-button>
-      <el-button class="admission-final-actions__button" type="danger" plain @click="emit('exit')">
+      <el-button
+        class="admission-final-actions__button"
+        type="danger"
+        plain
+        :disabled="saving"
+        @click="emit('exit')"
+      >
         <el-icon><CircleClose /></el-icon>
         <span>Salir</span>
       </el-button>
@@ -58,9 +78,13 @@ const emit = defineEmits<{
 
 <style scoped>
 .admission-final-actions {
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid var(--el-border-color-lighter);
+  grid-area: actions;
+  align-self: start;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--admission-border, #b9cbdf);
+  border-radius: 4px;
+  background: var(--admission-panel, #e8eff7);
 }
 
 .admission-final-actions__reason {
@@ -74,9 +98,7 @@ const emit = defineEmits<{
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   width: 100%;
-  overflow: hidden;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 10px;
+  gap: 4px;
 }
 
 .admission-final-actions__button {
@@ -85,19 +107,15 @@ const emit = defineEmits<{
   width: 100%;
   flex-direction: column;
   gap: 2px;
-  min-height: 44px;
+  min-height: 60px;
   height: auto;
   margin: 0 !important;
-  padding: 5px 2px;
-  border-width: 0 0 0 1px;
-  border-radius: 0;
-  font-size: 8.5px;
+  padding: 6px 4px;
+  border-width: 1px;
+  border-radius: 2px;
+  font-size: 11px;
   line-height: 1.2;
   white-space: normal;
-}
-
-.admission-final-actions__button:first-child {
-  border-left-width: 0;
 }
 
 .admission-final-actions__button :deep(.el-icon) {
@@ -105,10 +123,15 @@ const emit = defineEmits<{
   font-size: 14px;
 }
 
-.admission-final-actions__button :deep(.el-button__text) {
+.admission-final-actions__button :deep(> span) {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
+}
+@media (max-width: 480px) {
+  .admission-final-actions__tray {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 </style>

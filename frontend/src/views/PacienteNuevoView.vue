@@ -21,18 +21,24 @@ import {
 } from '@/services/catalogos'
 import { pacientes } from '@/services/pacientes'
 import { emptyPatientSis, patientSisErrors } from '@/utils/patientSis'
+import { documentProblem } from '@/utils/patientDocument'
+import { clearSisAffiliation, isSisInsurance } from '@/utils/patientInsurance'
 
 const route = useRoute()
 const router = useRouter()
 
 // La misma vista sirve al botón destacado "Admisión" y a "Nuevo paciente".
+// El título ya lo muestra la barra superior del layout: aquí no se repite.
 const esAdmision = computed(() => route.name === 'admision')
-const titulo = computed(() => (esAdmision.value ? 'Admisión de paciente' : 'Nuevo paciente'))
-const fechaActual = new Intl.DateTimeFormat('es-PE', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-}).format(new Date())
+
+/** Fecha de hoy en hora local (YYYY-MM-DD); el backend la espera sin zona horaria. */
+function todayIso(): string {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
+}
+
+// Un paciente que se registra hoy se inscribe hoy: la fecha arranca en hoy y se
+// puede corregir cuando se digita a alguien que ya estaba inscrito.
 
 const formRef = ref<FormInstance>()
 const saving = ref(false)
@@ -61,7 +67,7 @@ const form = reactive<PatientRegistrationDraft>({
   otros_nombres: '',
   fecha_nacimiento: '',
   sexo_codigo: null,
-  fecha_inscripcion: '',
+  fecha_inscripcion: todayIso(),
   seguro_id: null,
   establecimiento_registro_id: null,
   ubigeo_residencia_codigo: null,
@@ -80,15 +86,46 @@ const rules: FormRules = {
   ],
   numero_documento: [
     { required: true, message: 'Ingrese el número de documento.', trigger: 'blur' },
+    {
+      validator: (_rule, value: string, callback) => {
+        const problem = documentProblem(form.tipo_documento_codigo, value)
+        callback(problem ? new Error(problem) : undefined)
+      },
+      trigger: ['blur', 'change'],
+    },
   ],
   primer_nombre: [{ required: true, message: 'Ingrese al menos un nombre.', trigger: 'blur' }],
   fecha_nacimiento: [
     { required: true, message: 'Indique la fecha de nacimiento.', trigger: 'change' },
   ],
+  fecha_inscripcion: [
+    {
+      validator: (_rule, value: string, callback) => {
+        if (!value) return callback()
+        if (value > todayIso()) {
+          return callback(new Error('La fecha de inscripción no puede estar en el futuro.'))
+        }
+        if (form.fecha_nacimiento && form.fecha_nacimiento > value) {
+          return callback(new Error('No puede ser anterior a la fecha de nacimiento.'))
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
 }
 
 function updatePatientForm(changes: PatientRegistrationPatch): void {
   Object.assign(form, changes)
+  if (
+    'seguro_id' in changes &&
+    !isSisInsurance(seguros.value.find((item) => item.id === form.seguro_id))
+  ) {
+    clearSisAffiliation(form)
+  }
+  if ('tipo_documento_codigo' in changes && form.numero_documento) {
+    void formRef.value?.validateField('numero_documento').catch(() => undefined)
+  }
 }
 
 async function searchEstablecimientos(query: string): Promise<void> {
@@ -212,14 +249,6 @@ onMounted(async () => {
 
 <template>
   <div class="patient-registration">
-    <header class="page-header patient-registration__header">
-      <h2>{{ titulo }}</h2>
-      <div class="patient-registration__date">
-        <span>Fecha actual</span>
-        <time>{{ fechaActual }}</time>
-      </div>
-    </header>
-
     <el-alert
       v-if="esAdmision"
       type="info"
@@ -264,10 +293,25 @@ onMounted(async () => {
             />
 
             <footer class="form-actions">
-              <el-button type="primary" :icon="DocumentChecked" :loading="saving" @click="submit">
-                Registrar paciente
-              </el-button>
-              <el-button :icon="Close" @click="router.back()">Salir</el-button>
+              <el-form-item
+                class="form-actions__date"
+                label="Fecha de inscripción"
+                prop="fecha_inscripcion"
+              >
+                <el-date-picker
+                  v-model="form.fecha_inscripcion"
+                  type="date"
+                  value-format="YYYY-MM-DD"
+                  :clearable="false"
+                  :disabled-date="(date: Date) => date.getTime() > Date.now()"
+                />
+              </el-form-item>
+              <div class="form-actions__buttons">
+                <el-button type="primary" :icon="DocumentChecked" :loading="saving" @click="submit">
+                  Registrar paciente
+                </el-button>
+                <el-button :icon="Close" @click="router.back()">Salir</el-button>
+              </div>
             </footer>
           </div>
         </div>
@@ -285,37 +329,8 @@ onMounted(async () => {
   --registration-heading: #d4e1ef;
   --registration-border: #b9cbdf;
   --registration-ink: #304f6d;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.patient-registration__date {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--registration-ink);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.patient-registration__date time {
-  padding: 4px 12px;
-  border: 1px solid var(--registration-border);
-  border-radius: 3px;
-  background: var(--el-fill-color-blank);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  --registration-control-size: 24px;
+  --el-component-size: var(--registration-control-size);
 }
 
 .form-alert {
@@ -336,13 +351,13 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
   align-items: stretch;
-  gap: 12px;
+  gap: 8px;
 }
 
 .patient-registration__sidebar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -353,19 +368,56 @@ onMounted(async () => {
 
 .form-actions {
   display: flex;
-  gap: 8px;
-  padding: 12px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
   margin-top: auto;
   border: 1px solid var(--registration-border);
   border-radius: 4px;
   background: var(--registration-panel);
 }
 
-.form-actions :deep(.el-button) {
-  min-height: 36px;
+/* La fecha de inscripción es el único dato de fecha del alta y vive junto a los
+   botones: etiqueta arriba y el error en todo el ancho del pie. */
+.form-actions__date {
+  margin: 0;
+}
+
+.form-actions__date :deep(.el-form-item__label) {
+  display: block;
+  height: auto;
+  margin: 0 0 2px;
+  padding: 0;
+  color: var(--registration-ink);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.form-actions__date :deep(.el-form-item__content) {
+  min-width: 0;
+  margin-left: 0 !important;
+}
+
+.form-actions__date :deep(.el-form-item__error) {
+  position: static;
+  padding-top: 2px;
+}
+
+.form-actions__date :deep(.el-date-editor) {
+  width: 100%;
+}
+
+.form-actions__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.form-actions__buttons :deep(.el-button) {
+  min-height: 28px;
   margin: 0;
   padding-inline: 8px;
   flex: 1 1 auto;
+  font-size: 12px;
 }
 
 @container (max-width: 720px) {
@@ -375,12 +427,22 @@ onMounted(async () => {
 }
 
 @media (max-width: 640px) {
-  .page-header {
-    align-items: flex-start;
-    flex-direction: column;
+  .patient-registration {
+    --registration-control-size: 36px;
   }
-
-  .form-actions :deep(.el-button) {
+  .patient-registration :deep(.el-input__inner),
+  .patient-registration :deep(.el-select__input) {
+    font-size: 16px;
+  }
+  .form-actions__buttons :deep(.el-button) {
+    min-height: 44px;
+  }
+}
+@media (pointer: coarse) {
+  .patient-registration {
+    --registration-control-size: 36px;
+  }
+  .form-actions__buttons :deep(.el-button) {
     min-height: 44px;
   }
 }

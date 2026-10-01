@@ -236,9 +236,9 @@ function updateRiskStartDate(fechaInicio: string): void {
 .family-sections {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  --el-component-size: 28px;
+  --el-component-size: var(--registration-control-size, 28px);
 }
 
 /* El wrapper del select debe seguir la misma altura que los inputs vecinos. */
@@ -250,19 +250,19 @@ function updateRiskStartDate(fechaInicio: string): void {
 
 .family-section {
   min-width: 0;
-  padding: 0 12px 12px;
+  padding: 0 8px 8px;
   border: 1px solid var(--registration-border, #b9cbdf);
   border-radius: 4px;
   background: var(--registration-panel, #e8eff7);
 }
 
 .family-section--contact {
-  padding-top: 12px;
+  padding-top: 8px;
 }
 
 .family-section__header {
-  margin: 0 -12px 8px;
-  padding: 8px 12px;
+  margin: 0 -8px 6px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--registration-border, #b9cbdf);
   background: var(--registration-heading, #d4e1ef);
 }
@@ -281,7 +281,7 @@ function updateRiskStartDate(fechaInicio: string): void {
 
 .family-section__fields {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .family-section__fields :deep(.family-field) {
@@ -293,7 +293,7 @@ function updateRiskStartDate(fechaInicio: string): void {
 .family-section__fields :deep(.family-field .el-form-item__label) {
   height: auto;
   display: block;
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   padding: 0;
   color: var(--registration-ink, #304f6d);
   font-size: 12px;

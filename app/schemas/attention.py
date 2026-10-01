@@ -124,6 +124,14 @@ class AttentionCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_times(self) -> "AttentionCreate":
+        if self.grupo_atencion_codigo != CareGroupCode.PREGNANT and any(
+            value is not None for value in (
+                self.tipo_embarazo_codigo, self.peso_antes_embarazo_kg, self.fecha_probable_parto,
+                self.valoracion_nutricional.edad_gestacional_semanas
+                if self.valoracion_nutricional else None,
+            )
+        ):
+            raise ValueError("Los datos de embarazo solo se admiten para el grupo GESTANTES")
         if self.hora_inicio is not None and self.hora_fin is not None and self.hora_fin < self.hora_inicio:
             raise ValueError("hora_fin no puede ser anterior a hora_inicio")
         if self.fecha_atendido is not None and self.fecha_atendido < self.fecha_atencion:

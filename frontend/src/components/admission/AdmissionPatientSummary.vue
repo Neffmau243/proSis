@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from 'vue'
 import PatientSisCodeFields from '@/components/patients/PatientSisCodeFields.vue'
+import PatientConditionSelect from '@/components/patients/PatientConditionSelect.vue'
+import AdmissionDocumentTypes from '@/components/admission/AdmissionDocumentTypes.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAdmissionPatientDetails } from '@/composables/useAdmissionPatientDetails'
 import { useAdmissionPatientEditor } from '@/composables/useAdmissionPatientEditor'
 import AdmissionPatientRelations from '@/components/admission/AdmissionPatientRelations.vue'
 import { patientFields, type PatientFieldKey } from '@/utils/patientDraft'
+import { clearSisAffiliation, isSisInsurance } from '@/utils/patientInsurance'
 import { pacientes, type Patient } from '@/services/pacientes'
 import type { CodeCatalogItem, RiskGroupCatalogItem } from '@/services/catalogos'
 
@@ -19,8 +22,6 @@ const props = defineProps<{
   tiposDocumento: CodeCatalogItem[]
   /** Catálogos que alimentan el diálogo de riesgo dentro del panel. */
   gruposRiesgo?: RiskGroupCatalogItem[]
-  /** Grupo etario calculado por la vista (no se guarda en el paciente). */
-  grupoEtareoLabel?: string
 }>()
 const emit = defineEmits<{
   saved: [patient: Patient]
@@ -51,14 +52,24 @@ const {
   loadLocalities,
 } = useAdmissionPatientDetails(toRef(props, 'patient'))
 const removing = ref(false)
-const fullName = computed(() =>
-  [
-    props.patient.apellido_paterno,
-    props.patient.apellido_materno,
-    props.patient.primer_nombre,
-  ]
-    .filter(Boolean)
-    .join(' ') || `Paciente #${props.patient.id}`,
+const hasSisInsurance = computed(() =>
+  isSisInsurance(seguros.value.find((item) => item.id === draft.seguro_id)),
+)
+function changeInsurance(): void {
+  if (!hasSisInsurance.value) {
+    const hadAffiliation = Boolean(
+      draft.sis_diresa || draft.sis_tipo || draft.sis_numero || draft.sis_secuencia,
+    )
+    clearSisAffiliation(draft)
+    if (hadAffiliation)
+      ElMessage.info('Se retiró la afiliación SIS del borrador. Guarde los cambios para confirmar.')
+  }
+}
+const fullName = computed(
+  () =>
+    [props.patient.apellido_paterno, props.patient.apellido_materno, props.patient.primer_nombre]
+      .filter(Boolean)
+      .join(' ') || `Paciente #${props.patient.id}`,
 )
 const disabled = computed(
   () => !props.canEdit || !props.patient.estado || saving.value || props.blocked,
@@ -66,10 +77,9 @@ const disabled = computed(
 const canRemove = computed(
   () => Boolean(props.canDelete) && props.patient.estado && !props.blocked && !saving.value,
 )
-// La admisión edita la ficha vigente, no el registro: la secuencia/etnia SIS,
-// la inscripción y la condición se completan al dar de alta al paciente.
+// La condición se muestra al final, en la fila «Grupo etáreo».
 const admissionFields = patientFields.filter(
-  (field) => field.key !== 'fecha_inscripcion' && field.key !== 'condicion',
+  (field) => !['fecha_inscripcion', 'condicion'].includes(field.key),
 )
 const options = computed<
   Partial<Record<PatientFieldKey, { label: string; value: string | number }[]>>
@@ -178,8 +188,7 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
 <template>
   <section class="patient-context" aria-labelledby="patient-context-title">
     <header class="patient-context__header">
-      <h3 id="patient-context-title" class="patient-context__title">Datos del paciente</h3>
-      <el-tag type="primary" effect="light" size="small">Admisión</el-tag>
+      <h3 id="patient-context-title" class="patient-context__title">Base de datos</h3>
     </header>
     <div class="patient-context__body">
       <el-alert v-if="catalogError" :title="catalogError" type="warning" :closable="false">
@@ -194,9 +203,52 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
         @submit.prevent="save"
       >
         <template v-for="field in admissionFields" :key="field.key">
+          <AdmissionDocumentTypes
+            v-if="field.key === 'tipo_documento_codigo'"
+            v-model="draft.tipo_documento_codigo"
+            :options="tiposDocumento"
+            :disabled="disabled"
+            :error="fieldErrors.tipo_documento_codigo"
+          />
+          <div v-else-if="field.key === 'seguro_id'" class="patient-context__sis">
+            <span class="patient-context__sis-brand" aria-hidden="true">SIS</span>
+            <div class="patient-context__sis-fields">
+              <el-form-item
+                class="patient-context__insurance-selector"
+                label-width="0"
+                :error="fieldErrors.seguro_id"
+              >
+                <el-select
+                  v-model="draft.seguro_id"
+                  @change="changeInsurance"
+                  filterable
+                  clearable
+                  :value-on-clear="null"
+                  :disabled="disabled"
+                  aria-label="Seguro de salud"
+                  placeholder="Sin seguro registrado"
+                >
+                  <el-option
+                    v-for="option in fieldOptions('seguro_id')"
+                    :key="`${option.value}:${option.label}`"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+              </el-form-item>
+              <PatientSisCodeFields
+                compact
+                :value="draft"
+                :disabled="disabled || !hasSisInsurance"
+                :errors="fieldErrors"
+                @update="Object.assign(draft, $event)"
+              />
+            </div>
+          </div>
           <el-form-item
-            :class="{ 'patient-context__insurance': field.key === 'seguro_id' }"
-            :label="field.label"
+            v-else
+            :class="{ 'patient-context__contact': field.key === 'telefono_principal' }"
+            :label="field.key === 'historia_familiar' ? 'Historia' : field.label"
             :error="fieldErrors[field.key]"
             :required="'required' in field && field.required"
           >
@@ -230,7 +282,7 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
             >
               <el-option
                 v-for="option in fieldOptions('localidad_id')"
-                :key="option.value"
+                :key="`${option.value}:${option.label}`"
                 :label="option.label"
                 :value="option.value"
               />
@@ -258,7 +310,7 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
             >
               <el-option
                 v-for="option in fieldOptions(field.key)"
-                :key="option.value"
+                :key="`${option.value}:${option.label}`"
                 :label="option.label"
                 :value="option.value"
               />
@@ -298,14 +350,6 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
               >
             </p>
           </el-form-item>
-          <PatientSisCodeFields
-            v-if="field.key === 'seguro_id'"
-            class="patient-context__insurance"
-            :value="draft"
-            :disabled="disabled"
-            :errors="fieldErrors"
-            @update="Object.assign(draft, $event)"
-          />
         </template>
         <div class="patient-context__relations">
           <AdmissionPatientRelations
@@ -316,10 +360,18 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
             :grupos-riesgo="gruposRiesgo ?? []"
             @saved="onRelationsSaved"
             @busy-change="onRelationsBusy"
-          />
-          <el-form-item class="patient-context__age-group" label="Grupo etáreo">
-            <span class="patient-context__readonly">{{ grupoEtareoLabel || '—' }}</span>
-          </el-form-item>
+          >
+            <template #condition>
+              <el-form-item label="Grupo etáreo" :error="fieldErrors.condicion">
+                <PatientConditionSelect
+                  v-model="draft.condicion"
+                  :disabled="disabled"
+                  aria-label="Grupo etáreo"
+                  title="Condición registrada del paciente; independiente de la edad calculada en la atención"
+                />
+              </el-form-item>
+            </template>
+          </AdmissionPatientRelations>
         </div>
         <div v-if="canEdit" class="patient-context__actions">
           <el-alert v-if="error" :title="error" type="error" :closable="false" />
@@ -327,6 +379,7 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
             {{ dirty ? 'Tiene cambios sin guardar.' : 'Datos del paciente guardados.' }}
           </p>
           <el-button
+            v-if="dirty"
             type="primary"
             native-type="submit"
             :loading="saving"
@@ -334,15 +387,16 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
             >Guardar cambios</el-button
           >
           <el-button v-if="dirty" :disabled="disabled" @click="reset">Descartar cambios</el-button>
-          <el-button
-            v-if="canRemove"
-            class="patient-context__remove"
-            type="danger"
-            :loading="removing"
-            @click="removePatient"
-          >
-            Eliminar paciente
-          </el-button>
+          <details v-if="canRemove" class="patient-context__more-actions">
+            <summary>Más acciones del paciente</summary>
+            <el-button
+              class="patient-context__remove"
+              type="danger"
+              :loading="removing"
+              @click="removePatient"
+              >Eliminar paciente</el-button
+            >
+          </details>
         </div>
       </el-form>
     </div>
@@ -352,31 +406,32 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
 <style scoped>
 .patient-context {
   min-width: 0;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 12px;
-  background: var(--el-fill-color-blank);
+  border: 1px solid var(--admission-border, #b9cbdf);
+  border-radius: 4px;
+  background: var(--admission-panel, #e8eff7);
+  --el-component-size: var(--admission-control-size, 26px);
 }
 .patient-context__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--admission-border, #b9cbdf);
+  background: var(--admission-heading, #d4e1ef);
 }
 .patient-context__title {
   margin: 0;
-  font-size: 14px;
-  color: var(--el-text-color-primary);
+  font-size: 13px;
+  color: var(--admission-ink, #304f6d);
 }
 .patient-context__body {
-  padding: 12px;
+  padding: 6px 8px;
 }
 .patient-context__form {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  margin-top: 8px;
+  gap: 2px;
 }
 .patient-context__form :deep(.el-form-item) {
   margin-bottom: 0;
@@ -385,41 +440,84 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
 .patient-context__form :deep(.el-form-item__label) {
   height: auto;
   line-height: 1.4;
-  padding: 6px 8px 0 0;
-  margin-bottom: 4px;
+  padding: 2px 8px 0 0;
+  margin-bottom: 0;
   font-size: 12px;
+  color: var(--admission-ink, #304f6d);
+  justify-content: flex-end;
+  text-align: right;
 }
 .patient-context__form :deep(.el-form-item__error) {
   position: static;
+  flex-basis: 100%;
   line-height: 1.4;
 }
 .patient-context__form :deep(.el-form-item__content) {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
   min-width: 0;
+  line-height: var(--el-component-size);
 }
 .patient-context__form :deep(.el-input),
 .patient-context__form :deep(.el-select) {
   width: 100%;
 }
+.patient-context__form :deep(.el-select__wrapper) {
+  min-height: var(--el-component-size);
+  padding-block: 0;
+}
+.patient-context__form :deep(.el-input__inner),
+.patient-context__form :deep(.el-select__selected-item) {
+  font-size: 12px;
+}
+.patient-context__more-actions summary {
+  cursor: pointer;
+  font-size: 12px;
+  padding-block: 4px;
+}
 .patient-context__actions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px;
   padding-top: 4px;
   grid-column: 1 / -1;
 }
-.patient-context__insurance {
-  grid-column: 1 / -1;
+.patient-context__actions > .patient-context__hint,
+.patient-context__actions > .patient-context__more-actions,
+.patient-context__actions > .el-alert {
+  flex-basis: 100%;
+}
+.patient-context__actions > .el-button {
+  flex: 1 1 auto;
+}
+.patient-context__sis {
+  display: grid;
+  grid-template-columns: 102px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.patient-context__sis-brand {
+  justify-self: end;
+  padding: 0 8px;
+  color: #17496a;
+  background: #fff;
+  border: 1px solid var(--admission-border, #b9cbdf);
+  font-size: 24px;
+  font-style: italic;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.patient-context__sis-fields {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.patient-context__contact :deep(.el-input__wrapper) {
+  background: #fff0dd;
 }
 .patient-context__relations {
   grid-column: 1 / -1;
-}
-.patient-context__age-group {
-  margin-top: 4px !important;
-}
-.patient-context__readonly {
-  font-size: 12px;
-  color: var(--el-text-color-primary);
 }
 .patient-context__actions :deep(.el-button) {
   margin: 0;
@@ -430,7 +528,7 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
   border-style: dashed;
 }
 .patient-context__hint {
-  margin: 6px 0;
+  margin: 2px 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--el-text-color-regular);
@@ -440,12 +538,10 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
   font-size: 12px;
   margin: 4px 0 0;
 }
-@media (min-width: 561px) and (max-width: 900px) {
-  .patient-context__form {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 @media (max-width: 560px) {
+  .patient-context {
+    --el-component-size: 36px;
+  }
   .patient-context__form :deep(.el-input__inner),
   .patient-context__form :deep(.el-select__input) {
     font-size: 16px;
@@ -455,10 +551,17 @@ watch(saving, (value) => emit('busyChange', value), { flush: 'sync' })
   }
   .patient-context__form :deep(.el-form-item__label) {
     width: auto !important;
+    justify-content: flex-start;
+    text-align: left;
   }
   .patient-context__form :deep(.el-form-item__content) {
     width: 100%;
     margin-left: 0 !important;
+  }
+}
+@media (pointer: coarse) {
+  .patient-context {
+    --el-component-size: 36px;
   }
 }
 </style>

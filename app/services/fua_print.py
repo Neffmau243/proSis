@@ -3,6 +3,7 @@
 import re
 from zoneinfo import ZoneInfo
 
+from app.domain.patient_insurance import SIS_FIELDS, is_sis_insurance
 from app.models.clinical import Attention
 from app.models.organization import Establishment
 from app.models.patient import Patient
@@ -18,14 +19,27 @@ def build_fua_snapshot(
     supplement: FuaPrintInput | None,
 ) -> dict[str, object]:
     values = FuaPrintInput().model_dump()
-    values.update({key: getattr(patient, key, None) for key in ("sis_diresa", "sis_tipo", "sis_numero", "etnia_codigo")})
+    values.update(
+        {
+            key: getattr(patient, key, None)
+            for key in ("sis_diresa", "sis_tipo", "sis_numero", "etnia_codigo")
+        }
+    )
+    has_sis = is_sis_insurance(getattr(patient, "insurance", None))
+    if not has_sis:
+        values.update({key: None for key in SIS_FIELDS if key != "sis_secuencia"})
     values["tipo_atencion"] = attention.modalidad_atencion_codigo
     values["personal_atiende"] = getattr(establishment, "fua_personal_atiende", None) or "IPRESS"
     values["lugar_atencion"] = getattr(establishment, "fua_lugar_atencion", None) or "INTRAMURAL"
     values["codigo_aisped"] = getattr(establishment, "fua_codigo_aisped", None)
     # Legacy clients may supply referral data, never patient identity or site defaults.
     if supplement and values["tipo_atencion"] == "REFERENCIA":
-        values.update({key: getattr(supplement, key) for key in ("referencia_renipress", "referencia_nombre", "referencia_hoja")})
+        values.update(
+            {
+                key: getattr(supplement, key)
+                for key in ("referencia_renipress", "referencia_nombre", "referencia_hoja")
+            }
+        )
     # Never substitute an internal database ID for RENIPRESS or SIS affiliation.
     renaes = establishment.codigo_renaes or ""
     if not values["codigo_renipress"] and re.fullmatch(r"[0-9]{8}", renaes):
@@ -36,7 +50,7 @@ def build_fua_snapshot(
     snapshot = FuaPrintSnapshot(
         **values,
         version=2,
-        sis_secuencia=getattr(patient, "sis_secuencia", None),
+        sis_secuencia=getattr(patient, "sis_secuencia", None) if has_sis else None,
         renipress_preimpreso=getattr(establishment, "fua_renipress_preimpreso", True),
         ipress_nombre=establishment.nombre,
         profesional_nombre=professional.nombre_completo,

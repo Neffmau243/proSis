@@ -160,6 +160,12 @@ class NutritionalIndicatorsPreviewInput(BaseModel):
     peso_kg: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
     talla_cm: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
 
+    @model_validator(mode="after")
+    def validate_pregestational_weight(self) -> "NutritionalIndicatorsPreviewInput":
+        if self.grupo_atencion_codigo != CareGroupCode.PREGNANT and self.peso_antes_embarazo_kg is not None:
+            raise ValueError("Los datos de embarazo solo se admiten para el grupo GESTANTES")
+        return self
+
 
 class NutritionalIndicatorsResponse(BaseModel):
     grupo_referencia: str = "INFANTIL"

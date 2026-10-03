@@ -482,7 +482,7 @@
                     </el-form-item>
                   </el-col>
                 </el-row>
-                <small role="status">{{ nutritionError || nutritionIndicators?.mensaje }}</small>
+                <small role="status">{{ nutritionStatus }}</small>
               </section>
             </el-form>
             <AdmissionFinalActions
@@ -563,7 +563,7 @@ import {
 } from '@/services/atenciones'
 import { formatCalendarAge } from '@/utils/calendarAge'
 import { useNutritionalIndicatorsPreview } from '@/composables/useNutritionalIndicatorsPreview'
-import { nutritionalRows } from '@/utils/nutritionalDisplay'
+import { nutritionalRows, nutritionalBmiSummary } from '@/utils/nutritionalDisplay'
 import { PREGNANCY_TYPES } from '@/utils/pregnancy'
 
 const props = withDefaults(
@@ -687,6 +687,13 @@ const { indicators: nutritionIndicators, loading: nutritionLoading, error: nutri
 const nutritionRows = computed(() => nutritionLoading.value || nutritionError.value
   ? nutritionalRows(null).map(item => ({ ...item, value: nutritionLoading.value ? 'Calculando…' : 'No disponible' }))
   : nutritionalRows(nutritionIndicators.value))
+
+const nutritionStatus = computed(() => {
+  if (nutritionLoading.value) return 'Calculando…'
+  if (nutritionError.value) return nutritionError.value
+  return [nutritionalBmiSummary(nutritionIndicators.value), nutritionIndicators.value?.mensaje]
+    .filter(Boolean).join('. ')
+})
 
 function patientIdFromQuery(value: unknown): number | null {
   const rawValue = Array.isArray(value) ? value[0] : value

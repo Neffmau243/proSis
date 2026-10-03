@@ -1,4 +1,36 @@
-import type { NutritionalIndicatorsPreview } from '@/services/atenciones'
+import type { Attention, NutritionalIndicatorsPreview } from '@/services/atenciones'
+
+/** Display the applicable BMI results already calculated by the server. */
+export function nutritionalBmiSummary(result: NutritionalIndicatorsPreview | null): string {
+  if (!result) return ''
+  const parts: string[] = []
+  if (result.imc != null) parts.push(`IMC: ${result.imc}`)
+  if (result.imc_edad != null) parts.push(`IMC/edad: Z ${result.imc_edad}`)
+  if (result.imc_pregestacional != null) parts.push(`IMC pregestacional: ${result.imc_pregestacional}`)
+  if (parts.length && result.diagnostico_imc) parts.push(result.diagnostico_imc)
+  if (result.ganancia_peso_kg != null) parts.push(`Cambio de peso: ${result.ganancia_peso_kg} kg`)
+  return parts.join(' · ')
+}
+
+type NutritionHistory = Pick<Attention, 'pe' | 'te' | 'pt' | 'edad_anios' | 'grupo_atencion_codigo' | 'valoracion_calculada'>
+
+/** Preserve saved scores; explain applicability even for entries without a snapshot. */
+export function nutritionalHistoryValue(row: NutritionHistory, indicator: 'pe' | 'te' | 'pt'): string {
+  if (row[indicator] != null) return row[indicator]
+  const snapshot = row.valoracion_calculada
+  if (snapshot) {
+    if (snapshot[indicator] != null) return snapshot[indicator]
+    const index = { pe: 0, te: 1, pt: 2 }[indicator]
+    return nutritionalRows(snapshot)[index]?.value === 'No aplica' ? 'No aplica' : '—'
+  }
+  // Use the age saved at the encounter, never the patient's current age.
+  const age = row.edad_anios
+  if (row.grupo_atencion_codigo === 'GESTANTES' || row.grupo_atencion_codigo === 'PUERPERAS'
+    || (age != null && (age >= 20 || (indicator === 'pe' && age >= 11) || (indicator === 'pt' && age >= 6)))) {
+    return 'No aplica'
+  }
+  return '—'
+}
 
 /** Select the applicable results without relabeling one indicator as another. */
 export function nutritionalRows(result: NutritionalIndicatorsPreview | null) {

@@ -6,6 +6,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import AtencionNuevaView from '@/views/AtencionNuevaView.vue'
 import AdmissionPatientSummary from '@/components/admission/AdmissionPatientSummary.vue'
 import AdmissionHistory from '@/components/admission/AdmissionHistory.vue'
+import AdmissionEncounterHeader from '@/components/admission/AdmissionEncounterHeader.vue'
 import { aPatient } from '../fixtures/patient'
 
 const { create, get, listByPatient, previewNutritionalIndicators } = vi.hoisted(() => ({
@@ -38,6 +39,62 @@ vi.mock('@/services/catalogos', () => ({
 }))
 
 const mounted: { unmount: () => void }[] = []
+
+test('la edad y la valoración se actualizan con nacimiento y fecha de atención', async () => {
+  const wrapper = await mountAdmission()
+  await new Promise(resolve => setTimeout(resolve, 400))
+  await flushPromises()
+  previewNutritionalIndicators.mockResolvedValueOnce({
+    estado: 'CALCULADO', grupo_referencia: 'INFANTIL', mensaje: 'OMS 2006',
+    imc: '16.799', pe: '-0.147', te: '-0.243', pt: '-0.056',
+    diagnostico_peso_edad: 'Normal', diagnostico_talla_edad: 'Normal', diagnostico_peso_talla: 'Normal',
+  } as never)
+  wrapper.getComponent(AdmissionPatientSummary).vm.$emit('saved', aPatient({ fecha_nacimiento: '2025-01-15' }))
+  wrapper.getComponent(AdmissionEncounterHeader).vm.$emit('update:modelValue', '2026-01-15T09:00:00')
+  const field = (label: string) => wrapper.findAllComponents(ElFormItem).find(item => item.props('label') === label)!
+  field('Peso actual (kg)').getComponent(ElInputNumber).vm.$emit('update:modelValue', 9.5)
+  field('Talla (cm)').getComponent(ElInputNumber).vm.$emit('update:modelValue', 75.2)
+  await new Promise(resolve => setTimeout(resolve, 400))
+  await flushPromises()
+  expect(wrapper.get('.nutrition-age__value').text()).toMatch(/^1 año/)
+  expect(previewNutritionalIndicators).toHaveBeenLastCalledWith(expect.objectContaining({
+    paciente_id: 100, fecha_atencion: '2026-01-15T09:00:00', peso_kg: 9.5, talla_cm: 75.2,
+  }))
+  expect((field('Diagnóstico P/E').get('input').element as HTMLInputElement).value).toBe('Normal · Z: -0.147')
+})
+
+test('escribir peso y talla muestra el IMC adulto sin salir del campo y lo descarta al borrar', async () => {
+  const wrapper = await mountAdmission()
+  await new Promise(resolve => setTimeout(resolve, 400))
+  await flushPromises()
+  const field = (label: string) => wrapper.findAllComponents(ElFormItem).find(item => item.props('label') === label)!
+  previewNutritionalIndicators.mockResolvedValueOnce({
+    estado: 'CALCULADO', grupo_referencia: 'ADULTO', imc: '24.691', diagnostico_imc: 'Normal',
+    mensaje: 'Valoración por IMC; interpretar junto con la evaluación clínica.', pe: null, te: null, pt: null,
+  } as never)
+  for (const [label, value] of [['Peso actual (kg)', '80'], ['Talla (cm)', '180']]) {
+    const input = field(label!).get('input')
+    ;(input.element as HTMLInputElement).value = value!
+    await input.trigger('input')
+  }
+  await new Promise(resolve => setTimeout(resolve, 400))
+  await flushPromises()
+  expect(previewNutritionalIndicators).toHaveBeenLastCalledWith(expect.objectContaining({ peso_kg: 80, talla_cm: 180 }))
+  const status = wrapper.get('.clinical-section--nutrition [role="status"]')
+  expect(status.text()).toContain('IMC: 24.691 · Normal')
+  expect(status.text()).not.toContain('Ingrese peso y talla')
+  for (const label of ['Diagnóstico P/E', 'Diagnóstico T/E', 'Diagnóstico P/T']) {
+    expect((field(label).get('input').element as HTMLInputElement).value).toBe('No aplica')
+  }
+  expect(wrapper.findAllComponents(ElFormItem).some(item => item.props('label') === 'Diagnóstico por IMC')).toBe(false)
+  const height = field('Talla (cm)').get('input')
+  ;(height.element as HTMLInputElement).value = ''
+  await height.trigger('input')
+  expect(status.text()).toBe('Calculando…')
+  await new Promise(resolve => setTimeout(resolve, 400))
+  await flushPromises()
+  expect(status.text()).not.toContain('24.691')
+})
 
 test('la valoración muestra cálculos de solo lectura y descarta resultados al borrar medidas', async () => {
   const wrapper = await mountAdmission()

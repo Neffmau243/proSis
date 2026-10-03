@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { Attention } from '@/services/atenciones'
-import { nutritionalRows } from '@/utils/nutritionalDisplay'
+import { nutritionalRows, nutritionalBmiSummary, nutritionalHistoryValue } from '@/utils/nutritionalDisplay'
 
 function nutritionSummary(row: Attention): string {
   return row.valoracion_calculada
-    ? nutritionalRows(row.valoracion_calculada).map(item => `${item.label}: ${item.value}`).join('; ')
-    : 'Sin valoración histórica calculada'
+    ? [nutritionalBmiSummary(row.valoracion_calculada), ...nutritionalRows(row.valoracion_calculada).map(item => `${item.label}: ${item.value}`)].filter(Boolean).join('; ')
+    : row.imc != null ? `IMC: ${row.imc}. Sin clasificación histórica guardada` : 'Sin valoración histórica calculada'
 }
 
 defineProps<{
@@ -81,13 +81,13 @@ function formatDate(value: string | null): string {
           </template>
         </el-table-column>
         <el-table-column label="P/E" width="42" align="center">
-          <template #default="{ row }">{{ row.pe || '—' }}</template>
+          <template #default="{ row }">{{ nutritionalHistoryValue(row, 'pe') }}</template>
         </el-table-column>
         <el-table-column label="T/E" width="42" align="center">
-          <template #default="{ row }">{{ row.te || '—' }}</template>
+          <template #default="{ row }">{{ nutritionalHistoryValue(row, 'te') }}</template>
         </el-table-column>
         <el-table-column label="P/T" width="42" align="center">
-          <template #default="{ row }">{{ row.pt || '—' }}</template>
+          <template #default="{ row }">{{ nutritionalHistoryValue(row, 'pt') }}</template>
         </el-table-column>
         <el-table-column label="Consultorio" min-width="124">
           <template #default="{ row }">{{ row.consultorio_nombre || '—' }}</template>

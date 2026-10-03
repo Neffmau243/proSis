@@ -259,6 +259,10 @@ class AttentionService:
                 code="FECHA_ATENCION_ANTERIOR_NACIMIENTO",
                 message="La fecha de atención no puede ser anterior al nacimiento.",
             )
+        self._validate_measurements(
+            VitalSignPayload(peso_kg=command.peso_kg, talla_cm=command.talla_cm),
+            completed_months(patient.fecha_nacimiento, measured_on),
+        )
         indicators = calculate_nutritional_indicators(
             care_group=command.grupo_atencion_codigo.value,
             pregestational_weight_kg=command.peso_antes_embarazo_kg,
@@ -523,16 +527,23 @@ class AttentionService:
             )
 
     def _validate_vital_signs(self, command: AttentionCreate, age_in_months: int) -> None:
+        self._validate_measurements(
+            VitalSignPayload(
+                peso_kg=command.peso_kg,
+                talla_cm=command.talla_cm,
+                perimetro_abdominal_cm=command.perimetro_abdominal_cm,
+                presion_sistolica=command.presion_sistolica,
+                presion_diastolica=command.presion_diastolica,
+                temperatura_c=command.temperatura_c,
+            ),
+            age_in_months,
+        )
+
+    def _validate_measurements(self, values: VitalSignPayload, age_in_months: int) -> None:
+        """Preview and persistence must apply the same configured protocol."""
         try:
             self._clinical_protocol.validate(
-                VitalSignPayload(
-                    peso_kg=command.peso_kg,
-                    talla_cm=command.talla_cm,
-                    perimetro_abdominal_cm=command.perimetro_abdominal_cm,
-                    presion_sistolica=command.presion_sistolica,
-                    presion_diastolica=command.presion_diastolica,
-                    temperatura_c=command.temperatura_c,
-                ),
+                values,
                 age_in_months=age_in_months,
             )
         except ValueError as exc:

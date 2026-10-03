@@ -13,6 +13,23 @@ import { aPatient as patient } from './fixtures/patient'
 /** Respuesta del servidor: el paciente guardado con el PATCH aplicado. */
 const aPatientFrom = (patch: object) => patient(patch as Partial<Patient>)
 
+test('confirmed external condition refresh updates clean draft without marking it dirty', async () => {
+  const harness = setup(async () => patient())
+  try {
+    harness.source.value = patient({ condicion: 'PUERPERA' })
+    await nextTick()
+    expect(harness.editor.draft.condicion).toBe('PUERPERA')
+    expect(harness.editor.dirty.value).toBe(false)
+    harness.editor.draft.telefono_principal = '900000001'
+    harness.source.value = patient({ condicion: 'GESTANTE' })
+    await nextTick()
+    expect(harness.editor.draft.telefono_principal).toBe('900000001')
+    expect(harness.editor.dirty.value).toBe(true)
+  } finally {
+    harness.stop()
+  }
+})
+
 test('PATCH sends only changed columns, including clears; never child/derived fields', () => {
   const original = patient()
   const baseline = createPatientDraft(original)
@@ -34,13 +51,16 @@ test('PATCH sends only changed columns, including clears; never child/derived fi
 test('validation handles required values, real dates and residence hierarchy', () => {
   const draft = createPatientDraft(patient())
   expect(validatePatientDraft(draft, '2026-09-17')).toEqual({})
-  expect(validatePatientDraft({ ...draft, fecha_nacimiento: '' }, '2026-09-17').fecha_nacimiento)
-    .toBeTruthy()
   expect(
-    validatePatientDraft({ ...draft, fecha_nacimiento: '2026-02-30' }, '2026-09-17').fecha_nacimiento,
+    validatePatientDraft({ ...draft, fecha_nacimiento: '' }, '2026-09-17').fecha_nacimiento,
   ).toBeTruthy()
   expect(
-    validatePatientDraft({ ...draft, fecha_nacimiento: '2027-01-01' }, '2026-09-17').fecha_nacimiento,
+    validatePatientDraft({ ...draft, fecha_nacimiento: '2026-02-30' }, '2026-09-17')
+      .fecha_nacimiento,
+  ).toBeTruthy()
+  expect(
+    validatePatientDraft({ ...draft, fecha_nacimiento: '2027-01-01' }, '2026-09-17')
+      .fecha_nacimiento,
   ).toBeTruthy()
   expect(
     validatePatientDraft({ ...draft, numero_documento: ' ' }, '2026-09-17').numero_documento,
@@ -51,8 +71,9 @@ test('validation handles required values, real dates and residence hierarchy', (
       '2026-09-17',
     ).localidad_id,
   ).toBeTruthy()
-  expect(validatePatientDraft({ ...draft, localidad: '040101' }, '2026-09-17').localidad_id)
-    .toBeTruthy()
+  expect(
+    validatePatientDraft({ ...draft, localidad: '040101' }, '2026-09-17').localidad_id,
+  ).toBeTruthy()
 })
 
 test('editing the three visible SIS fields preserves an existing sequence without sending it', () => {

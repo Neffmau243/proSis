@@ -22,6 +22,7 @@ export interface AttentionDiagnosisItem {
 }
 
 export interface Attention {
+  valoracion_calculada?: NutritionalIndicatorsPreview | null
   fua_impresion: FuaPrintSnapshot | null
   id: number
   paciente_id: number
@@ -115,6 +116,8 @@ export interface AttentionCreatePayload {
 }
 
 export interface NutritionalIndicatorsPreviewPayload {
+  grupo_atencion_codigo?: CareGroupCode
+  peso_antes_embarazo_kg?: number | null
   paciente_id: number
   fecha_atencion: string
   peso_kg?: number | null
@@ -122,6 +125,14 @@ export interface NutritionalIndicatorsPreviewPayload {
 }
 
 export interface NutritionalIndicatorsPreview {
+  grupo_referencia?: 'INFANTIL' | 'ESCOLAR' | 'ADULTO' | 'ADULTO_MAYOR' | 'GESTANTE' | 'PUERPERA'
+  imc_edad?: string | null
+  diagnostico_imc?: string | null
+  imc_pregestacional?: string | null
+  ganancia_peso_kg?: string | null
+  diagnostico_peso_edad?: string | null
+  diagnostico_talla_edad?: string | null
+  diagnostico_peso_talla?: string | null
   imc: string | null
   pe: string | null
   te: string | null

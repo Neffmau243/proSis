@@ -56,14 +56,43 @@ const snapshot: FuaPrintSnapshot = {
   historia_clinica: 'HC-0001',
 }
 
-test('unsupported or mismatched TDI is a blocking problem, never an invented equivalence', () => {
+test('local document labels print without invented TDI; inconsistent identity still blocks', () => {
   expect(fuaIdentityProblem(snapshot)).toBeNull()
   expect(fuaIdentityProblem({ ...snapshot, tipo_documento: 'CE', tdi: '3' })).toBeNull()
   for (const tipo_documento of ['PAS', 'DE', 'OTRO']) {
-    expect(fuaIdentityProblem({ ...snapshot, tipo_documento, tdi: null })).toContain('No se puede imprimir')
+    expect(fuaIdentityProblem({ ...snapshot, tipo_documento, tdi: null })).toBeNull()
     expect(fuaIdentityProblem({ ...snapshot, tipo_documento, tdi: '2' })).toBeTruthy()
   }
   expect(fuaIdentityProblem({ ...snapshot, tdi: '3' })).toBeTruthy()
+  expect(fuaIdentityProblem({ ...snapshot, tipo_documento: 'UNKNOWN', tdi: null })).toBeTruthy()
+  expect(fuaIdentityProblem({ ...snapshot, numero_documento: ' ' })).toBeTruthy()
+})
+
+test.each(['PAS', 'DE', 'OTRO'])('prints %s and its number with an explicit local legend', (tipo_documento) => {
+  const source = { ...snapshot, tipo_documento, tdi: null, numero_documento: 'AB001234' }
+  const values = fuaValues(source)
+  expect(values.tdi).toBe(tipo_documento)
+  expect(values.numero_documento).toBe('AB001234')
+  expect(values.identity_note).toContain('Uso local; no es un código TDI SIS')
+  const layout = defaultFuaLayout()
+  expect(layoutProblems(layout, values)).toEqual([])
+  const html = fuaPrintHtml(layout, values)
+  expect(html).toContain('AB001234')
+  expect(html).toContain(values.identity_note)
+  expect(fuaPrintHtml(layout, values, true)).not.toContain('AB001234')
+  expect(source.tdi).toBeNull()
+  layout.fields.find((f) => f.id === 'identity_note')!.enabled = false
+  expect(layoutProblems(layout, values).length).toBeGreaterThan(0)
+})
+
+test('old calibration preserves coordinates and requires review of the new legend', () => {
+  const layout = { ...defaultFuaLayout(), calibrated: true }
+  layout.fields = layout.fields.filter((f) => f.id !== 'identity_note')
+  layout.fields[0]!.x = 20
+  const migrated = parseFuaLayout(JSON.stringify(layout))
+  expect(migrated.fields[0]!.x).toBe(20)
+  expect(migrated.fields.some((f) => f.id === 'identity_note')).toBe(true)
+  expect(migrated.calibrated).toBe(false)
 })
 
 test('typing a multi-word IPRESS name preserves space separators', () => {
@@ -92,7 +121,7 @@ test('FUA fields use marks, preserve leading zeros, split dates and never invent
   // El FUA impreso no trae número propio: lo asigna el backend al emitirlo.
   expect('numero_fua' in v).toBe(false)
   const missing = fuaValues({ ...snapshot, tdi: null, presion_diastolica: null })
-  expect(missing.numero_documento).toBe('')
+  expect(missing.numero_documento).toBe('01234567')
   expect(missing.pa).toBe('')
 })
 

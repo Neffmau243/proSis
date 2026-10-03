@@ -152,6 +152,7 @@ class Attention(Base):
     te: Mapped[str | None] = mapped_column(String(50), nullable=True)
     pt: Mapped[str | None] = mapped_column(String(50), nullable=True)
     referencia_nutricional: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    valoracion_calculada: Mapped[dict | None] = mapped_column(mysql.JSON, nullable=True)
     hora_inicio: Mapped[time | None] = mapped_column(Time, nullable=True)
     hora_fin: Mapped[time | None] = mapped_column(Time, nullable=True)
     admision: Mapped[str | None] = mapped_column(String(100), nullable=True)

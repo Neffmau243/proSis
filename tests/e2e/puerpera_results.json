@@ -1,0 +1,135 @@
+{
+  "database": "ipress_test_admission_20261001_fixes",
+  "patient_id": 6,
+  "attention_ids": [
+    14,
+    15,
+    16
+  ],
+  "cases": [
+    {
+      "case": "Alta adulta ficticia HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Atenci\u00f3n gestante previa HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Pu\u00e9rpera AMBULATORIA HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar AMBULATORIA HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Grupo y modalidad recuperados AMBULATORIA",
+      "pass": true
+    },
+    {
+      "case": "Sin arrastre obst\u00e9trico AMBULATORIA",
+      "pass": true
+    },
+    {
+      "case": "FUA puerperal sin FPP AMBULATORIA",
+      "pass": true
+    },
+    {
+      "case": "Persistencia MySQL AMBULATORIA",
+      "pass": true
+    },
+    {
+      "case": "Rechazo AMBULATORIA / tipo_embarazo_codigo HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazo AMBULATORIA / peso_antes_embarazo_kg HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazo AMBULATORIA / fecha_probable_parto HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazo AMBULATORIA / valoracion_nutricional HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Pu\u00e9rpera EMERGENCIA HTTP 201",
+      "pass": true
+    },
+    {
+      "case": "Recuperar EMERGENCIA HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Grupo y modalidad recuperados EMERGENCIA",
+      "pass": true
+    },
+    {
+      "case": "Sin arrastre obst\u00e9trico EMERGENCIA",
+      "pass": true
+    },
+    {
+      "case": "FUA puerperal sin FPP EMERGENCIA",
+      "pass": true
+    },
+    {
+      "case": "Persistencia MySQL EMERGENCIA",
+      "pass": true
+    },
+    {
+      "case": "Rechazo EMERGENCIA / tipo_embarazo_codigo HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazo EMERGENCIA / peso_antes_embarazo_kg HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazo EMERGENCIA / fecha_probable_parto HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Rechazo EMERGENCIA / valoracion_nutricional HTTP 422",
+      "pass": true
+    },
+    {
+      "case": "Intentos rechazados no crean atenciones",
+      "pass": true
+    },
+    {
+      "case": "Recuperar gestaci\u00f3n hist\u00f3rica HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Gestaci\u00f3n hist\u00f3rica intacta",
+      "pass": true
+    },
+    {
+      "case": "Revisar condici\u00f3n de ficha HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Condici\u00f3n no cambia autom\u00e1ticamente",
+      "pass": true
+    },
+    {
+      "case": "Actualizar condici\u00f3n expl\u00edcitamente HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Condici\u00f3n PUERPERA guardada",
+      "pass": true
+    },
+    {
+      "case": "Recuperar condici\u00f3n actualizada HTTP 200",
+      "pass": true
+    },
+    {
+      "case": "Condici\u00f3n PUERPERA recuperada",
+      "pass": true
+    }
+  ]
+}

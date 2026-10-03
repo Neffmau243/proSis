@@ -32,7 +32,9 @@ export function useAdmissionPatientEditor(options: {
   }
 
   // Related-record updates must not erase an unfinished patient draft.
-  watch(() => source().id, reset)
+  watch(source, (patient, previous) => {
+    if (patient.id !== previous.id || (!dirty.value && !saving.value)) reset()
+  })
 
   async function save(): Promise<void> {
     if (saving.value || toValue(options.blocked) || !toValue(options.canEdit) || !dirty.value)

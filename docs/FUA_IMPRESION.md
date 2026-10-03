@@ -1,9 +1,12 @@
-# Prellenado de la FUA SIS en papel
+# Prellenado de la FUA en papel para uso local
 
 ## Alcance y referencia
 
 Implementado como **prellenado parcial del anexo 1 (prestaciones de salud)**, no
 como FUA digital, emisión oficial, acreditación en línea ni envío SETI-SIS.
+El proyecto funciona localmente para un establecimiento. La impresión debe ser
+legible para revisión administrativa, sin presentar abreviaturas locales como
+equivalencias oficiales ni garantizar aceptación por el SIS.
 Referencia revisada: [RJ 000178-2024-SIS/J](https://www.gob.pe/institucion/sis/normas-legales/6245149-000178-2024-sis-j),
 [Directiva 002-2024-SIS/GREP V.02 actualizada, anexos 1 y 3](https://cdn.www.gob.pe/uploads/document/file/7310926/6245149-directiva-n-02-2024-sis-grep-v-02-actualizado.pdf?v=1733872542).
 Se verificaron el formulario (p. 11), las categorías (pp. 15–17), identificación y
@@ -77,7 +80,7 @@ reimprimirse con este flujo; requieren un procedimiento explícito de revisión.
 | --- | --- |
 | Personal y lugar de atención | Configuración del establecimiento guardada en backend; valores iniciales IPRESS e INTRAMURAL. AISPED requiere código. No se eligen al imprimir. |
 | Atención | Modalidad de la atención guardada. No se cambia desde la impresión. Es distinto del módulo de referencias de salida. |
-| Identificación | Documento del paciente. Mapeo explícito DNI → TDI 2, CE → TDI 3. PAS, DE y OTRO conservan tipo y número en la copia, pero bloquean la impresión hasta disponer de una equivalencia TDI verificada. No se permite confirmar un aviso para imprimirlos sin identificación. |
+| Identificación | Documento del paciente. DNI → TDI 2, CE → TDI 3. Para uso local, PAS, DE y OTRO imprimen su abreviatura y número, con una leyenda que explica el nombre del documento y aclara que no es código TDI SIS. El TDI del snapshot sigue nulo; no se modifican los registros históricos. Una identidad vacía, desconocida o inconsistente sigue bloqueando la impresión. |
 | Código del asegurado | `pacientes.sis_diresa`, `sis_tipo`, `sis_numero` y `sis_secuencia`; copia por atención solo cuando el seguro de la ficha pertenece al régimen SIS. Cambiar a otro régimen o quitar el seguro limpia la afiliación actual, sin modificar copias históricas. No se infiere afiliación del DNI. Secuencia no equivale a régimen. |
 | Apellidos, nombres y nacimiento | Datos del paciente al registrar la atención, incluidos otros nombres. Un apellido ausente queda vacío. |
 | Historia clínica | `historia_clinica_snapshot`, no la historia actual después de una modificación. |
@@ -123,7 +126,13 @@ visual de referencia. No es una afirmación de que la imagen de ayuda ni la hoja
 disponible en la IPRESS sean el FUA vigente. Ajuste ancho, alto, desplazamientos y
 cada campo (X/Y/ancho/alto/fuente/paso por carácter). El omitir caracteres
 iniciales permite no repetir un prefijo de año ya impreso. Los campos pueden
-desactivarse.
+desactivarse, excepto la identificación y su leyenda cuando contienen datos;
+no se permite omitir caracteres de esos campos.
+
+La leyenda de uso local tiene su propio campo ajustable. Las calibraciones
+anteriores conservan sus coordenadas y añaden este campo, pero requieren revisar
+y confirmar otra vez la alineación. Números largos no se recortan: amplíe el campo
+o ajuste su fuente dentro de los límites antes de imprimir.
 
 Pruebe cruces sin datos en papel blanco y superponga la hoja. Solo confirme la
 calibración después de comprobarla físicamente. Un cambio de geometría invalida

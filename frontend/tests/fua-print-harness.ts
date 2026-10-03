@@ -19,6 +19,12 @@ const sample: FuaPrintSnapshot = {
   presion_sistolica: 120, presion_diastolica: 80, imc: '23.438', perimetro_abdominal_cm: '80',
   grupo_atencion_codigo: 'NINOS_ADOLESCENTES_ADULTOS_MAYORES', fecha_probable_parto: null,
 }
+const documentCase = new URLSearchParams(location.search).get('document')
+if (documentCase && ['CE', 'PAS', 'DE', 'OTRO'].includes(documentCase)) {
+  sample.tipo_documento = documentCase
+  sample.tdi = documentCase === 'CE' ? '3' : null
+  sample.numero_documento = documentCase === 'CE' ? '001234567' : 'AB001234'
+}
 createApp({
   setup() {
     const visible = ref(true)

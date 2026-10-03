@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from dataclasses import asdict
 from datetime import date
 from decimal import Decimal
 
@@ -28,6 +29,7 @@ from app.schemas.attention import (
     AttentionResponse,
     NutritionalIndicatorsPreviewInput,
     NutritionalIndicatorsResponse,
+    NutritionalSnapshotInput,
 )
 from app.services.age_group import AgeGroupService
 from app.services.fua_print import build_fua_snapshot
@@ -133,6 +135,8 @@ class AttentionService:
             self._validate_clinical_context(command)
             self._validate_vital_signs(command, age_in_months)
             indicators = calculate_nutritional_indicators(
+                care_group=command.grupo_atencion_codigo.value,
+                pregestational_weight_kg=command.peso_antes_embarazo_kg,
                 birth_date=patient.fecha_nacimiento,
                 sex_code=patient.sexo_codigo,
                 measured_on=attention_date,
@@ -171,6 +175,7 @@ class AttentionService:
                 te=self._format_indicator(indicators.te),
                 pt=self._format_indicator(indicators.pt),
                 referencia_nutricional=indicators.referencia,
+                valoracion_calculada=NutritionalIndicatorsResponse(**asdict(indicators), **indicators.classifications).model_dump(mode="json"),
                 hora_inicio=command.hora_inicio,
                 hora_fin=command.hora_fin,
                 admision=command.admision,
@@ -189,6 +194,21 @@ class AttentionService:
             self._add_details(entity, command)
             self._add_nutritional_snapshot(entity, command, age, indicators)
             self._attentions.flush()
+            # The patient is already locked. Update the current condition in the
+            # same transaction; general encounters do not infer a new condition.
+            condition = {"GESTANTES": "GESTANTE", "PUERPERAS": "PUERPERA"}.get(
+                entity.grupo_atencion_codigo
+            )
+            if condition is not None and patient.condicion != condition:
+                previous_condition = patient.condicion
+                self._patients.update_fields(patient, {"condicion": condition})
+                self._patients.add_audit_entry(
+                    actor_id=actor_id,
+                    action="UPDATE",
+                    record_id=patient.id,
+                    before={"condicion": previous_condition},
+                    after={"condicion": condition, "atencion_id": entity.id},
+                )
             self._attentions.add_audit(
                 actor_id=actor_id,
                 action="INSERT",
@@ -240,6 +260,8 @@ class AttentionService:
                 message="La fecha de atención no puede ser anterior al nacimiento.",
             )
         indicators = calculate_nutritional_indicators(
+            care_group=command.grupo_atencion_codigo.value,
+            pregestational_weight_kg=command.peso_antes_embarazo_kg,
             birth_date=patient.fecha_nacimiento,
             sex_code=patient.sexo_codigo,
             measured_on=measured_on,
@@ -247,6 +269,12 @@ class AttentionService:
             height_cm=command.talla_cm,
         )
         return NutritionalIndicatorsResponse(
+            grupo_referencia=indicators.grupo_referencia,
+            imc_edad=indicators.imc_edad,
+            diagnostico_imc=indicators.diagnostico_imc,
+            imc_pregestacional=indicators.imc_pregestacional,
+            ganancia_peso_kg=indicators.ganancia_peso_kg,
+            **indicators.classifications,
             imc=indicators.imc,
             pe=indicators.pe,
             te=indicators.te,
@@ -543,8 +571,10 @@ class AttentionService:
         indicators: NutritionalIndicators,
     ) -> None:
         snapshot = command.valoracion_nutricional
-        if snapshot is None:
+        if snapshot is None and indicators.estado != "CALCULADO":
             return
+        if snapshot is None:
+            snapshot = NutritionalSnapshotInput()
         self._attentions.add_nutritional_evaluation(
             NutritionalEvaluation(
                 paciente_id=entity.paciente_id,
@@ -565,9 +595,7 @@ class AttentionService:
                 whz=indicators.pt,
                 haz=indicators.te,
                 waz=indicators.pe,
-                diagnostico_peso_edad=snapshot.diagnostico_peso_edad,
-                diagnostico_talla_edad=snapshot.diagnostico_talla_edad,
-                diagnostico_peso_talla=snapshot.diagnostico_peso_talla,
+                **indicators.classifications,
                 diagnostico=snapshot.diagnostico,
             )
         )

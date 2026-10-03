@@ -1,12 +1,15 @@
 import { onScopeDispose, readonly, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 
-import { atenciones, type NutritionalIndicatorsPreview } from '@/services/atenciones'
+import { atenciones, type NutritionalIndicatorsPreview, type CareGroupCode } from '@/services/atenciones'
 
 interface NutritionalIndicatorsPreviewSource {
   patientId: MaybeRefOrGetter<number | null>
   attendedAt: MaybeRefOrGetter<string>
   weightKg: MaybeRefOrGetter<number | null>
   heightCm: MaybeRefOrGetter<number | null>
+  patientRevision?: MaybeRefOrGetter<string | undefined>
+  careGroup?: MaybeRefOrGetter<CareGroupCode>
+  pregestationalWeightKg?: MaybeRefOrGetter<number | null>
 }
 
 /**
@@ -27,11 +30,15 @@ export function useNutritionalIndicatorsPreview(source: NutritionalIndicatorsPre
       () => toValue(source.attendedAt),
       () => toValue(source.weightKg),
       () => toValue(source.heightCm),
+      () => toValue(source.patientRevision),
+      () => toValue(source.careGroup),
+      () => toValue(source.pregestationalWeightKg),
     ],
-    ([patientId, attendedAt, weightKg, heightCm]) => {
+    ([patientId, attendedAt, weightKg, heightCm, , careGroup, preweight]) => {
       requestVersion += 1
       const version = requestVersion
       if (timer) clearTimeout(timer)
+      indicators.value = null
 
       if (!patientId || !attendedAt) {
         indicators.value = null
@@ -49,6 +56,7 @@ export function useNutritionalIndicatorsPreview(source: NutritionalIndicatorsPre
             fecha_atencion: attendedAt,
             peso_kg: weightKg,
             talla_cm: heightCm,
+            ...(careGroup ? { grupo_atencion_codigo: careGroup, peso_antes_embarazo_kg: preweight ?? null } : {}),
           })
           if (version === requestVersion) indicators.value = response
         } catch {

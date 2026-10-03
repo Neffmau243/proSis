@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -10,6 +11,35 @@ import pytest
 from app.exceptions import AuthorizationError
 from app.schemas.attention import AttentionCreate, CareGroupCode, PregnancyTypeCode
 from app.services.attention import AttentionService
+from app.domain.age import CalendarAge
+from app.domain.nutrition import calculate_nutritional_indicators
+
+
+@pytest.mark.parametrize("manual", [None, {"diagnostico_peso_edad": "TEXTO INCORRECTO"}])
+def test_nutritional_snapshot_is_calculated_without_trusting_preview(manual):
+    session = _RecordingSession()
+    service = AttentionService(session)
+    service._attentions = SimpleNamespace(add_nutritional_evaluation=session.add)
+    measured = datetime(2025, 1, 15)
+    command = AttentionCreate(
+        paciente_id=1, establecimiento_id=1, profesional_id=1, consultorio_id=1,
+        modalidad_atencion_codigo="AMBULATORIA", fecha_atencion=measured,
+        peso_kg=Decimal("9.5"), talla_cm=Decimal("75.2"), valoracion_nutricional=manual,
+    )
+    indicators = calculate_nutritional_indicators(
+        birth_date=date(2024, 1, 15), sex_code="M", measured_on=measured.date(),
+        weight_kg=command.peso_kg, height_cm=command.talla_cm,
+    )
+    entity = SimpleNamespace(id=42, paciente_id=1, establecimiento_id=1,
+        fecha_atencion=measured, peso_kg=command.peso_kg, talla_cm=command.talla_cm,
+        perimetro_abdominal_cm=None)
+    service._add_nutritional_snapshot(entity, command, CalendarAge(1, 0, 0), indicators)
+    assert len(session.added) == 1
+    saved = session.added[0]
+    assert saved.diagnostico_peso_edad == "Normal"
+    assert saved.diagnostico_talla_edad == "Normal"
+    assert saved.diagnostico_peso_talla == "Normal"
+    assert saved.waz == Decimal("-0.147")
 
 
 class _RecordingSession:

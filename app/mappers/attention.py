@@ -11,6 +11,7 @@ from app.schemas.attention import (
 
 def attention_to_response(entity: Attention) -> AttentionResponse:
     return AttentionResponse(
+        valoracion_calculada=getattr(entity, "valoracion_calculada", None),
         fua_impresion=entity.fua_impresion,
         id=entity.id,
         paciente_id=entity.paciente_id,

@@ -8,13 +8,14 @@ import AdmissionPatientSummary from '@/components/admission/AdmissionPatientSumm
 import AdmissionHistory from '@/components/admission/AdmissionHistory.vue'
 import { aPatient } from '../fixtures/patient'
 
-const { create, get, listByPatient } = vi.hoisted(() => ({
+const { create, get, listByPatient, previewNutritionalIndicators } = vi.hoisted(() => ({
+  previewNutritionalIndicators: vi.fn(async () => ({ estado: 'DATOS_INCOMPLETOS', mensaje: 'Ingrese peso y talla', pe: null, te: null, pt: null })),
   create: vi.fn(),
   get: vi.fn(),
   listByPatient: vi.fn(async () => []),
 }))
 vi.mock('@/services/pacientes', () => ({ pacientes: { get } }))
-vi.mock('@/services/atenciones', () => ({ atenciones: { create, listByPatient } }))
+vi.mock('@/services/atenciones', () => ({ atenciones: { create, listByPatient, previewNutritionalIndicators } }))
 vi.mock('@/services/catalogos', () => ({
   catalogos: {
     especialidades: async () => [{ codigo: '001', nombre: 'MEDICINA' }],
@@ -37,6 +38,25 @@ vi.mock('@/services/catalogos', () => ({
 }))
 
 const mounted: { unmount: () => void }[] = []
+
+test('la valoración muestra cálculos de solo lectura y descarta resultados al borrar medidas', async () => {
+  const wrapper = await mountAdmission()
+  const field = (label: string) => wrapper.findAllComponents(ElFormItem).find(item => item.props('label') === label)!
+  previewNutritionalIndicators.mockResolvedValueOnce({ estado: 'CALCULADO', mensaje: 'OMS 2006', pe: '-0.147', te: '-0.243', pt: '-0.056', diagnostico_peso_edad: 'Normal', diagnostico_talla_edad: 'Normal', diagnostico_peso_talla: 'Normal' } as never)
+  field('Peso actual (kg)').getComponent(ElInputNumber).vm.$emit('update:modelValue', 9.5)
+  field('Talla (cm)').getComponent(ElInputNumber).vm.$emit('update:modelValue', 75.2)
+  await new Promise(resolve => setTimeout(resolve, 400))
+  await flushPromises()
+  const output = field('Diagnóstico P/E').get('input')
+  expect(output.attributes('readonly')).toBeDefined()
+  expect((output.element as HTMLInputElement).value).toBe('Normal · Z: -0.147')
+  field('Peso actual (kg)').getComponent(ElInputNumber).vm.$emit('update:modelValue', null)
+  await flushPromises()
+  expect((field('Diagnóstico P/E').get('input').element as HTMLInputElement).value).toBe('Calculando…')
+  await new Promise(resolve => setTimeout(resolve, 400))
+  await flushPromises()
+  expect((field('Diagnóstico P/E').get('input').element as HTMLInputElement).value).toBe('No disponible')
+})
 afterEach(() => {
   while (mounted.length) mounted.pop()?.unmount()
   vi.clearAllMocks()
@@ -139,3 +159,69 @@ test(
     }
   },
 )
+
+test.each(['GESTANTES', 'PUERPERAS'])(
+  'guardar %s refresca la condición confirmada por el servidor',
+  async (group) => {
+    const wrapper = await mountAdmission()
+    const field = (label: string) =>
+      wrapper.findAllComponents(ElFormItem).find((item) => item.props('label') === label)!
+    field('Consultorio').getComponent(ElSelect).vm.$emit('update:modelValue', 3)
+    field('Profesional').getComponent(ElSelect).vm.$emit('update:modelValue', 2)
+    await wrapper.get(`input[value="${group}"]`).setValue(true)
+    const condition = group === 'GESTANTES' ? 'GESTANTE' : 'PUERPERA'
+    expect(wrapper.getComponent(AdmissionPatientSummary).props('patient').condicion).toBe(
+      'NO GESTANTE',
+    )
+    get.mockResolvedValue(aPatient({ condicion: condition }))
+    create.mockImplementation(async (payload) => ({ ...payload, id: 501, fua_impresion: null }))
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Guardar atención')!
+      .trigger('click')
+    await flushPromises()
+    expect(create).toHaveBeenCalledOnce()
+    expect(wrapper.getComponent(AdmissionPatientSummary).props('patient').condicion).toBe(condition)
+    expect(wrapper.text()).toContain('Atención guardada')
+  },
+)
+
+test('fallar el refresco de ficha después del POST no permite duplicar la atención', async () => {
+  const wrapper = await mountAdmission()
+  const field = (label: string) =>
+    wrapper.findAllComponents(ElFormItem).find((item) => item.props('label') === label)!
+  field('Consultorio').getComponent(ElSelect).vm.$emit('update:modelValue', 3)
+  field('Profesional').getComponent(ElSelect).vm.$emit('update:modelValue', 2)
+  await wrapper.get('input[value="PUERPERAS"]').setValue(true)
+  get.mockRejectedValue(new Error('Refresh unavailable'))
+  create.mockImplementation(async (payload) => ({ ...payload, id: 502, fua_impresion: null }))
+  const save = wrapper.findAll('button').find((b) => b.text() === 'Guardar atención')!
+  await save.trigger('click')
+  await flushPromises()
+  expect(wrapper.text()).toContain('Atención guardada')
+  await save.trigger('click')
+  await flushPromises()
+  expect(create).toHaveBeenCalledOnce()
+})
+
+test('una atención rechazada conserva la condición visible y no refresca la ficha', async () => {
+  const wrapper = await mountAdmission()
+  const field = (label: string) =>
+    wrapper.findAllComponents(ElFormItem).find((item) => item.props('label') === label)!
+  field('Consultorio').getComponent(ElSelect).vm.$emit('update:modelValue', 3)
+  field('Profesional').getComponent(ElSelect).vm.$emit('update:modelValue', 2)
+  await wrapper.get('input[value="GESTANTES"]').setValue(true)
+  const reads = get.mock.calls.length
+  create.mockRejectedValue(new Error('Atención rechazada de prueba'))
+  await wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'Guardar atención')!
+    .trigger('click')
+  await flushPromises()
+  expect(get.mock.calls.length).toBe(reads)
+  expect(wrapper.getComponent(AdmissionPatientSummary).props('patient').condicion).toBe(
+    'NO GESTANTE',
+  )
+  expect(wrapper.text()).toContain('Atención rechazada de prueba')
+  expect(wrapper.text()).not.toContain('Atención guardada')
+})

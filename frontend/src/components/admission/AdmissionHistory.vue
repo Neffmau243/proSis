@@ -1,5 +1,12 @@
 <script setup lang="ts">
 import type { Attention } from '@/services/atenciones'
+import { nutritionalRows } from '@/utils/nutritionalDisplay'
+
+function nutritionSummary(row: Attention): string {
+  return row.valoracion_calculada
+    ? nutritionalRows(row.valoracion_calculada).map(item => `${item.label}: ${item.value}`).join('; ')
+    : 'Sin valoración histórica calculada'
+}
 
 defineProps<{
   entries: Attention[]
@@ -67,7 +74,11 @@ function formatDate(value: string | null): string {
           <template #default="{ row }">{{ row.presion_sistolica ?? '—' }}</template>
         </el-table-column>
         <el-table-column label="IMC" width="50" align="center">
-          <template #default="{ row }">{{ row.imc ?? '—' }}</template>
+          <template #default="{ row }">
+            <el-tooltip :content="nutritionSummary(row)" placement="top">
+              <span tabindex="0" :aria-label="nutritionSummary(row)">{{ row.imc ?? '—' }}</span>
+            </el-tooltip>
+          </template>
         </el-table-column>
         <el-table-column label="P/E" width="42" align="center">
           <template #default="{ row }">{{ row.pe || '—' }}</template>

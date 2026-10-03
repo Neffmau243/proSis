@@ -41,10 +41,16 @@ export function validateFuaInput(value: FuaPrintInput): string[] {
   return errors
 }
 
+const LOCAL_DOCUMENT_LABELS: Record<string, string> = {
+  PAS: 'Pasaporte', DE: 'Documento extranjero', OTRO: 'Otro documento',
+}
+
 export function fuaIdentityProblem(s: FuaPrintSnapshot): string | null {
+  if (!s.numero_documento?.trim()) return 'Falta el número de documento. Revise la identificación guardada.'
   const expected = ({ DNI: '2', CE: '3' } as Record<string, string>)[s.tipo_documento]
+  if (Object.hasOwn(LOCAL_DOCUMENT_LABELS, s.tipo_documento) && s.tdi == null) return null
   if (!expected || s.tdi !== expected) {
-    return `No se puede imprimir: ${s.tipo_documento} no tiene una equivalencia TDI verificada. La identificación está conservada; valide el catálogo SIS antes de imprimir.`
+    return 'La identificación guardada tiene un tipo o TDI inconsistente. Revise el registro antes de imprimir.'
   }
   return null
 }
@@ -138,6 +144,7 @@ const seeds: [string, string, number, number, number, number?][] = [
   ['profesional_documento', 'Responsable · DNI', 5, 873, 98],
   ['profesional_nombre', 'Responsable · Nombre', 120, 873, 308],
   ['profesional_colegiatura', 'Responsable · Colegiatura', 445, 873, 151],
+  ['identity_note', 'Leyenda de documento · uso local', 5, 955, 590],
 ]
 
 export function defaultFuaLayout(): FuaLayout {
@@ -165,9 +172,13 @@ export function parseFuaLayout(raw: string): FuaLayout {
   const template = defaultFuaLayout()
   if (v.version !== 1 || !bounded(v.width, 100, 400) || !bounded(v.height, 150, 600) ||
     !bounded(v.offsetX, -50, 50) || !bounded(v.offsetY, -50, 50) ||
-    !Array.isArray(v.fields) || v.fields.length !== template.fields.length) throw new Error('Calibración inválida.')
+    !Array.isArray(v.fields) ||
+    (v.fields.length !== template.fields.length &&
+      !(v.fields.length === template.fields.length - 1 && !v.fields.some((f) => f.id === 'identity_note')))) throw new Error('Calibración inválida.')
+  const migrated = !v.fields.some((f) => f.id === 'identity_note')
   const fields = template.fields.map((original) => {
     const f = v.fields.find((entry) => entry.id === original.id)
+    if (!f && original.id === 'identity_note' && migrated) return original
     if (!f || !bounded(f.x, 0, 400) || !bounded(f.y, 0, 600) ||
       !bounded(f.width, 1, 400) || !bounded(f.height, 1, 30) ||
       !bounded(f.font, 5, 20) || !bounded(f.step, 0, 15) ||
@@ -176,7 +187,7 @@ export function parseFuaLayout(raw: string): FuaLayout {
       font: f.font, step: f.step, skip: f.skip, enabled: f.enabled !== false }
   })
   return { version: 1, width: v.width, height: v.height, offsetX: v.offsetX,
-    offsetY: v.offsetY, calibrated: v.calibrated === true, fields }
+    offsetY: v.offsetY, calibrated: v.calibrated === true && !migrated, fields }
 }
 
 export function fuaValues(s: FuaPrintSnapshot): Record<string, string> {
@@ -193,8 +204,13 @@ export function fuaValues(s: FuaPrintSnapshot): Record<string, string> {
   v.sis_numero_completo = [s.sis_tipo, s.sis_numero, s.version === 2 ? s.sis_secuencia : s.sis_componente].filter(Boolean).join('-')
   // Even a previously saved calibration must not overprint a preprinted RENIPRESS.
   if (s.renipress_preimpreso !== false) v.codigo_renipress = ''
-  // Never mislabel a passport/CNV as DNI. Unsupported identification stays blank.
-  if (!s.tdi) v.numero_documento = ''
+  // Local paper labels are not SIS codes; never mutate the saved snapshot/TDI.
+  const localLabel = Object.hasOwn(LOCAL_DOCUMENT_LABELS, s.tipo_documento)
+    ? LOCAL_DOCUMENT_LABELS[s.tipo_documento] : undefined
+  if (localLabel && s.tdi == null) {
+    v.tdi = s.tipo_documento
+    v.identity_note = `${s.tipo_documento} = ${localLabel}. Uso local; no es un código TDI SIS.`
+  }
   for (const [prefix, date] of [['nacimiento', s.fecha_nacimiento], ['atencion', s.fecha_atencion], ['parto', s.fecha_probable_parto]]) {
     const [year = '', month = '', day = ''] = (date || '').slice(0, 10).split('-')
     v[`${prefix}_dia`] = day
@@ -212,6 +228,11 @@ export function fuaValues(s: FuaPrintSnapshot): Record<string, string> {
 
 export function layoutProblems(layout: FuaLayout, values: Record<string, string>): string[] {
   const errors: string[] = []
+  for (const id of ['tdi', 'numero_documento', 'identity_note']) {
+    if (!values[id]) continue
+    const field = layout.fields.find((f) => f.id === id)
+    if (!field?.enabled || field.skip !== 0) errors.push('La identificación y su leyenda deben imprimirse completas; active los campos y no omita caracteres.')
+  }
   for (const f of layout.fields.filter((field) => field.enabled)) {
     const value = (values[f.id] || '').slice(f.skip)
     if (!value) continue

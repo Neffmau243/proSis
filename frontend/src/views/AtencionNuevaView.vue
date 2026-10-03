@@ -476,34 +476,13 @@
                   </div>
                 </div>
                 <el-row :gutter="isAdmission ? 12 : 16" class="nutrition-fields">
-                  <el-col :span="24">
-                    <el-form-item class="nutrition-field" label="Diagnóstico P/E">
-                      <el-input
-                        v-model="form.valoracion.diagnostico_peso_edad"
-                        maxlength="100"
-                        clearable
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="24">
-                    <el-form-item class="nutrition-field" label="Diagnóstico T/E">
-                      <el-input
-                        v-model="form.valoracion.diagnostico_talla_edad"
-                        maxlength="100"
-                        clearable
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="24">
-                    <el-form-item class="nutrition-field" label="Diagnóstico P/T">
-                      <el-input
-                        v-model="form.valoracion.diagnostico_peso_talla"
-                        maxlength="100"
-                        clearable
-                      />
+                  <el-col v-for="item in nutritionRows" :key="item.label" :span="24">
+                    <el-form-item class="nutrition-field" :label="item.label">
+                      <el-input :model-value="item.value" readonly />
                     </el-form-item>
                   </el-col>
                 </el-row>
+                <small role="status">{{ nutritionError || nutritionIndicators?.mensaje }}</small>
               </section>
             </el-form>
             <AdmissionFinalActions
@@ -583,6 +562,8 @@ import {
   type PregnancyTypeCode,
 } from '@/services/atenciones'
 import { formatCalendarAge } from '@/utils/calendarAge'
+import { useNutritionalIndicatorsPreview } from '@/composables/useNutritionalIndicatorsPreview'
+import { nutritionalRows } from '@/utils/nutritionalDisplay'
 import { PREGNANCY_TYPES } from '@/utils/pregnancy'
 
 const props = withDefaults(
@@ -648,11 +629,6 @@ const form = reactive({
   hora_inicio: null as string | null,
   hora_fin: null as string | null,
   admision: '',
-  valoracion: {
-    diagnostico_peso_edad: '',
-    diagnostico_talla_edad: '',
-    diagnostico_peso_talla: '',
-  },
 })
 
 const { fuaDialog, fuaSnapshot, attentionCreated, remember } = useSavedAdmission(
@@ -698,15 +674,19 @@ const nutritionalAge = computed(() => {
   return formatCalendarAge(birthDate, form.fecha_atencion || new Date()) ?? '—'
 })
 
-/** ¿El profesional registró algún dato de la valoración nutricional? */
-const hasNutritionalData = computed(() => {
-  const valoracion = form.valoracion
-  return Boolean(
-    valoracion.diagnostico_peso_edad.trim() ||
-    valoracion.diagnostico_talla_edad.trim() ||
-    valoracion.diagnostico_peso_talla.trim(),
-  )
+const { indicators: nutritionIndicators, loading: nutritionLoading, error: nutritionError } = useNutritionalIndicatorsPreview({
+  patientId: () => nutritionalPatient.value?.id ?? null,
+  attendedAt: () => form.fecha_atencion,
+  weightKg: () => form.peso_kg,
+  heightCm: () => form.talla_cm,
+  patientRevision: () => `${nutritionalPatient.value?.fecha_nacimiento}|${nutritionalPatient.value?.sexo_codigo}`,
+  careGroup: () => selectedCareGroup.value,
+  pregestationalWeightKg: () => form.peso_antes_embarazo_kg,
 })
+
+const nutritionRows = computed(() => nutritionLoading.value || nutritionError.value
+  ? nutritionalRows(null).map(item => ({ ...item, value: nutritionLoading.value ? 'Calculando…' : 'No disponible' }))
+  : nutritionalRows(nutritionIndicators.value))
 
 function patientIdFromQuery(value: unknown): number | null {
   const rawValue = Array.isArray(value) ? value[0] : value
@@ -767,13 +747,8 @@ function onPatientRemoved(removed: Patient): void {
 
 /** Convierte el bloque en el payload del backend; `null` si no se registró nada. */
 function buildNutritionalPayload(): NutritionalSnapshotPayload | null {
-  if (!hasNutritionalData.value) return null
-  const valoracion = form.valoracion
-  return {
-    diagnostico_peso_edad: valoracion.diagnostico_peso_edad.trim() || null,
-    diagnostico_talla_edad: valoracion.diagnostico_talla_edad.trim() || null,
-    diagnostico_peso_talla: valoracion.diagnostico_peso_talla.trim() || null,
-  }
+  // The server recalculates and persists the classifications atomically.
+  return null
 }
 
 function selectCareGroup(group: CareGroupCode): void {
@@ -950,6 +925,15 @@ async function submit(): Promise<void> {
     remember(created)
     ElMessage.success('Atención guardada correctamente.')
     void loadHistorial()
+    // Refresh from the committed patient, never infer a successful update from
+    // the selected radio. A refresh failure must not invite a duplicate POST.
+    try {
+      applyUpdatedPatient(await pacientes.get(created.paciente_id))
+    } catch {
+      ElMessage.warning(
+        'La atención está guardada, pero no se pudo refrescar la ficha. Recargue para ver la condición actualizada.',
+      )
+    }
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : 'No se pudo registrar la atención.'

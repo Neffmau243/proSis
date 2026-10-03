@@ -124,7 +124,7 @@ async function print(test: boolean): Promise<void> {
 <template>
   <el-dialog
     v-model="visible"
-    title="Imprimir S.I.S. · FUA preimpresa"
+    title="Imprimir FUA · uso local"
     width="min(1120px, 96vw)"
     top="3vh"
     :close-on-click-modal="false"
@@ -132,10 +132,11 @@ async function print(test: boolean): Promise<void> {
   >
     <p class="fua-intro">
       Copia conservada al guardar la atención. Reimprimir no crea otra consulta. Solo se imprimen
-      datos y marcas; el número del formulario preimpreso no se reemplaza.
+      datos y marcas; el número del formulario preimpreso no se reemplaza. Este sistema no envía datos al SIS.
     </p>
     <el-alert v-if="localError" :title="localError" type="error" :closable="false" />
     <el-alert v-if="identityProblem" :title="identityProblem" type="error" :closable="false" />
+    <el-alert v-if="values.identity_note" :title="values.identity_note" type="info" :closable="false" />
     <el-tabs v-model="tab">
       <el-tab-pane label="Datos de la FUA" name="datos">
         <dl class="fua-summary">
@@ -193,8 +194,8 @@ async function print(test: boolean): Promise<void> {
           <div>
             <dt>Identificación</dt>
             <dd>
-              {{ snapshot.tipo_documento }} {{ snapshot.numero_documento }} · TDI
-              {{ snapshot.tdi || 'sin equivalencia' }}
+              {{ snapshot.tipo_documento }} {{ snapshot.numero_documento }} ·
+              {{ snapshot.tdi ? `TDI ${snapshot.tdi}` : 'Tipo indicado con abreviatura de uso local' }}
             </dd>
           </div>
           <div>
@@ -382,7 +383,7 @@ async function print(test: boolean): Promise<void> {
       <div class="fua-footer">
         <span v-if="!canPrint">{{
           identityProblem
-            ? 'Impresión pendiente de equivalencia TDI verificada.'
+            ? 'Revise la identificación guardada.'
             : !layout.calibrated || geometryErrors.length
               ? 'Revise la pestaña de calibración.'
               : 'Confirme los campos pendientes en Datos de la FUA.'

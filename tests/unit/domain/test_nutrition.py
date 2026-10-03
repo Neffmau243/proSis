@@ -1,7 +1,29 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from app.domain.nutrition import WHO_2006_REFERENCE, calculate_nutritional_indicators
+from app.domain.nutrition import classify_score
+
+
+@pytest.mark.parametrize("kind,score,expected", [
+    ("pe", "-3.001", "Bajo peso severo"), ("pe", "-3", "Bajo peso"),
+    ("pe", "-2", "Normal"), ("pe", "1.001", "Evaluar IMC/edad"),
+    ("te", "-3.001", "Talla baja severa"), ("te", "-3", "Talla baja"),
+    ("te", "-2", "Normal"), ("te", "3", "Normal"), ("te", "3.001", "Talla alta"),
+    ("pt", "-3.001", "Emaciación severa"), ("pt", "-3", "Emaciación"),
+    ("pt", "-2", "Normal"), ("pt", "1", "Normal"),
+    ("pt", "1.001", "Riesgo de sobrepeso"), ("pt", "2", "Riesgo de sobrepeso"),
+    ("pt", "2.001", "Sobrepeso"), ("pt", "3", "Sobrepeso"),
+    ("pt", "3.001", "Obesidad"),
+])
+def test_classification_thresholds(kind, score, expected):
+    assert classify_score(Decimal(score), kind) == expected
+
+
+def test_no_classification_without_score():
+    assert classify_score(None, "pt") is None
 
 
 def test_calculates_who_2006_scores_for_a_child_with_complete_measurements() -> None:
@@ -32,8 +54,9 @@ def test_keeps_bmi_but_does_not_extrapolate_child_scores_for_an_adult() -> None:
 
     assert indicators.imc == Decimal("23.438")
     assert (indicators.pe, indicators.te, indicators.pt) == (None, None, None)
-    assert indicators.estado == "NO_APLICA_EDAD"
-    assert indicators.referencia is None
+    assert indicators.estado == "CALCULADO"
+    assert indicators.diagnostico_imc == "Normal"
+    assert indicators.grupo_referencia == "ADULTO"
 
 
 def test_requires_weight_and_height_before_calculating_indicators() -> None:

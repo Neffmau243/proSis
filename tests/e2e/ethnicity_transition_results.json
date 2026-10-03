@@ -1,0 +1,1131 @@
+{
+  "database": "ipress_test_admission_20261001_fixes",
+  "checks": [
+    {
+      "name": "POST /auth/login: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1508: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/330: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/330: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "DNI: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3158: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1508: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/330: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/330: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "DNI: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3159: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1508: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/330: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/330: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "DNI: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3160: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1508: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/330: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/330: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "DNI: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3161: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1508: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DNI: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/330: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "DNI: rejected requests create no attentions",
+      "passed": true
+    },
+    {
+      "name": "DNI: rejected ethnicity leaves patient unchanged",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1868: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/390: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/390: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "CE: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3162: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1868: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/390: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/390: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "CE: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3163: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1868: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/390: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/390: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "CE: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3164: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1868: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/390: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/390: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "CE: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3165: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/1868: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "CE: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/390: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "CE: rejected requests create no attentions",
+      "passed": true
+    },
+    {
+      "name": "CE: rejected ethnicity leaves patient unchanged",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2228: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/450: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/450: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "PAS: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3166: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2228: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/450: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/450: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "PAS: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3167: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2228: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/450: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/450: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "PAS: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3168: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2228: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/450: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/450: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "PAS: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3169: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2228: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PAS: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/450: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "PAS: rejected requests create no attentions",
+      "passed": true
+    },
+    {
+      "name": "PAS: rejected ethnicity leaves patient unchanged",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2588: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/510: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/510: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "DE: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3170: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2588: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/510: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/510: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "DE: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3171: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2588: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/510: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/510: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "DE: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3172: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2588: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/510: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/510: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "DE: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3173: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2588: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "DE: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/510: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "DE: rejected requests create no attentions",
+      "passed": true
+    },
+    {
+      "name": "DE: rejected ethnicity leaves patient unchanged",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2948: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/570: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/570: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "OTRO: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3174: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2948: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/570: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/570: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "OTRO: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3175: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2948: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/570: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/570: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "OTRO: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3176: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2948: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/570: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "GET /patients/570: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: ethnicity PATCH/GET",
+      "passed": true
+    },
+    {
+      "name": "OTRO: ethnicity SQL",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 201",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/3177: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: new FUA uses edited ethnicity",
+      "passed": true
+    },
+    {
+      "name": "GET /atenciones/2948: HTTP 200",
+      "passed": true
+    },
+    {
+      "name": "OTRO: old FUA remains immutable",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "POST /atenciones: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "PATCH /patients/570: HTTP 422",
+      "passed": true
+    },
+    {
+      "name": "OTRO: rejected requests create no attentions",
+      "passed": true
+    },
+    {
+      "name": "OTRO: rejected ethnicity leaves patient unchanged",
+      "passed": true
+    }
+  ],
+  "passed": 281,
+  "failed": 0
+}

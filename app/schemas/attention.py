@@ -154,12 +154,22 @@ class NutritionalIndicatorsPreviewInput(BaseModel):
     """Only measurements and patient context used for a server-side preview."""
 
     paciente_id: Annotated[int, Field(gt=0)]
+    grupo_atencion_codigo: CareGroupCode = CareGroupCode.GENERAL
+    peso_antes_embarazo_kg: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
     fecha_atencion: datetime
     peso_kg: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
     talla_cm: Annotated[Decimal, Field(gt=0, max_digits=6, decimal_places=2)] | None = None
 
 
 class NutritionalIndicatorsResponse(BaseModel):
+    grupo_referencia: str = "INFANTIL"
+    imc_edad: Decimal | None = None
+    diagnostico_imc: str | None = None
+    imc_pregestacional: Decimal | None = None
+    ganancia_peso_kg: Decimal | None = None
+    diagnostico_peso_edad: str | None = None
+    diagnostico_talla_edad: str | None = None
+    diagnostico_peso_talla: str | None = None
     imc: Decimal | None
     pe: Decimal | None
     te: Decimal | None
@@ -187,6 +197,7 @@ class AttentionDiagnosisResponse(BaseModel):
 
 
 class AttentionResponse(BaseModel):
+    valoracion_calculada: NutritionalIndicatorsResponse | None = None
     model_config = ConfigDict(from_attributes=True)
 
     fua_impresion: FuaPrintSnapshot | None = None

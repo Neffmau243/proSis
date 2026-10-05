@@ -12,7 +12,7 @@ import httpx
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from audit_admission import ROOT, TEST_PASSWORD, TEST_USER, configure
+from audit_admission import TEST_PASSWORD, TEST_USER, configure
 from app.models.patient import Patient
 from app.models.clinical import Attention
 

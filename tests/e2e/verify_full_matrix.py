@@ -5,7 +5,6 @@ Not a browser test. Creates synthetic data only; never removes existing records.
 """
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 

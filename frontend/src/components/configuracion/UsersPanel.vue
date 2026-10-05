@@ -10,7 +10,7 @@
     </div>
 
     <el-alert
-      v-if="errorMessage"
+      v-if="errorMessage && !createVisible && !rolesVisible && !passwordVisible"
       :title="errorMessage"
       type="error"
       :closable="false"
@@ -50,7 +50,7 @@
           <el-button
             link
             type="primary"
-            :disabled="!row.activo"
+            :disabled="!row.activo || row.id === auth.usuarioId"
             @click="openPassword(row)"
           >
             Contraseña
@@ -69,6 +69,7 @@
 
     <!-- Alta de cuenta -->
     <el-dialog v-model="createVisible" title="Nuevo usuario" width="560px">
+      <el-alert v-if="errorMessage" :title="errorMessage" type="error" :closable="false" class="form-alert" />
       <el-form ref="createRef" :model="createForm" :rules="createRules" label-width="170px">
         <el-form-item label="Nombre de usuario" prop="nombre_usuario">
           <el-input v-model="createForm.nombre_usuario" placeholder="nombre.usuario (mín. 3)" />
@@ -131,6 +132,7 @@
 
     <!-- Roles -->
     <el-dialog v-model="rolesVisible" title="Roles del usuario" width="440px">
+      <el-alert v-if="errorMessage" :title="errorMessage" type="error" :closable="false" class="form-alert" />
       <p class="dialog-hint">
         Usuario <strong>{{ rolesTarget?.nombre_usuario }}</strong>.
         <template v-if="!rolesTarget?.profesional_id">
@@ -151,6 +153,7 @@
 
     <!-- Restablecer contraseña -->
     <el-dialog v-model="passwordVisible" title="Restablecer contraseña" width="460px">
+      <el-alert v-if="errorMessage" :title="errorMessage" type="error" :closable="false" class="form-alert" />
       <p class="dialog-hint">
         Nueva contraseña para <strong>{{ passwordTarget?.nombre_usuario }}</strong>. Ocho dígitos.
       </p>
@@ -331,6 +334,7 @@ async function searchProfesionales(query: string): Promise<void> {
 }
 
 function openCreate(professionalId: number | null = null): void {
+  errorMessage.value = null
   createForm.nombre_usuario = ''
   createForm.password = ''
   createForm.confirm = ''

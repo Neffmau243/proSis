@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { Attention } from '@/services/atenciones'
-import { nutritionalRows, nutritionalBmiSummary, nutritionalHistoryValue } from '@/utils/nutritionalDisplay'
+import { nutritionalRows, nutritionalStatus, nutritionalHistoryValue } from '@/utils/nutritionalDisplay'
 
 function nutritionSummary(row: Attention): string {
   return row.valoracion_calculada
-    ? [nutritionalBmiSummary(row.valoracion_calculada), ...nutritionalRows(row.valoracion_calculada).map(item => `${item.label}: ${item.value}`)].filter(Boolean).join('; ')
+    ? [nutritionalStatus(row.valoracion_calculada), ...nutritionalRows(row.valoracion_calculada).map(item => `${item.label}: ${item.value}`)].filter(Boolean).join('; ')
     : row.imc != null ? `IMC: ${row.imc}. Sin clasificación histórica guardada` : 'Sin valoración histórica calculada'
 }
 
@@ -100,6 +100,11 @@ function formatDate(value: string | null): string {
           </template>
         </el-table-column>
       </el-table>
+      <p v-if="entries.length" class="admission-history__description">
+        P/E: peso/edad · T/E: talla/edad · P/T: peso/talla.
+        «No aplica»: fuera de la referencia por edad o grupo de atención; no es un fallo del cálculo.
+        «—»: sin resultado guardado. En IMC puede consultar el detalle de la valoración.
+      </p>
     </div>
   </el-card>
 </template>

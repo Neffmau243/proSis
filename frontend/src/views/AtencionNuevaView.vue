@@ -691,8 +691,7 @@ const nutritionRows = computed(() => nutritionLoading.value || nutritionError.va
 const nutritionStatus = computed(() => {
   if (nutritionLoading.value) return 'Calculando…'
   if (nutritionError.value) return nutritionError.value
-  return [nutritionalBmiSummary(nutritionIndicators.value), nutritionIndicators.value?.mensaje]
-    .filter(Boolean).join('. ')
+  return nutritionalBmiSummary(nutritionIndicators.value) || nutritionIndicators.value?.mensaje || ''
 })
 
 function patientIdFromQuery(value: unknown): number | null {

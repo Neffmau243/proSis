@@ -165,6 +165,45 @@ test('sin profesional vinculado no se puede asignar PROFESIONAL', async () => {
   expect(updateRoles).toHaveBeenCalledWith(1, ['ADMIN'])
 })
 
+test('un error al guardar roles se muestra dentro del diálogo abierto', async () => {
+  const { wrapper } = await mountPanel()
+  await button(wrapper, 'Roles').trigger('click')
+  wrapper.findComponent({ name: 'ElCheckboxGroup' }).vm.$emit('update:modelValue', [])
+  await flushPromises()
+  await button(wrapper, 'Guardar roles').trigger('click')
+  await flushPromises()
+
+  expect(updateRoles).not.toHaveBeenCalled()
+  const dialog = wrapper.findAll('[role="dialog"]').find(item => item.text().includes('Roles del usuario'))!
+  expect(dialog.get('[role="alert"]').text()).toContain('Seleccione al menos un rol.')
+})
+
+test('el error del servidor en el alta permanece visible en el formulario', async () => {
+  create.mockRejectedValueOnce(new Error('El nombre de usuario ya está registrado.'))
+  const { wrapper } = await mountPanel()
+  await button(wrapper, 'Nuevo usuario').trigger('click')
+  await flushPromises()
+  await setField(wrapper, 'Nombre de usuario', 'usuario.prueba')
+  await setField(wrapper, 'Contraseña', '12345678')
+  await setField(wrapper, 'Confirmar contraseña', '12345678')
+  wrapper.findComponent({ name: 'ElCheckboxGroup' }).vm.$emit('update:modelValue', ['ADMIN'])
+  await flushPromises()
+  await button(wrapper, 'Crear usuario').trigger('click')
+  await flushPromises()
+
+  const dialog = wrapper.findAll('[role="dialog"]').find(item => item.text().includes('Nuevo usuario'))!
+  expect(dialog.get('[role="alert"]').text()).toContain('El nombre de usuario ya está registrado.')
+  expect(wrapper.emitted('refresh')).toBeUndefined()
+})
+
+test('la cuenta propia no ofrece restablecimiento administrativo de contraseña', async () => {
+  const { wrapper, auth } = await mountPanel()
+  auth.usuarioId = 1
+  await flushPromises()
+  expect(button(wrapper, 'Contraseña').attributes('disabled')).toBeDefined()
+  expect(button(wrapper, 'Dar de baja').attributes('disabled')).toBeDefined()
+})
+
 test('con profesional vinculado se puede guardar PROFESIONAL', async () => {
   const { wrapper } = await mountPanel({ rows: [aUser({ profesional_id: 5 })] })
   await button(wrapper, 'Roles').trigger('click')

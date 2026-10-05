@@ -12,6 +12,31 @@ export function nutritionalBmiSummary(result: NutritionalIndicatorsPreview | nul
   return parts.join(' · ')
 }
 
+/** Explain the scope of the reference selected by the server, without extrapolating scores. */
+export function nutritionalLimits(result: NutritionalIndicatorsPreview | null): string {
+  if (!result) return ''
+  switch (result.grupo_referencia) {
+    case 'ADULTO':
+    case 'ADULTO_MAYOR':
+      return 'P/E, T/E y P/T no aplican: esta edad está fuera de las tablas de crecimiento utilizadas. La valoración disponible es por IMC.'
+    case 'GESTANTE':
+      return 'P/E, T/E y P/T no aplican al grupo Gestantes. Se muestran el IMC pregestacional y el cambio de peso cuando hay datos suficientes.'
+    case 'PUERPERA':
+      return 'P/E, T/E y P/T no aplican al grupo Puérperas. Se muestra el IMC actual de seguimiento, sin clasificación automática.'
+    case 'ESCOLAR':
+      return 'P/T corresponde a la referencia infantil. OMS 2007 cubre T/E e IMC/edad de 61 a 228 meses y P/E hasta 120 meses. Fuera de esos rangos no se extrapolan resultados.'
+    default:
+      return 'Referencia infantil OMS 2006 (hasta aproximadamente 60 meses). P/T también depende del rango de talla de la tabla.'
+  }
+}
+
+export function nutritionalStatus(result: NutritionalIndicatorsPreview | null): string {
+  if (!result) return 'Ingrese peso y talla y revise la fecha de atención para calcular la valoración.'
+  const summary = nutritionalBmiSummary(result)
+  return [summary ? `Resultado disponible: ${summary}.` : '', nutritionalLimits(result), result.mensaje]
+    .filter(Boolean).join(' ')
+}
+
 type NutritionHistory = Pick<Attention, 'pe' | 'te' | 'pt' | 'edad_anios' | 'grupo_atencion_codigo' | 'valoracion_calculada'>
 
 /** Preserve saved scores; explain applicability even for entries without a snapshot. */
